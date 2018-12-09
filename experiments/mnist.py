@@ -28,16 +28,16 @@ def train(net, device, train_loader, epoch):
         optimizer.step()
         if batch_idx % 10 == 0:
 #            if batch_idx % (500 * epoch)  == 0:
-#                if (knl.mRand.chance(0.9)):
-#                    net.resize_kernel(knl.mRand.uint(0,2))
+#                if (ctx.mRand.chance(0.9)):
+#                    net.resize_kernel(ctx.mRand.uint(0,2))
 #                else:
-#                    if (knl.mRand.chance(0.9)):
-#                        net.add_nodes(knl.mRand.uint(0,2))
+#                    if (ctx.mRand.chance(0.9)):
+#                        net.add_nodes(ctx.mRand.uint(0,2))
 #                    else:
-#                        net.erase_nodes(knl.mRand.uint(0,2))
+#                        net.erase_nodes(ctx.mRand.uint(0,2))
 
-#                net.resize_kernel(knl.mRand.uint(0,2))
-#                knl.pause()
+#                net.resize_kernel(ctx.mRand.uint(0,2))
+#                ctx.pause()
 
 #            model = net.to(device)
 #            optimizer = optim.Adadelta(model.parameters())

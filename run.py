@@ -46,28 +46,28 @@ def main():
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
     # Data loaders
-#    batch_size = knl.mConf.Learning.BatchSize
+#    batch_size = ctx.mConf.Learning.BatchSize
     train_loader = mnist.train_loader(args.train_batch_size, **kwargs)
     test_loader = mnist.test_loader(args.test_batch_size, **kwargs)
 
     # Network
-    p1 = knl.Net()
+    p1 = ctx.Net()
     p1.add_layer(_shape = [5, 0, 0], _layer_index = 1)
-    p2 = knl.Net()
+    p2 = ctx.Net()
     p2.add_nodes(2, 2)
 
     p1.add_layer(_shape = [10], _layer_index = 3)
 
     # Train / test loop
 
-    for ID, net in knl.Net.population.items():
+    for ID, net in ctx.Net.population.items():
 #        for epoch in range(1, args.epoch + 1):
         for epoch in range(1, 2):
 
             model, loss = mnist.train(net, device, train_loader, epoch)
             mnist.test(model, device, test_loader)
 
-    offspring = knl.Net(_p1 = knl.Net.population[1], _p2 = knl.Net.population[2])
+    offspring = ctx.Net(_p1 = ctx.Net.population[1], _p2 = ctx.Net.population[2])
     offspring.print()
 
 #    for epoch in range(1, 2):

@@ -13,18 +13,18 @@ import torch.nn.functional as tnf
 
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
-from kernel import kernel as knl
-from kernel.network import Net
-from kernel.layer import Layer
+from cortex import cortex as ctx
+from cortex.network import Net
+from cortex.layer import Layer
 
 import random
 import copy
 
 random.seed()
 
-#import knl.rand as Rand
-#import knl.statistics as Stat
-#import knl.functions as Func
+#import ctx.rand as Rand
+#import ctx.statistics as Stat
+#import ctx.functions as Func
 
 #
 #def test_conf():
@@ -70,11 +70,11 @@ random.seed()
 
 #print("\n======================================\n")
 
-#test_stat(knl.MA.Simple)
+#test_stat(ctx.MA.Simple)
 
 #print("\n======================================\n")
 
-#test_stat(knl.MA.Exponential)
+#test_stat(ctx.MA.Exponential)
 
 #print("\n======================================\n")
 
@@ -437,9 +437,9 @@ random.seed()
 #
 #print("\n======================================\n")
 
-#net = knl.mNet.Net()
+#net = ctx.mNet.Net()
 #
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #print(net.layers[0].weight)
 #print(net.layers[0].mask)
@@ -458,38 +458,38 @@ random.seed()
 #net.add_nodes(0)
 #Layer.apply_mask(net.layers[0])
 #
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 
 #net.add_nodes(0, 2)
 #print("\n=================================\n")
 #print("After adding nodes")
 #print("\n=================================\n")
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #net.add_nodes(1, 2)
 #print("\n=================================\n")
 #print("After adding nodes")
 #print("\n=================================\n")
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #net.add_nodes(1, 2)
 #print("\n=================================\n")
 #print("After adding nodes")
 #print("\n=================================\n")
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 
 #for param in net.parameters():
 #    print(">>> param:\n", param)
 #
 #print("\n======================================\n")
 #
-#net = knl.mNet.Net()
+#net = ctx.mNet.Net()
 #
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #net.resize_kernel(0)
 #
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 
 #print("\n======================================\n")
 #
@@ -555,30 +555,30 @@ random.seed()
 
 #print("\n======================================\n")
 #
-#net = knl.mNet.Net()
-#knl.mNet.print_net(net)
+#net = ctx.mNet.Net()
+#ctx.mNet.print_net(net)
 #
 #net.erase_layer(1)
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #net.add_layer(_shape = [10], _layer_idx = 1)
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #print("\n======================================\n")
 #
-#net = knl.mNet.Net()
-#knl.mNet.print_net(net)
+#net = ctx.mNet.Net()
+#ctx.mNet.print_net(net)
 #
 #print(">>> Layers:", len(net.layers))
 #
 #for n in range(100):
-#    layer_idx = knl.mRand.uint(0,len(net.layers) - 1)
+#    layer_idx = ctx.mRand.uint(0,len(net.layers) - 1)
 #    shape = net.get_output_shape(layer_idx)
-#    shape[0] = knl.mRand.uint(1,10)
+#    shape[0] = ctx.mRand.uint(1,10)
 #    if net.erase_layer(layer_idx):
 #        net.add_layer(_layer_idx = layer_idx, _shape = shape)
 #
-#knl.mNet.print_net(net)
+#ctx.mNet.print_net(net)
 #
 #print("\n======================================\n")
 #
@@ -592,16 +592,16 @@ random.seed()
 #
 #print("\n======================================\n")
 #
-#p1 = knl.Net()
+#p1 = ctx.Net()
 #p1.add_layer(_shape = [5, 0, 0], _layer_index = 1)
-#p2 = knl.Net()
+#p2 = ctx.Net()
 #p2.add_nodes(2, 2)
 #
 #index = 2
 #
 #p1.add_layer(_shape = [10], _layer_index = 3)
 #
-#offspring = knl.Net(_p1 = p1, _p2 = p2)
+#offspring = ctx.Net(_p1 = p1, _p2 = p2)
 #offspring.print()
 #
 #f_p1 = None
@@ -630,12 +630,12 @@ random.seed()
 
 #print("\n======================================\n")
 #
-#knl.init()
+#ctx.init()
 #
 #print("\n======================================\n")
 #
-#net = knl.mNet.Net()
-#knl.mNet.Net.population[net.ID] = net
+#net = ctx.mNet.Net()
+#ctx.mNet.Net.population[net.ID] = net
 #
 #net.mutate()
 #print("\n======================================\n")
@@ -655,7 +655,7 @@ random.seed()
 #
 #print("\n======================================\n")
 #
-#layer = Layer(knl.Net.Init.Layers[0], knl.Net.Input.Shape)
+#layer = Layer(ctx.Net.Init.Layers[0], ctx.Net.Input.Shape)
 #print("================[ Initial layer ]================")
 #layer.print()
 #
@@ -679,7 +679,7 @@ random.seed()
 #print("\n======================================\n")
 
 #for i in range(100):
-    #net = knl.Net()
+    #net = ctx.Net()
     ##net.print('before_mutation.txt', True)
     ##success = net.add_layer()
     ##success = net.erase_layer()
@@ -690,7 +690,7 @@ random.seed()
     ##net.print('after_mutation.txt', True)
     #model = net.to('cpu')
 
-    #tensor = torch.randn(knl.BatchSize, *knl.Net.Input.Shape)
+    #tensor = torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)
     #print("Input size:", tensor.size())
     #output = model(tensor)
     #print(output)
@@ -704,10 +704,10 @@ random.seed()
         #print("!!! Failed !!!")
         #break
     #model = net.to('cpu')
-    #model(torch.randn(knl.BatchSize, *knl.Net.Input.Shape))
-    #knl.pause()
+    #model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape))
+    #ctx.pause()
 
-#knl.init()
+#ctx.init()
 
 #print("\n======================================\n")
 
@@ -741,91 +741,128 @@ random.seed()
 print("\n======================================\n")
 
 from colorama import Fore, Style
-from kernel.rand import RouletteWheel
+from cortex.rand import RouletteWheel
 
 def pass_fail(cond, *args):
     print(f'[ {Fore.GREEN}Passed{Style.RESET_ALL} ]' if cond else f'[ {Fore.RED}Failed{Style.RESET_ALL} ]', *args)
     return cond
 
-for i in range(100):
+for i in range(1):
 
-    net = knl.Net()
-    net_clone = copy.deepcopy(net)
-    mutations = []
+    #wheel = RouletteWheel()
+    #wheel.add('add_layer', 1)
+    #wheel.add('add_node', 1)
+    #wheel.add('grow_kernel', 1)
+
+    #net = ctx.Net()
+    #original_net = copy.deepcopy(net)
+    #mutations = []
+
+    #for mut in range(100):
+        #mutation = wheel.spin()
+        #success = False
+        #if mutation == 'add_layer':
+            #success, layer = net.add_layer(_test = True)
+            #if success:
+                #mutations.append((mutation, layer))
+        #elif mutation == 'add_node':
+            #success, layer, nodes = net.add_nodes()
+            #if success:
+                #mutations.append((mutation, layer, nodes))
+        #elif mutation == 'grow_kernel':
+            #success, layer, kernel, delta = net.grow_kernel()
+            #if success:
+                #mutations.append((mutation, layer, kernel, delta))
+
+        #if success:
+            #print("(", mut + 1, ") Mutation:", *mutations[-1])
+        #model = net.to('cpu')
+        #assert(model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)).size())
+
+    #print("\n==============[ Reversing mutations ]==============\n")
+
+    #for mut in range(len(mutations)):
+        #mutation = mutations[len(mutations) - mut - 1]
+        #success = False
+        #if mutation[0] == 'add_layer':
+            #success, layer = net.erase_layer(mutation[1])
+            ##if success:
+                ##print("Layer", layer, "erased")
+        #elif mutation[0] == 'add_node':
+            #success, layer, node = net.erase_nodes(mutation[1], _node_indices = mutation[2])
+            ##if success:
+                ##print("Node", *nodes, "erased from layer", layer)
+        #elif mutation[0] == 'grow_kernel':
+            #success, layer, kernel, delta = net.shrink_kernel(mutation[1], mutation[2], mutation[3])
+            ##if success:
+                ##print("Dimension", *delta.keys(), "of kernel", kernel, "in layer", layer, "decreased by", abs(*delta.values()))
+
+        #assert (pass_fail(success, "Reversing mutation", len(mutations) - mut, "(", mutation, ")..."))
+        #model = net.to('cpu')
+        #output = model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape))
+
+    #assert (pass_fail(net.matches(original_net), "Comparing the original network with the one with reversed mutations..."))
+
+    ##print("======================[ Original network ]======================")
+    ##original_net.print()
+
+    ##print("======================[ Mutated network ]======================")
+    ##net.print()
+
+    #model1 = net.to('cpu')
+    #model2 = original_net.to('cpu')
+
+    #input1 = torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)
+    #input2 = copy.deepcopy(input1)
+
+    #print("Input1 size:", input1.size())
+    #print("Input2 size:", input2.size())
+
+    #output1 = model1(input1)
+    #output2 = model2(input2)
+
+    #assert(pass_fail(torch.allclose(output1, output2), "Comparing the two outputs..."))
+
+    #print(output1)
+    #print(output2)
+
+    print("======================[ Crossover ]======================")
 
     wheel = RouletteWheel()
     wheel.add('add_layer', 1)
-    #wheel.add('erase_layer', 1)
+    wheel.add('erase_layer', 1)
     wheel.add('add_node', 1)
-    #wheel.add('erase_node', 1)
+    wheel.add('erase_node', 1)
     wheel.add('grow_kernel', 1)
-    #wheel.add('shrink_kernel', 1)
+    wheel.add('shrink_kernel', 1)
 
-    for mut in range(100):
-        mutation = wheel.spin()
-        success = False
-        if mutation == 'add_layer':
-            success, layer = net.add_layer(_test = True)
-            if success:
-                mutations.append((mutation, layer))
-        elif mutation == 'add_node':
-            success, layer, nodes = net.add_nodes()
-            if success:
-                mutations.append((mutation, layer, nodes))
-        elif mutation == 'grow_kernel':
-            success, layer, kernel, delta = net.grow_kernel()
-            if success:
-                mutations.append((mutation, layer, kernel, delta))
+    nets = [ctx.Net() for net in range(10)]
 
-        if success:
-            print("(", mut + 1, ") Mutation:", *mutations[-1])
-        model = net.to('cpu')
-        assert(model(torch.randn(knl.BatchSize, *knl.Net.Input.Shape)).size())
+    for mut in range(50):
+        for n in range(len(nets)):
+            mutation = wheel.spin()
 
-    print("\n==============[ Reversing mutations ]==============\n")
+            net = nets[n]
+            
+            if mutation == 'add_layer':
+                net.add_layer()
+                
+            elif mutation == 'add_node':
+                net.add_nodes()
+                
+            elif mutation == 'grow_kernel':
+                net.grow_kernel()
 
-    for mut in range(len(mutations)):
-        mutation = mutations[len(mutations) - mut - 1]
-        success = False
-        if mutation[0] == 'add_layer':
-            success, layer = net.erase_layer(mutation[1])
-            #if success:
-                #print("Layer", layer, "erased")
-        elif mutation[0] == 'add_node':
-            success, layer, node = net.erase_nodes(mutation[1], _node_indices = mutation[2])
-            #if success:
-                #print("Node", *nodes, "erased from layer", layer)
-        elif mutation[0] == 'grow_kernel':
-            success, layer, kernel, delta = net.shrink_kernel(mutation[1], mutation[2], mutation[3])
-            #if success:
-                #print("Dimension", *delta.keys(), "of kernel", kernel, "in layer", layer, "decreased by", abs(*delta.values()))
+            if mutation == 'erase_layer':
+                net.erase_layer()
+                
+            elif mutation == 'erase_node':
+                net.erase_nodes()
+                
+            elif mutation == 'shrink_kernel':
+                net.shrink_kernel()
 
-        assert (pass_fail(success, "Reversing mutation", len(mutations) - mut, "(", mutation, ")..."))
-        model = net.to('cpu')
-        output = model(torch.randn(knl.BatchSize, *knl.Net.Input.Shape))
-
-    assert (pass_fail(net.matches(net_clone), "Comparing the original network with the one with reversed mutations..."))
-
-    #print("======================[ Original network ]======================")
-    #net_clone.print()
-
-    #print("======================[ Mutated network ]======================")
-    #net.print()
-
-    model1 = net.to('cpu')
-    model2 = net_clone.to('cpu')
-
-    input1 = torch.randn(knl.BatchSize, *knl.Net.Input.Shape)
-    input2 = copy.deepcopy(input1)
-
-    print("Input1 size:", input1.size())
-    print("Input2 size:", input2.size())
-
-    output1 = model1(input1)
-    output2 = model2(input2)
-
-    assert(pass_fail(torch.allclose(output1, output2), "Comparing the two outputs..."))
-
-    print(output1)
-    print(output2)
+            #net.print()
+            model = net.to('cpu')
+            model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape))
 

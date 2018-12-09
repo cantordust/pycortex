@@ -293,28 +293,6 @@ class Net(tn.Module):
         
         return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
 
-    #def is_eraseable(self,
-                     #_layer_index,
-                     #_node_index = None,
-                     #_kernel_dim = None):
-
-        #assert _layer_index < len(self.layers), ">>> Net.is_eraseable(): Invalid layer index %r" % _layer_index
-
-        #if _kernel_dim is not None:
-            #assert _node_index is not None and self.layers[_layer_index].is_conv, ">>> Net.is_eraseable(): Invalid node index %r" % _node_index
-            #if self.layers[_layer_index].nodes[_node_index].size(_kernel_dim + 1) <= 1:
-                #return False
-
-        #elif _node_index is not None:
-            #if (len(self.layers[_layer_index].nodes) < 2 and
-                #not self.is_eraseable(_layer_index)):
-                #return False
-
-        #elif :
-            #return False
-
-        #return True
-
     def add_layer(self,
                   _shape = [],
                   _bias = None,
@@ -472,7 +450,7 @@ class Net(tn.Module):
 
                 # Links to adjust
                 link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(layer_index), 
-                                                                                    _pretend = True))
+                                                                                 _pretend = True))
 
                 #print("\t>>> Adjust:", link_count[-1])
 
@@ -547,18 +525,18 @@ class Net(tn.Module):
 
             _layer_index = wheel.spin()[0]
 
-        # Sanity check for the layer index
+        node_indices = set()
+        for n in range(len(self.layers[_layer_index].nodes), len(self.layers[_layer_index].nodes) + _count):
+            node_indices.add(n)
+
+        # Sanity checks
         if (len(self.layers) == 0 or
             _layer_index == len(self.layers) - 1 or
             (_layer_index == 0 and
             not self.layers[_layer_index].is_conv)):
-                return (False, _layer_index, _node_indices)
+                return (False, _layer_index, node_indices)
 
         print(">>> Adding", _count, "node" if _count == 1 else "nodes", "to layer", _layer_index)
-
-        node_indices = set()
-        for n in range(len(self.layers[_layer_index].nodes), len(self.layers[_layer_index].nodes) + _count):
-            node_indices.add(n)
 
         # Add the nodes
         success = self.layers[_layer_index].add_nodes(_count, _max_radius)
@@ -647,7 +625,7 @@ class Net(tn.Module):
             if len(_node_indices) == 0:
                 _node_indices = set()
                 # Check if we have enough nodes to work with
-                if _count > len(wheel.elements):
+                if _count >= len(self.layers[_layer_index].nodes):
                     return (False, _layer_index, _node_indices)
                 
                 # Draw the necessary number of node indices 
@@ -755,9 +733,6 @@ class Net(tn.Module):
             _node_index is None or 
             len(_delta) == 0):
 
-            if _stats is None:
-                _stats = self.get_structure_stats(self.ID)
-
             wheel = RouletteWheel()
 
             for layer_index, layer in enumerate(self.layers):
@@ -792,15 +767,15 @@ class Net(tn.Module):
             if _node_index is None:
                 _node_index = node_index
 
-            if _delta is None:
+            if len(_delta) == 0:
                 _delta = {dim: -1}
                 
         # Ensure all deltas are negative
-        delta = type(_delta)()
+        delta = {}
         for dim in _delta.keys():
             delta[dim] = -abs(_delta[dim])
             
-        print(">>> Shrinking dimension(s)", *_delta.keys(), "of kernel", _node_index, "in layer", _layer_index, "by", abs(*_delta.values()))
+        print(">>> Shrinking dimension(s)", *delta.keys(), "of kernel", _node_index, "in layer", _layer_index, "by", abs(*delta.values()))
 
         # Shrink the kernel
         success = self.layers[_layer_index].resize_kernel(_node_index, delta)

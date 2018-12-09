@@ -172,7 +172,7 @@ class Species:
 #        if not False in by_fixed:
 #            print(">>> No evolvable layers.")
 #            # No evolvable layers. Add one.
-#            mut.element = knl.ElemType.Layer
+#            mut.element = ctx.ElemType.Layer
 #            mut.action = mConf.Action.Inc
 #
 #        else:

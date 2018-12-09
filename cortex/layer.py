@@ -461,23 +461,8 @@ class Layer(tn.Module):
                 
         # Weights -> nodes
         self.update_nodes()
-
-        ## Erase nodes
-        #if len(_node_indices) == 0:
-            ## Choose nodes with probability inversely proportional
-            ## to the *absolute value* of the sum of the weights they contain.
-            ## In this way, it is more likely to erase nodes which
-            ## contribute less to the overall network activation.
-
-            #_node_indices = set()
-            #wheel = RouletteWheel()
-            #for idx, node in enumerate(self.nodes):
-                #wheel.add(idx, 1 / (abs(float(torch.sum(node.data))) + 1e-10)) # Add a small constant to avoid division by 0
-
-            #for node in range(_count):
-                #_node_indices.add(wheel.pop())
                 
-        print("Nodes to erase:", *_node_indices)
+        #print("Nodes to erase:", *_node_indices)
 
         # Erase the selected nodes
         nodes = type(self.nodes)()
@@ -502,99 +487,6 @@ class Layer(tn.Module):
         
         return True
 
-    #def resize(self,
-               #_count,
-               #_node_indices = set(),      # Indices of nodes to erase (used when erasing nodes)
-               #_max_radius = [],          # Maximal radius of new kernels (used when adding random nodes to a convolutional layer)
-               #_next_layer = None):       # If this layer is not the last, adjust the next layer's input size
-        
-        #if _count == 0:
-            #return False
-
-        ## Update node data from weights
-        #self.update_nodes()
-
-        #if _count > 0:
-
-            ## Add nodes
-
-            ## Generate a list of random kernel sizes
-            #if self.is_conv:
-                #kernel_sizes = self.get_random_kernel_sizes(_count, _max_radius)
-
-            ## Append the nodes
-            #for node in range(_count):
-                
-                #if self.is_conv:
-                    #self.nodes.append(tn.Parameter(torch.zeros(self.get_input_nodes() * self.get_multiplier(), *kernel_sizes[node])))
-                    ##print("(Conv) New node with size", self.nodes[-1].size(), ", multiplier", self.get_multiplier())
-                    
-                #else:
-                    #self.nodes.append(torch.zeros(self.get_input_nodes() * self.get_multiplier()))
-                    ##print("(FC) New node with size", self.nodes[-1].size(), ", multiplier", self.get_multiplier())
-                    
-                #mFunc.init_tensor(self.nodes[-1])
-
-            ## Add bias nodes
-            #if self.bias is not None:
-                #bias = torch.zeros(_count)
-                #mFunc.init_tensor(bias)
-##                    print("resize() extra bias:", bias)
-                #self.bias.data = torch.cat((self.bias.data, bias))
-
-        #else: # _count < 0
-
-            ## Convert into a positive count
-            #_count = abs(_count)
-
-            #if _count >= len(self.nodes):
-                #print("Attempting to remove all nodes in layer %r. Please remove the whole layer instead." % self.index)
-                #return False
-
-            ## Erase nodes
-            #if len(_node_indices) == 0:
-                ## Choose nodes with probability inversely proportional
-                ## to the *absolute value* of the sum of the weights they contain.
-                ## In this way, it is more likely to erase nodes which
-                ## contribute less to the overall network activation.
-
-                #_node_indices = set()
-                #wheel = RouletteWheel()
-                #for idx, node in enumerate(self.nodes):
-                    #wheel.add(idx, 1 / (abs(float(torch.sum(node.data))) + 1e-10)) # Add a small constant to avoid division by 0
-
-                #for node in range(_count):
-                    #_node_indices.add(wheel.pop())
-                    
-            #print("Nodes to erase:", *_node_indices)
-
-            ## Erase the selected nodes
-            #nodes = type(self.nodes)()
-            #bias = None if self.bias is None else []
-
-            #for idx, node in enumerate(self.nodes):
-                #if idx not in _node_indices:
-                    #nodes.append(node)
-                    #if bias is not None:
-                        #bias.append(self.bias.data[idx])
-
-            ## Update the bias parameters
-            #if bias is not None:
-                #self.bias = tn.Parameter(torch.zeros(int(self.bias.size(0)) - _count))
-                #for idx, val in enumerate(bias):
-                    #self.bias.data[idx] = val
-
-            #self.nodes = nodes
-
-        ## Update weight data from nodes
-        #self.update_weights()
-
-        #if _next_layer is not None:
-            #_next_layer.adjust_input_size(_input_shape = self.get_output_shape(), 
-                                          #_node_indices = _node_indices)
-
-        #return True
-
     def resize_kernel(self,
                       _node_index,
                       _delta):
@@ -605,51 +497,6 @@ class Layer(tn.Module):
             len(_delta) != 1):
             return False
         
-        #if _node_index is None:
-
-            ## Choose a node with probability
-            ## inversely proportional to the
-            ## sum of the number of links it contains
-            #wheel = RouletteWheel()
-            #for idx, node in enumerate(self.nodes):
-                #wheel.add(idx, mFunc.exp_prod(list(node.size())))
-
-            #_node_index = wheel.spin()
-
-        #if _delta is None:
-            ## Get a random size delta
-            #kernel_size = list(self.nodes[_node_index].size()[1:])
-
-            ## Statistics about the size of each dimension
-            #dim_stat = [mStat.SMAStat() for dim in range(len(kernel_size))]
-
-            #for kernel in self.nodes:
-                #for dim, size in enumerate(list(kernel.size()[1:])):
-                    #dim_stat[dim].update(size)
-
-            #wheel = RouletteWheel()
-            #for dim, size in enumerate(kernel_size):
-                #wheel.add(dim, dim_stat[dim].get_inv_offset(size))
-
-            #_delta = [0] * len(kernel_size)
-
-            ## Grow or shrink a dimension with probability
-            ## inversely proportional to the size of that dimension.
-            #while True:
-                #dim = wheel.spin()
-                #increase_dim = dim_stat[dim].get_inv_offset(kernel_size[dim])
-                #delta = 1 if mRand.chance(increase_dim) else -1
-
-        ##        print(">>> kernel[_dim_index] + _delta:", kernel_size[dim] + 2 * delta)
-
-                ## Sanity check for the kernel size
-                #if kernel_size[dim] + 2 * delta > 0:
-                    #_delta[dim] = delta
-        ##            print(">>> kernel index:", _node_index)
-        ##            print(">>> dimension:", dim)
-        ##            print(">>> delta:", delta)
-                    #break
-
         delta = [0] * len(self.kernel_size)
         for dim, val in _delta.items():
             delta[dim] = val
@@ -773,14 +620,14 @@ class Layer(tn.Module):
                         for node_index in _node_indices:
                             
                             if node_index == begin:
-                                begin += multiplier
+                                begin += 1
                             
                             else:
-                                slices.append(slice(begin, node_index * multiplier))
-                                begin = node_index * multiplier + 1
+                                slices.append(slice(begin * multiplier, node_index * multiplier))
+                                begin = node_index + 1
                         
                         if begin < input_nodes:
-                            slices.append(slice(begin, None))
+                            slices.append(slice(begin * multiplier, None))
 
                         #print("Slices:", slices)
 
@@ -802,15 +649,11 @@ class Layer(tn.Module):
                     # There are more output nodes in the preceding layer
                     # than there are input ones in this one.
                     # Expand the receptive fields of all nodes.
-    #                print("Expanding node", output_node, "to have input size of", actual_input_nodes)
+                    #print("Expanding node", output_node, "to have input size of", actual_input_nodes * multiplier)
                 
-                    padding = torch.zeros(int(input_node_diff * multiplier), *list(self.nodes[output_node].size())[1:])
+                    padding = torch.zeros(int(actual_input_nodes * multiplier - self.nodes[output_node].size(0)), *list(self.nodes[output_node].size())[1:])
                     mFunc.init_tensor(padding)
                     self.nodes[output_node].data = torch.cat((self.nodes[output_node].data, padding))
-
-        #            print("(add_node) >>> initialising nodes", init_begin, " ~ ", init_end)
-        #            print("(add_node) >>> init_begin:", init_begin, ", init_end:", init_end)
-        #            print("(add_node) >>> layer input shape:", self.input_shape(_layer_idx))
 
         if _pretend:
             return link_diff
