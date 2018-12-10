@@ -836,9 +836,9 @@ for i in range(1):
     wheel.add('grow_kernel', 1)
     wheel.add('shrink_kernel', 1)
 
-    nets = [ctx.Net() for net in range(10)]
+    nets = [ctx.Net() for _ in range(10)]
 
-    for mut in range(50):
+    for mut in range(10):
         for n in range(len(nets)):
             mutation = wheel.spin()
 
@@ -862,7 +862,21 @@ for i in range(1):
             elif mutation == 'shrink_kernel':
                 net.shrink_kernel()
 
-            #net.print()
             model = net.to('cpu')
-            model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape))
+            match = list(model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.BatchSize, net.layers[-1].get_output_nodes()]
+            if not pass_fail(match, "\tEvaluating the mutated network with random input..."):
+                net.print()
 
+    for p1 in range(len(nets)):
+        for p2 in range(len(nets)):
+            
+            if p1 != p2:
+
+                offspring = ctx.Net(_p1 = nets[p1], _p2 = nets[p2])
+                
+                model = offspring.to('cpu')
+                match = list(model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.BatchSize, net.layers[-1].get_output_nodes()]
+                if not pass_fail(match, "\tEvaluating the offspring network with random input..."):
+                    pass
+                offspring.print()
+                ctx.pause()

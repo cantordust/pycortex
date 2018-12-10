@@ -88,6 +88,14 @@ class Layer(tn.Module):
 
         ### /Def
 
+    TypeRanks = {
+        'conv3d': 0,
+        'conv2d': 1,
+        'conv1d': 2,
+        'linear': 3,
+        'output': 4
+        }
+
     @staticmethod
     def stretch(_tensor):
         return _tensor.view(-1, mFunc.prod(list(_tensor.size())[1:]))
@@ -130,8 +138,7 @@ class Layer(tn.Module):
                  _input_shape,
                  _layer_index = None,
                  _nodes = None,
-                 _bias_nodes = None,
-                 _next_layer = None):
+                 _bias_nodes = None):
 
         assert 1 <= len(_layer_def.shape) <= 4, "Invalid layer shape %r" % _layer_def.shape
         assert 1 <= len(_input_shape) <= 4, "Invalid input shape %r" % _input_shape
@@ -190,7 +197,6 @@ class Layer(tn.Module):
             else:
                 # Generate nodes
                 self.add_nodes(_layer_def.shape[0])
-
 
     def matches(self,
                 _other):
@@ -609,11 +615,14 @@ class Layer(tn.Module):
                     
                     if len(_node_indices) == 0:
                         
-                        #print("Clipping node", output_node, "to have input size of", actual_input_nodes * multiplier)
+                        print("Clipping node", output_node, "to have input size of", actual_input_nodes * multiplier)
                         self.nodes[output_node].data = self.nodes[output_node].data[0:actual_input_nodes * multiplier]
                         #print("Node", output_node, "size:", self.nodes[output_node].size())
                         
                     else:
+                        
+                        print("Expanding node", output_node, "to have input size of", actual_input_nodes * multiplier)
+                        
                         slices = []
                         
                         begin = 0

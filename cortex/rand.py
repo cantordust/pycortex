@@ -79,7 +79,7 @@ class RouletteWheel:
         self.weight_type = _weight_type
         self.norm_func = _norm_func
         self.is_normalised = False
-        self.frozen_elem = None
+        self.locked_elem = None
         self.weights = {
                     WeightType.Raw: [],
                     WeightType.Normal: [],
@@ -100,8 +100,8 @@ class RouletteWheel:
 
         weight_type = self.weight_type if _weight_type is None else _weight_type
 
-        if self.frozen_elem is not None:
-            return self.frozen_elem
+        if self.locked_elem is not None:
+            return self.locked_elem
 
         else:
             # Normalise if necessary
@@ -119,8 +119,8 @@ class RouletteWheel:
 
         weight_type = self.weight_type if _weight_type is None else _weight_type
 
-        # Unfreeze the wheel if we are going to modify it
-        self.unfreeze()
+        # Unlock the wheel if we are going to modify it
+        self.unlock()
 
         # Normalise if necessary
         if (weight_type != WeightType.Raw and
@@ -165,12 +165,12 @@ class RouletteWheel:
 
         self.is_normalised = True
 
-    def freeze(self):
-        if self.frozen_elem is None:
-            self.frozen_elem = self.spin()
+    def lock(self):
+        if self.locked_elem is None:
+            self.locked_elem = self.spin()
 
-    def unfreeze(self):
-        self.frozen_elem = None
+    def unlock(self):
+        self.locked_elem = None
 
     def is_empty(self):
         return len(self.elements) == 0

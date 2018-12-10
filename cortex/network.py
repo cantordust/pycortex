@@ -802,18 +802,16 @@ class Net(tn.Module):
             layer.update_nodes()
 
         # Basic sanity check.
-        if len(_p1.layers) == 0:
-            print("!!! Error: Parent ", _p1.ID, " is empty.")
-        if len(_p2.layers) == 0:
-            print("!!! Error: Parent ", _p2.ID, " is empty.")
+        assert len(_p1.layers) > 0, "!!! Error: Parent %r is empty." % _p1.ID
+        assert len(_p2.layers) > 0, "!!! Error: Parent %r is empty." % _p2.ID
 
-            # First, create reference chromosomes.
+        # First, create reference chromosomes.
         # Roulette wheel for selecting chromosomes
         # (layers) and genes (nodes) from the two
         # parents based on their fitness.
         wheel = RouletteWheel()
-        wheel.add(_p1, _p1.fitness.rel.current_value)
-        wheel.add(_p2, _p2.fitness.rel.current_value)
+        wheel.add(_p1, _p1.fitness.relative.current_value)
+        wheel.add(_p2, _p2.fitness.relative.current_value)
 
 #        print(">>> _p1.ID:", _p1.ID)
 #        print(">>> _p2.ID:", _p2.ID)
@@ -836,51 +834,52 @@ class Net(tn.Module):
         # Iterate over the layers of the two parents.
         while True:
 
-            # Store the parents' layers into the reference genotypes.
-            dna1.append(wheel.elements[0].layers[_p1.cur_layer])
-            dna2.append(wheel.elements[1].layers[_p2.cur_layer])
-
-            _p1.cur_layer += 1
-            _p2.cur_layer += 1
-
-            if (_p1.cur_layer == len(wheel.elements[0].layers) and
-                _p2.cur_layer == len(wheel.elements[1].layers)):
+            if (_p1.cur_layer == len(_p1.layers) and
+                _p2.cur_layer == len(_p2.layers)):
                 break
 
-#            print(">>> _p1.cur_layer", wheel.elements[0].cur_layer, " / ", len(wheel.elements[0].layers))
-#            print(">>> _p2.cur_layer", wheel.elements[1].cur_layer, " / ", len(wheel.elements[1].layers))
+            #print(">>> _p1.cur_layer", _p1.cur_layer, " / ", len(_p1.layers))
+            #print(">>> _p2.cur_layer", _p2.cur_layer, " / ", len(_p2.layers))
 
             # Ensure that the types of the reference layers match.
-            if (wheel.elements[0].layers[_p1.cur_layer].type != wheel.elements[1].layers[_p2.cur_layer].type):
+            if (_p1.layers[_p1.cur_layer].type == 
+                _p2.layers[_p2.cur_layer].type):
 
-                # Determine the parent whole current layer
-                # differs from the last stored one
-                longer_dna = _p1 if wheel.elements[0].layers[_p1.cur_layer].type == dna1[-1].type else _p2
+                # Store the parents' layers into the reference genotypes.
+                dna1.append(_p1.layers[_p1.cur_layer])
+                dna2.append(_p2.layers[_p2.cur_layer])
+            
+                _p1.cur_layer += 1
+                _p2.cur_layer += 1
 
-                # Stop the wheel
-                wheel.freeze()
+            else:
 
-                while (wheel.elements[0].layers[_p1.cur_layer].type != wheel.elements[1].layers[_p2.cur_layer].type):
+                # Determine the parent with the longer DNA
+                larger_parent = _p1 if Layer.TypeRanks[_p1.layers[_p1.cur_layer].type] < Layer.TypeRanks[_p2.layers[_p2.cur_layer].type] else _p2
+                smaller_parent = _p1 if larger_parent.ID == _p2.ID else _p2
 
-                    # Select a parent at random and freeze the wheel.
-                    # If we select the parent with the layer that matches the
-                    # type of the layer last stored in the dna, store all subsequent
-                    # layers of the same type from that parent.
+                # Spin the wheel and lock it into a random position
+                wheel.lock()
 
-                    if wheel.spin().ID == longer_dna.ID:
-                        dna1.append(longer_dna.layers[longer_dna.cur_layer])
-                        dna2.append(longer_dna.layers[longer_dna.cur_layer])
-#
-#                        print(">>> _p1.cur_layer type", wheel.elements[0].layers[_p1.cur_layer].type)
-#                        print(">>> _p2.cur_layer type", wheel.elements[1].layers[_p2.cur_layer].type)
+                while (larger_parent.layers[larger_parent.cur_layer].type < smaller_parent.layers[smaller_parent.cur_layer].type):
 
-                    longer_dna.cur_layer += 1
+                    # Select a parent at random.
+                    # If we select the parent with the longer DNA,
+                    # store all subsequent layers of the same type from that parent.
+                    if wheel.spin().ID == larger_parent.ID:
+                        dna1.append(larger_parent.layers[larger_parent.cur_layer])
+                        dna2.append(larger_parent.layers[larger_parent.cur_layer])
+
+                        #print(">>> _p1.cur_layer type", _p1.layers[_p1.cur_layer].type)
+                        #print(">>> _p2.cur_layer type", _p2.layers[_p2.cur_layer].type)
+
+                    larger_parent.cur_layer += 1
 
                 # Allow the wheel to spin again
-                wheel.unfreeze()
+                wheel.unlock()
 
-                # Reset the longer DNA pointer
-                longer_dna = None
+                # Reset the pointer to the larger parent
+                larger_parent = None
 
         #=================
         # Crossover
@@ -924,7 +923,7 @@ class Net(tn.Module):
             # Compute the shape of the new layer
             shape = [0] * len(list(nodes[0].size()))
             shape[0] = len(nodes)
-
+            
             bias_nodes = None
             if bias_vals is not None:
                 bias_nodes = tn.Parameter(torch.zeros(len(bias_vals)))
