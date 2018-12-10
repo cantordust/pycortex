@@ -10,7 +10,7 @@ Created on Wed Oct 17 09:36:09 2018
 import sys
 import math
 from enum import Enum
-from . import functions as mFunc
+from . import functions as Func
 
 class MAType(Enum):
      Exponential = 'Exponential'
@@ -52,7 +52,7 @@ class Stat:
 
     def get_offset(self,
                    _val = None,
-                   _func = mFunc.Type.Logistic):
+                   _func = Func.Type.Logistic):
 
         val = self.current_value if _val is None else _val
         denom = 1.0
@@ -63,11 +63,11 @@ class Stat:
         elif self.mean != 0.0:
             denom = abs(self.mean)
 
-        return mFunc.fmap[_func]((val - self.mean) / denom)
+        return Func.fmap[_func]((val - self.mean) / denom)
 
     def get_inv_offset(self,
                        _val = None):
-        return self.get_offset(_val, mFunc.Type.InvLogistic)
+        return self.get_offset(_val, Func.Type.InvLogistic)
 
     def print(self,
               _file = None):

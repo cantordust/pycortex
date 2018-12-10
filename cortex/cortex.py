@@ -20,9 +20,11 @@ BatchSize = 4
 Runs = 1
 Threads = 4
 
-
 def pause():
-    input("Press <ENTER> to continue...")
+    key = input("Continue (Y/n)? ")
+    if len(key) == 0:
+        key = 'Y'
+    return key
 
 def init():
     print(">>> Initialising environment...")
@@ -135,7 +137,7 @@ def calibrate():
 
 def cull():
 
-    from . import rand as Rand
+    from . import random as Rand
 
     while len(Net.population) > Net.Max.Count:
 

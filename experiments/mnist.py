@@ -27,21 +27,6 @@ def train(net, device, train_loader, epoch):
         loss.backward()
         optimizer.step()
         if batch_idx % 10 == 0:
-#            if batch_idx % (500 * epoch)  == 0:
-#                if (ctx.mRand.chance(0.9)):
-#                    net.resize_kernel(ctx.mRand.uint(0,2))
-#                else:
-#                    if (ctx.mRand.chance(0.9)):
-#                        net.add_nodes(ctx.mRand.uint(0,2))
-#                    else:
-#                        net.erase_nodes(ctx.mRand.uint(0,2))
-
-#                net.resize_kernel(ctx.mRand.uint(0,2))
-#                ctx.pause()
-
-#            model = net.to(device)
-#            optimizer = optim.Adadelta(model.parameters())
-#            model.train()
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))

@@ -11,23 +11,21 @@ Created on Wed Oct  3 22:49:52 2018
 import sys
 import math
 
-from .species import Species
-from .layer import Layer
-from . import rand as mRand
-from .rand import WeightType, RouletteWheel
-from . import functions as mFunc
-from . import fitness as mFit
-
 import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
+
+from .species import Species
+from .layer import Layer
+from .random import WeightType, RouletteWheel
+from . import random as Rand
+from . import functions as Func
 
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
 class Net(tn.Module):
 
     class Input:
-#        Shape = [3, 5, 5]
         Shape = [1, 28, 28]
 
     class Output:
@@ -40,7 +38,6 @@ class Net(tn.Module):
         Layers = [Layer.Def([10, 0, 0]),
                   Layer.Def([10, 0, 0]),
                   Layer.Def(10)]
-#        Layers = [Layer.Def([5, 0, 0])]
         Func = tn.init.uniform_
         Args = {'a': -0.05, 'b': 0.05}
 
@@ -79,7 +76,7 @@ class Net(tn.Module):
                 for node_idx in range(len(layer.nodes)):
                     link_stats.update(layer.get_link_count(node_idx))
                     if layer.is_conv:
-                        kernel_size_stats.update(math.pow(mFunc.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
+                        kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
                         if len(layer.kernel_size) > kernel_dims:
                             kernel_dims = len(layer.kernel_size)
 
@@ -139,6 +136,7 @@ class Net(tn.Module):
         super(Net, self).__init__()
 
         from .species import Species
+        from .fitness import Fitness
 
         # Assign a network ID
         self.ID = 0
@@ -155,7 +153,7 @@ class Net(tn.Module):
         self.age = 0
 
         # Initialise the age
-        self.fitness = mFit.Fitness()
+        self.fitness = Fitness()
 
         # Generate modules
         self.layers = tn.ModuleList()
@@ -346,7 +344,7 @@ class Net(tn.Module):
                     input_shape = self.get_input_shape(layer_index)
 
                     # The shape corresponds to an FC layer.
-                    link_count.append(new_layer_shape[0] * mFunc.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
+                    link_count.append(new_layer_shape[0] * Func.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
 
                     #print("\t>>> Add:", link_count[-1])
 
@@ -943,7 +941,7 @@ class Net(tn.Module):
                _structure = True,
                _parameters = True):
 
-        from . import rand as Rand 
+        from . import random as Rand 
         from .species import Species
         
         # Statistics about the structure of this network

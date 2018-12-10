@@ -6,19 +6,15 @@ Created on Wed Oct 31 11:45:57 2018
 @author: Alexander Hadjiivanov
 @licence: MIT (https://opensource.org/licence/MIT)
 """
-from .rand import RouletteWheel, WeightType
-from . import rand as mRand
-from . import statistics as mStat
-from . import functions as mFunc
-
 import sys
 import copy
-#import math
-#import inspect
 
 import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
+
+from .random import RouletteWheel, WeightType
+from . import functions as Func
 
 class Layer(tn.Module):
 
@@ -58,7 +54,7 @@ class Layer(tn.Module):
                     self.shape = [1]
                 
                 else:
-                    self.shape = _shape
+                    self.shape = list(_shape)
             
             else:
                 self.shape = [1]
@@ -98,7 +94,7 @@ class Layer(tn.Module):
 
     @staticmethod
     def stretch(_tensor):
-        return _tensor.view(-1, mFunc.prod(list(_tensor.size())[1:]))
+        return _tensor.view(-1, Func.prod(list(_tensor.size())[1:]))
 
     @staticmethod
     def get_centre(_kernel):
@@ -133,6 +129,15 @@ class Layer(tn.Module):
 
         return output_shape
     
+    @staticmethod
+    def init(_tensor):
+
+        from .network import Net
+
+        assert callable(Net.Init.Func), "Function %r not callable" % Net.Init.Func.__name__
+
+        Net.Init.Func(_tensor, **Net.Init.Args)
+
     def __init__(self,
                  _layer_def,
                  _input_shape,
@@ -196,7 +201,9 @@ class Layer(tn.Module):
     
             else:
                 # Generate nodes
-                self.add_nodes(_layer_def.shape[0])
+                self.add_nodes(_layer_def.shape[0],
+                               self.input_shape[1:],
+                               _layer_def.shape[1:])
 
     def matches(self,
                 _other):
@@ -339,7 +346,7 @@ class Layer(tn.Module):
             _input_shape = self.input_shape
         
         #print("product over", _input_shape[1:len(_input_shape) - len(self.kernel_size)])
-        return mFunc.prod(_input_shape[1:len(_input_shape) - len(self.kernel_size)])
+        return Func.prod(_input_shape[1:len(_input_shape) - len(self.kernel_size)])
             
     def get_input_nodes(self,
                         _input_shape = None):
@@ -378,9 +385,14 @@ class Layer(tn.Module):
 
     def get_random_kernel_sizes(self,
                                 _count,
-                                _max_radius = []):
+                                _max_radius = [],
+                                _kernel_size = []): # Pre-determined kernel size. Dimensions with value 0 are populated with random values.
+
+        assert len(_kernel_size) == 0 or len(_kernel_size) == len(_max_radius), "Invalid kernel size %r" % _kernel_size
 
         wheel = RouletteWheel()
+
+        #print("Kernel size:", _kernel_size)
 
         if self.is_conv:
 
@@ -389,39 +401,49 @@ class Layer(tn.Module):
 
             # Possible extents for the kernel size.
             extents = []
-            for dim in _max_radius:
-                if dim <= 1:
-                    ext = [1]
+            for dim, radius in enumerate(_max_radius):
+                
+                if (len(_kernel_size) > 0 and
+                    _kernel_size[dim] > 0):
+                    ext = [_kernel_size[dim]]
+                    
                 else:
-                    ext = [size for size in range(1, dim // 2 + 1) if size % 2 == 1]
+                    if radius <= 1:
+                        ext = [1]
+                    
+                    else:
+                        ext = [size for size in range(1, radius // 2 + 1) if size % 2 == 1]
 
                 if len(extents) == 0:
                     extents = [[e] for e in ext]
+                
                 else:
                     new_extents = []
+                    
                     for old_ext in extents:
                         for new_ext in ext:
                             new_extents.append([*old_ext, new_ext])
+                            
                     extents = new_extents
 
-#            print("Extents:", extents)
+            #print("Extents:", extents)
 
             for e in extents:
-                wheel.add(e, mFunc.exp_prod(e))
+                wheel.add(e, Func.exp_prod(e))
 
         else:
             # Dummy zero-dimensional kernel
             wheel.add([], 1)
 
-        #wheel.normalise()
         #for idx in range(len(wheel.elements)):
-            #print(wheel.elements[idx], "\t", wheel.weights[WeightType.Raw][idx], "\t", wheel.weights[WeightType.Normal][idx], "\t", wheel.weights[WeightType.Inverse][idx])
+            #print(wheel.elements[idx], "\t", wheel.weights[WeightType.Raw][idx], "\t", wheel.weights[WeightType.Inverse][idx])
 
         return [wheel.spin() for k in range(_count)]
 
     def add_nodes(self,
                   _count,
-                  _max_radius = []):
+                  _max_radius = [],
+                  _kernel_size = []):
                 
         if _count <= 0:
             return False
@@ -431,7 +453,7 @@ class Layer(tn.Module):
 
         # Generate a list of random kernel sizes
         if self.is_conv:
-            kernel_sizes = self.get_random_kernel_sizes(_count, _max_radius)
+            kernel_sizes = self.get_random_kernel_sizes(_count, _max_radius, _kernel_size)
 
         # Append the nodes
         for node in range(_count):
@@ -444,12 +466,12 @@ class Layer(tn.Module):
                 self.nodes.append(torch.zeros(self.get_input_nodes() * self.get_multiplier()))
                 #print("(FC) New node with size", self.nodes[-1].size(), ", multiplier", self.get_multiplier())
                 
-            mFunc.init_tensor(self.nodes[-1])
+            Layer.init(self.nodes[-1])
 
         # Add bias nodes
         if self.bias is not None:
             bias = torch.zeros(_count)
-            mFunc.init_tensor(bias)
+            Layer.init(bias)
 #                    print("resize() extra bias:", bias)
             self.bias.data = torch.cat((self.bias.data, bias))
             
@@ -545,8 +567,8 @@ class Layer(tn.Module):
 
         if init:
             # Initialise the new weights
-            mFunc.init_tensor(self.nodes[_node_index][slices1])
-            mFunc.init_tensor(self.nodes[_node_index][slices2])
+            Layer.init(self.nodes[_node_index][slices1])
+            Layer.init(self.nodes[_node_index][slices2])
 
         #print(">>> After resize:")
         #print(">>> \tkernel:", self.nodes[_node_index])
@@ -615,13 +637,13 @@ class Layer(tn.Module):
                     
                     if len(_node_indices) == 0:
                         
-                        print("Clipping node", output_node, "to have input size of", actual_input_nodes * multiplier)
+                        #print("Clipping node", output_node, "to have input size of", actual_input_nodes * multiplier)
                         self.nodes[output_node].data = self.nodes[output_node].data[0:actual_input_nodes * multiplier]
                         #print("Node", output_node, "size:", self.nodes[output_node].size())
                         
                     else:
                         
-                        print("Expanding node", output_node, "to have input size of", actual_input_nodes * multiplier)
+                        #print("Expanding node", output_node, "to have input size of", actual_input_nodes * multiplier)
                         
                         slices = []
                         
@@ -661,7 +683,7 @@ class Layer(tn.Module):
                     #print("Expanding node", output_node, "to have input size of", actual_input_nodes * multiplier)
                 
                     padding = torch.zeros(int(actual_input_nodes * multiplier - self.nodes[output_node].size(0)), *list(self.nodes[output_node].size())[1:])
-                    mFunc.init_tensor(padding)
+                    Layer.init(padding)
                     self.nodes[output_node].data = torch.cat((self.nodes[output_node].data, padding))
 
         if _pretend:
@@ -736,24 +758,25 @@ class Layer(tn.Module):
                       _node_idx,
                       _size = None):
 
+        if not self.is_conv:
+            return torch.Tensor()
+
         slices = [slice(0, self.weight.size(1))]
 
-        if self.is_conv:
+        if _size is None:
+            _size = list(self.nodes[_node_idx].size()[1:])
 
-            if _size is None:
-                _size = list(self.nodes[_node_idx].size()[1:])
+        for dim in range(len(_size)):
+            kernel_size = list(self.weight.size()[2:])
+            diff = kernel_size[dim] - _size[dim]
 
-            for dim in range(len(_size)):
-                kernel_size = list(self.weight.size()[2:])
-                diff = kernel_size[dim] - _size[dim]
+            # Patch is smaller in this dimension, narrow down
+            if diff > 0:
+                slices.append(slice(diff // 2, kernel_size[dim] - diff // 2))
+            else:
+                slices.append(slice(0, kernel_size[dim]))
 
-                # Patch is smaller in this dimension, narrow down
-                if diff > 0:
-                    slices.append(slice(diff // 2, kernel_size[dim] - diff // 2))
-                else:
-                    slices.append(slice(0, kernel_size[dim]))
-
-        return self.weight.data[_node_idx][slices]
+        return self.nodes[_node_idx].data[slices]
 
     def overlay_kernels(self):
 
