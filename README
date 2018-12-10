@@ -1,0 +1,12 @@
+Python-based interface to PyTorch for evolving deep learning models.
+
+For now, the library supports the following operations:
+
+- Add / erase layers (convolutional or fully connected)
+- Add / erase nodes (or kernels in convolutional layers)
+- Grow or shrink kernels
+- Crossover of deep NNs
+
+All mutation and crossover operations should produce fully functional models which can be further trained with backprop.
+
+All functionality will be backported to the C++ version of Cortex (with Python bindings for the die-hard Python fans).
