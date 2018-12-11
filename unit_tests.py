@@ -382,6 +382,7 @@ def test_crossover():
 
 def test_init_population():
             
+    ctx.Species.Enabled = False
     ctx.init()
 
 """
@@ -432,8 +433,8 @@ def run(_func,
 
 #run(test_tensor_slices)
 
-run(test_mutations)
+#run(test_mutations)
 
 #run(test_crossover)
 
-#run(test_init_population)
+run(test_init_population)

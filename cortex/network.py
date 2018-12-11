@@ -25,106 +25,48 @@ torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth
 
 class Net(tn.Module):
 
+    # Configuration
     class Input:
         Shape = [1, 28, 28]
 
     class Output:
         Shape = [10]
-        Bias = None
-        Activation = None
+        Bias = True
+        Function = tnf.log_softmax
 
     class Init:
-        Count = 50
+        Count = 64
         Layers = [Layer.Def([10, 0, 0]),
                   Layer.Def([10, 0, 0]),
                   Layer.Def(10)]
-        Func = tn.init.uniform_
+        Function = tn.init.uniform_
         Args = {'a': -0.05, 'b': 0.05}
 
     class Max:
-        Count = 200
+        Count = 256
         Age = 50
 
-    champ = None
-    population = {}
+    LearningRate = 0.01
+    Momentum = 0.0
+    Epochs = 10
+    TrainBatchSize = 4
+    TestBatchSize = 1000
+    Runs = 1
+    LogInterval = 10
+
+    # Data loading
+    Device = torch.device('cpu')
+    TrainDataLoadFunc = None
+    TestDataLoadFunc = None
+    DataLoadArgs = {}
+
+    LossFunction = tnf.cross_entropy
+    Optimiser = torch.optim.Adadelta
+
+    # Static members
     ID = 0
-    Loss = tnf.cross_entropy
-
-    @staticmethod
-    def get_structure_stats(_net_id = None):
-
-        from . import statistics as Stat
-
-        net_list = Net.population.keys() if _net_id is None else [_net_id]
-
-        # Structural statistics
-        layer_stats = Stat.SMAStat(_title = "Layers per network")
-        node_stats = Stat.SMAStat(_title = "Nodes per layer")
-        link_stats = Stat.SMAStat(_title = "Links per node")
-        kernel_size_stats = Stat.SMAStat(_title = "Kernel sizes")
-        kernel_dims = len(Net.Input.Shape) - 1
-
-        for net_id in net_list:
-            net = Net.population[net_id]
-
-            # Add the input nodes to the count
-            node_stats.update(Net.Input.Shape[0])
-
-            layer_stats.update(len(net.layers))
-            for layer in net.layers:
-                node_stats.update(layer.get_output_nodes())
-                for node_idx in range(len(layer.nodes)):
-                    link_stats.update(layer.get_link_count(node_idx))
-                    if layer.is_conv:
-                        kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
-                        if len(layer.kernel_size) > kernel_dims:
-                            kernel_dims = len(layer.kernel_size)
-
-        return {'layers': layer_stats,
-                'nodes': node_stats,
-                'links': link_stats,
-                'kernel_sizes': kernel_size_stats,
-                'kernel_dims': kernel_dims}
-
-    def get_parametric_complexity(self):
-
-        from . import statistics as Stat
-
-        global_parameter_count = Stat.SMAStat()
-        self_parameter_count = 0
-
-        for ID, net in Net.population.items():
-
-            parameters = 0
-            for layer in self.layers:
-                parameters += layer.get_link_count()
-
-            global_parameter_count.update(parameters)
-
-            if ID == self.ID:
-                self_parameter_count = parameters
-
-        return global_parameter_count.get_offset(self_parameter_count)
-
-    def get_structural_complexity(self):
-        
-        from . import statistics as Stat
-
-        global_node_count = Stat.SMAStat()
-        self_node_count = 0
-
-        for ID, net in Net.population.items():
-
-            nodes = 0
-            for layer in self.layers:
-                nodes += layer.get_output_nodes()
-
-            global_node_count.update(nodes)
-
-            if ID == self.ID:
-                self_node_count = nodes
-
-        return global_node_count.get_offset(self_node_count)
+    champ = None
+    ecosystem = {}
 
     def __init__(self,
                  _empty = False,
@@ -146,8 +88,8 @@ class Net(tn.Module):
             Net.ID += 1
             self.ID = Net.ID
 
-            # Add this network to the population
-            Net.population[self.ID] = self
+            # Add this network to the ecosystem
+            Net.ecosystem[self.ID] = self
 
         # Initialise the age
         self.age = 0
@@ -165,7 +107,7 @@ class Net(tn.Module):
             
             if isinstance(_species, Species):
                 self.species_id = _species.ID
-                Species.env[self.species_id].nets.add(self.ID)
+                Species.populations[self.species_id].nets.add(self.ID)
 
         if not _empty:
 
@@ -236,7 +178,8 @@ class Net(tn.Module):
     def get_genome(self):
 
         genome = []
-        for layer in self.layers:
+        for layer_index in range(len(self.layers) - 1):
+            layer = self.layers[layer_index]
             genome.append(Layer.Def(_shape = layer.get_output_shape(),
                                     _bias = layer.bias is not None,
                                     _activation = layer.activation,
@@ -290,6 +233,73 @@ class Net(tn.Module):
         output_shape = [0] * len(self.get_output_shape(_layer_index))
         
         return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
+
+    def get_structure_stats(self):
+
+        from . import statistics as Stat
+
+        # Structural statistics
+        layer_stats = Stat.SMAStat(_title = "Layers per network")
+        node_stats = Stat.SMAStat(_title = "Nodes per layer")
+        link_stats = Stat.SMAStat(_title = "Links per node")
+        kernel_size_stats = Stat.SMAStat(_title = "Kernel sizes")
+        kernel_dims = len(Net.Input.Shape) - 1
+
+        layer_stats.update(len(self.layers))
+        for layer in self.layers:
+            node_stats.update(layer.get_output_nodes())
+            for node_idx in range(len(layer.nodes)):
+                link_stats.update(layer.get_link_count(node_idx))
+                if layer.is_conv:
+                    kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
+                    if len(layer.kernel_size) > kernel_dims:
+                        kernel_dims = len(layer.kernel_size)
+
+        return {'layers': layer_stats,
+                'nodes': node_stats,
+                'links': link_stats,
+                'kernel_sizes': kernel_size_stats,
+                'kernel_dims': kernel_dims}
+
+    def get_parametric_complexity(self):
+
+        from . import statistics as Stat
+
+        global_parameter_count = Stat.SMAStat()
+        self_parameter_count = 0
+
+        for ID, net in Net.ecosystem.items():
+
+            parameters = 0
+            for layer in self.layers:
+                parameters += layer.get_link_count()
+
+            global_parameter_count.update(parameters)
+
+            if ID == self.ID:
+                self_parameter_count = parameters
+
+        return global_parameter_count.get_offset(self_parameter_count)
+
+    def get_structural_complexity(self):
+        
+        from . import statistics as Stat
+
+        global_node_count = Stat.SMAStat()
+        self_node_count = 0
+
+        for ID, net in Net.ecosystem.items():
+
+            nodes = 0
+            for layer in self.layers:
+                nodes += layer.get_output_nodes()
+
+            global_node_count.update(nodes)
+
+            if ID == self.ID:
+                self_node_count = nodes
+
+        return global_node_count.get_offset(self_node_count)
 
     def add_layer(self,
                   _shape = [],
@@ -786,7 +796,40 @@ class Net(tn.Module):
         for layer in self.layers:
             _tensor = layer.forward(_tensor)
 
-        return tnf.log_softmax(_tensor, dim = 1)
+        return Net.LossFunction(_tensor, dim = 1)
+
+    def optimise(self,
+                 _data_loader,
+                 _model,
+                 _optimiser):
+        
+        model = self.to(device)
+        model.train()
+        optimiser = Net.Optimiser(model.parameters())
+
+        for batch_idx, (data, target) in enumerate(_data_loader):
+            data, target = data.to(device), target.to(device)
+            optimiser.zero_grad()
+            output = model(data)
+            loss = tnf.nll_loss(output, target)
+            loss.backward()
+            optimiser.step()
+            if batch_idx % 10 == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(train_loader.dataset),
+                    100. * batch_idx / len(train_loader), loss.item()))
+
+        return model, loss
+
+        
+        
+        _optimiser.zero_grad()
+        loss = Net.Output.Loss(_model(_input), _target)
+        loss.backward()
+        return loss
+
+    def evaluate(self):
+        pass
 
     def crossover(self,
                   _p1,  # Parent 1
@@ -945,7 +988,7 @@ class Net(tn.Module):
         from .species import Species
         
         # Statistics about the structure of this network
-        stats = Net.get_structure_stats(self.ID)
+        stats = self.get_structure_stats()
 
 #        print("\n>>> Network statistics:")
 #        for stat in stats.values():
@@ -962,8 +1005,11 @@ class Net(tn.Module):
         # of parameters that the mutation will affect.
         wheel = RouletteWheel(WeightType.Inverse)
 
-        if (Species.Max.Count > 0 and
-            len(Species.env) == Species.Max.Count):
+        # Disable structural mutations if we have reached the limit
+        # on the species count
+        if (Species.Enabled and 
+            Species.Max.Count > 0 and
+            len(Species.populations) == Species.Max.Count):
             _structure = False
 
         if _structure:
@@ -979,8 +1025,7 @@ class Net(tn.Module):
                 wheel.add('node', stats['links'].mean)
 
         if _parameters:
-            # Growing or shrinking a kernel involves adding or removing a shell of links
-            # around the kernel in one of the available dimensions.
+            # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
             # This is multiplied by the average number of input nodes.
             if stats['kernel_dims'] > 0:
                 wheel.add('kernel', 2 * stats['nodes'].mean * math.pow(stats['kernel_sizes'].mean, stats['kernel_dims'] - 1))
@@ -994,12 +1039,14 @@ class Net(tn.Module):
         
         success = False
 
-        for elem_index in range(len(wheel.elements)):
-            print(wheel.elements[elem_index], "|", wheel.weights[WeightType.Raw][elem_index], "|", wheel.weights[WeightType.Inverse][elem_index])            
-            
-        print("Adding" if complexify else "Erasing", element_type)
+        #print("Mutating network", self.ID)
 
-        return
+        #for elem_index in range(len(wheel.elements)):
+            #print(wheel.elements[elem_index], "|", wheel.weights[WeightType.Raw][elem_index], "|", wheel.weights[WeightType.Inverse][elem_index])            
+            
+        #print("Adding" if complexify else "Erasing", element_type)
+
+        #return
 
         if element_type == 'layer':
             success = self.add_layer(_stats = stats) if complexify else self.erase_layer()
@@ -1010,26 +1057,23 @@ class Net(tn.Module):
         elif element_type == 'kernel':
             success = self.grow_kernel(_stats = stats) if complexify else self.shrink_kernel()
 
-        if success:
-            
-            # Check if the mutation was structural
-            if (element_type == 'layer' or
-                element_type == 'node'):
-            
-                # Check if speciation is enabled
-                if (self.species_id != 0 and
-                    self.id != 0):
-                
-                    # Create a new species
-                    new_species = species(_genome = self.get_genome())
+        # Create a new species if...
+        if (success and                  # The mutation was successful
+            Species.Enabled and          # Speciation is enabled
+            self.ID > 0 and              # The network is not isolated
+            (element_type == 'layer' or 
+             element_type == 'node')):   # The mutation was structural
+                       
+                # Create a new species
+                new_species = Species(_genome = self.get_genome())
 
-                    # Add the network to the new species
-                    new_species.nets.add(self.id)
+                # Add the network to the new species
+                new_species.nets.add(self.ID)
 
-                    # Remove the network from the current species
-                    species.env[self.species_id].nets.remove(self.id)
+                # Remove the network from the current species
+                Species.populations[self.species_id].nets.remove(self.ID)
 
-                    # Store the species ID in this network
-                    self.species_id = new_species.id
+                # Store the species ID in this network
+                self.species_id = new_species.ID
 
         return success

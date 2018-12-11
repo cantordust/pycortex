@@ -67,8 +67,8 @@ class Layer(tn.Module):
             self.is_conv = len(self.shape) > 1
             self.empty = _empty
 
-        def __eq__(self,
-                   _other):
+        def matches(self,
+                    _other):
 
             if isinstance(_other, Layer.Def):
                 return (self.shape[0] == _other.shape[0] and # Node count
@@ -76,11 +76,6 @@ class Layer(tn.Module):
                         self.bias == _other.bias and
                         self.activation == _other.activation)
             return False
-
-        def __ne__(self,
-                   _other):
-
-            return not (self == _other)
 
         ### /Def
 
@@ -134,9 +129,9 @@ class Layer(tn.Module):
 
         from .network import Net
 
-        assert callable(Net.Init.Func), "Function %r not callable" % Net.Init.Func.__name__
+        assert callable(Net.Init.Function), "Function %r not callable" % Net.Init.Function.__name__
 
-        Net.Init.Func(_tensor, **Net.Init.Args)
+        Net.Init.Function(_tensor, **Net.Init.Args)
 
     def __init__(self,
                  _layer_def,
@@ -799,6 +794,7 @@ class Layer(tn.Module):
         #print("layer", self.index, "forward()")
         #print("weight tensor size:", self.weight.size())
         #print("output shape:", self.get_output_shape())
+        
         if self.is_conv:
             self.weight.detach_()
             self.overlay_kernels()

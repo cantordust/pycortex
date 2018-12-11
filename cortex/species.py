@@ -8,19 +8,22 @@ Created on Wed Oct 17 12:54:42 2018
 
 class Species:
 
+    Enabled = True
+    
     class Init:
-        Count = 5
+        Count = 8
     
     class Max:
-        Count = 15
+        Count = 16
         
-    env = {}
+    # Static members
     ID = 0
+    populations = {}
 
     @staticmethod
-    def exists(_genome):
-        for genome in Species.env.values():
-            if genome == _genome:
+    def exists(_genome):        
+        for genome in Species.populations.values():
+            if genome.matches(_genome):
                 return True
             
         return False
@@ -39,7 +42,7 @@ class Species:
         if not _isolated:
             Species.ID += 1
             self.ID = Species.ID
-            Species.env[self.ID] = self
+            Species.populations[self.ID] = self
         
         # Species champion
         self.champ = None
@@ -64,43 +67,40 @@ class Species:
 
         print(">>> Species", self.ID, "created")
 
-    def __eq__(self,
-               _other):
+    def matches(self,
+                _other):
         """
-        Equality testing for species
+        Equality testing for species / genome
         """
-        other_genome = None
         
         from .layer import Layer
         
+        other_genome = None
         if isinstance(_other, list):
-#            print("Comparing species", self.ID, "with a raw genome")
-#            print("Species", self.ID, "genome:", len(self.genome), "Genome:", len(other_genome))
             other_genome = _other
+            #print("Comparing species", self.ID, "with a raw genome")
             
         elif isinstance(_other, Species):
-#            print("Comparing species", self.ID, "with species", _other.ID)
-#            print("Species", self.ID, "genome:", len(self.genome), "Species", _other.ID, "genome:", len(_other.genome))
             other_genome = _other.genome
+            #print("Comparing species", self.ID, "with species", _other.ID)
             
-        if other_genome is None:
-            return False
+        assert other_genome is not None, "Species comparison operation failed: comparing %r with %r" % (self, _other)
+
+        if not Species.Enabled:
+            # If speciation is disabled, any genome compares equal to any other genome
+            return True
+
+        #print("Genome 1 length:", len(self.genome), ", Genome 2 length:", len(other_genome))
             
         if len(self.genome) != len(other_genome):
             return False
 
         for layer_index in range(len(self.genome)):
-#                print("Comparing layer ", l)
-            
-            if not (isinstance(self.genome[layer_index], Layer.Def) and
-                    isinstance(other_genome[layer_index], Layer.Def) and
-                    self.genome[layer_index] == other_genome[layer_index]):
+            #print("Comparing layer ", l)
+            if not self.genome[layer_index].matches(other_genome[layer_index]):
                 return False
             
         return True
-
-    def __ne__(self, _other):
-        return not (self == _other)
 
     def calibrate(self):
 

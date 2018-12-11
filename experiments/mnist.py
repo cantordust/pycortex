@@ -14,7 +14,6 @@ from torchvision import datasets, transforms
 
 def train(net, device, train_loader, epoch):
 
-    net.print()
     model = net.to(device)
     model.train()
     optimizer = optim.Adadelta(model.parameters())
