@@ -8,17 +8,36 @@ Created on Tue Oct 16 10:09:53 2018
 """
 
 import torch
+from torch.nn import functional as tnf
 
-from .network import Net
-from .species import Species
-from .layer import Layer
-from . import random as Rand
+from cortex.network import Net
+from cortex.species import Species
+from cortex.layer import Layer
+from cortex import random as Rand
+
+# Global settings
+LearningRate = 0.01
+Momentum = 0.0
+Epochs = 10
+TrainBatchSize = 8
+TestBatchSize = 1000
+Runs = 1
+LogInterval = 10
+
+# Data loading
+Device = torch.device('cpu')
+TrainDataLoadFunc = None
+TestDataLoadFunc = None
+DataLoadArgs = {}
+
+LossFunction = tnf.cross_entropy
+Optimiser = torch.optim.Adadelta
 
 def init():
     """
     Initialise the ecosystem and generate initial species if speciation is enabled.
     """
-    
+
     print(">>> Initialising ecosystem...")
 
     # Reset the static network attributes
@@ -34,11 +53,11 @@ def init():
     if Species.Enabled:
         assert Species.Init.Count > 0, "Invalid initial species count %r" % Species.Init.Count
         assert Species.Init.Count < Net.Init.Count, "Initial species count (%r) is greater than the initial network count (%r)" % (Species.Init.Count, Net.Init.Count)
-        
+
     else:
         Species.Init.Count = 1
         Species.Max.Count = 1
-    
+
     # Generate speciess and nets
 
     # Population size (the number of networks per species).
@@ -51,10 +70,10 @@ def init():
         net_quota = net_quota // Species.Init.Count
 
         # Initial proto-net.
-        # This is the first self-replicating prion to spring 
+        # This is the first self-replicating prion to spring
         # into existence in the digital primordial bouillon.
         proto_net = Net(_isolated = True)
-        
+
         # Generate proto-species and proto-nets
         while True:
 
@@ -64,7 +83,7 @@ def init():
             # Generate proto-nets for this proto-species.
             for n in range(net_quota):
                 proto_net = Net(_species = proto_species)
-            
+
             if len(Species.populations) == Species.Init.Count:
                 break
 
@@ -76,7 +95,7 @@ def init():
     else:
         for net in range(net_quota):
             proto_net = Net()
-            
+
     print("Species:", len(Species.populations))
     print("Nets:", len(Net.ecosystem))
     for species in Species.populations.values():
@@ -84,8 +103,8 @@ def init():
 
 def calibrate():
 
-    from . import statistics as Stat
-    
+    from cortex import statistics as Stat
+
     # A statistics package for collecting
     # species statistics on the fly.
     species_stat = Stat.SMAStat()
@@ -115,7 +134,7 @@ def calibrate():
 
 def cull():
 
-    from . import random as Rand
+    from cortex import random as Rand
 
     while len(Net.ecosystem) > Net.Max.Count:
 
@@ -166,17 +185,17 @@ def evolve():
     cull()
 
 def print_config():
-    
+
     print("\n========================[ PyCortex configuration ]========================")
-    
+
     print("\n======[ Network input ]======")
     print("Shape:", Net.Input.Shape)
-    
+
     print("\n======[ Network output ]======")
     print("Shape:", Net.Output.Shape)
     print("Bias:", Net.Output.Bias)
     print("Function:", Net.Output.Function.__name__)
-    
+
     print("\n======[ Initial values ]======")
     print("Network count:", Net.Init.Count)
     print("Layers:\n")
@@ -188,16 +207,16 @@ def print_config():
         print("\t\tActivation:", layer_def.activation.__name__)
         print("\t\tConvolutional:", layer_def.is_conv)
         print("\t\tEmpty:", layer_def.empty)
-    
+
     print("\nFunction:", Net.Init.Function.__name__)
     print("Arguments:")
     for key, val in Net.Init.Args.items():
         print("\t", key, ":", val)
-    
+
     print("\n======[ Maximal values ]======")
     print("Network count:", Net.Max.Count)
     print("Network age:", Net.Max.Age)
-    
+
     print("\n======[ Species ]======")
     print("Speciation:", "enabled" if Species.Enabled else "disabled")
     if Species.Enabled:
@@ -205,25 +224,25 @@ def print_config():
         print("Maximal count:", Species.Max.Count)
 
     print("\n======[ Optimisation ]======")
-    print("Learning rate:", Net.LearningRate)
-    print("Momentum:", Net.Momentum)
-    print("Epochs:", Net.Epochs)
-    print("Train batch size:", Net.TrainBatchSize)
-    print("Test batch size:", Net.TestBatchSize)
-    print("Runs:", Net.Runs)
-    print("Log interval ( x train batch size):", Net.LogInterval)
- 
-    print("Device:", Net.Device)
-    if len(Net.DataLoadArgs) > 0:
+    print("Learning rate:", LearningRate)
+    print("Momentum:", Momentum)
+    print("Epochs:", Epochs)
+    print("Train batch size:", TrainBatchSize)
+    print("Test batch size:", TestBatchSize)
+    print("Runs:", Runs)
+    print("Log interval ( x train batch size):", LogInterval)
+
+    print("Device:", Device)
+    if len(DataLoadArgs) > 0:
         print("Data loader arguments:\n")
-        for key, val in Net.DataLoadArgs:
+        for key, val in DataLoadArgs:
             print("\t", key, ":", val)
- 
-    print("Loss function:", Net.LossFunction.__name__)
-    print("Optimiser:", Net.Optimiser.__name__)
-    
+
+    print("Loss function:", LossFunction.__name__)
+    print("Optimiser:", Optimiser.__name__)
+
     print("\n=====================[ End of PyCortex configuration ]====================\n")
-    
+
 def pause():
     key = input("Continue (Y/n)? ")
     if len(key) == 0:

@@ -10,7 +10,7 @@ Created on Wed Oct 17 09:36:09 2018
 import sys
 import math
 from enum import Enum
-from . import functions as Func
+from cortex import functions as Func
 
 class MAType(Enum):
      Exponential = 'Exponential'

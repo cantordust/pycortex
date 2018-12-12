@@ -13,14 +13,14 @@ class Fitness:
 
     def __init__(self):
 
-        from . import statistics as Stat
+        from cortex import statistics as Stat
 
         self.absolute = Stat.EMAStat()
         self.relative = Stat.EMAStat()
 
-    def calibrate(self, 
+    def calibrate(self,
                   _stat):
-        
-        from . import statistics as Stat
-        
+
+        from cortex import statistics as Stat
+
         self.relative.update(_stat.get_offset(self.absolute.value))

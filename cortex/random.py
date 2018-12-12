@@ -8,8 +8,8 @@ Created on Thu Oct 18 10:02:21 2018
 """
 
 import random
-from . import statistics as Stat
-from . import functions as Func
+from cortex import statistics as Stat
+from cortex import functions as Func
 
 from enum import Enum
 

@@ -34,14 +34,14 @@ def linscale(_list):
     if len(_list) == 0:
         return _list
 
-    from .statistics import SMAStat
+    from cortex.statistics import SMAStat
 
     stat = SMAStat()
-    
+
     for elem in _list:
         stat.update(elem)
 
-    scaled = [stat.abs_min + (stat.abs_max - stat.abs_min) * (x - stat.min) / (stat.max - stat.min)]
+    scaled = [stat.abs_min + (stat.abs_max - stat.abs_min) * (x - stat.min) / (stat.max - stat.min) for x in _list]
 
     #print(scaled)
 

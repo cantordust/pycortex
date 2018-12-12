@@ -9,23 +9,23 @@ Created on Wed Oct 17 12:54:42 2018
 class Species:
 
     Enabled = True
-    
+
     class Init:
         Count = 8
-    
+
     class Max:
         Count = 16
-        
+
     # Static members
     ID = 0
     populations = {}
 
     @staticmethod
-    def exists(_genome):        
+    def exists(_genome):
         for genome in Species.populations.values():
             if genome.matches(_genome):
                 return True
-            
+
         return False
 
     def __init__(self,
@@ -33,34 +33,34 @@ class Species:
                  _other = None,
                  _isolated = False):
 
-        from .network import Net
-        from .fitness import Fitness
+        from cortex.network import Net
+        from cortex.fitness import Fitness
 
         self.ID = 0
-        
+
         # Increment the global species ID
         if not _isolated:
             Species.ID += 1
             self.ID = Species.ID
             Species.populations[self.ID] = self
-        
+
         # Species champion
         self.champ = None
-        
-        # Overall species fitness computed from the fitness 
+
+        # Overall species fitness computed from the fitness
         # of networks belonging to this species
         self.fitness = Fitness()
-        
+
         # Set of networks belonging to this species
         self.nets = set()
-        
+
         # Species genome (list of layer definitions)
         self.genome = []
-        
+
         if _other is None:
 #            print("Creating genome from initial layer definitions")
             self.genome = list(Net.Init.Layers) if _genome is None else list(_genome)
-        
+
         else:
 #            print("Copying genome from species", _other.ID)
             self.genome = list(_other.genome)
@@ -72,18 +72,18 @@ class Species:
         """
         Equality testing for species / genome
         """
-        
-        from .layer import Layer
-        
+
+        from cortex.layer import Layer
+
         other_genome = None
         if isinstance(_other, list):
             other_genome = _other
             #print("Comparing species", self.ID, "with a raw genome")
-            
+
         elif isinstance(_other, Species):
             other_genome = _other.genome
             #print("Comparing species", self.ID, "with species", _other.ID)
-            
+
         assert other_genome is not None, "Species comparison operation failed: comparing %r with %r" % (self, _other)
 
         if not Species.Enabled:
@@ -91,7 +91,7 @@ class Species:
             return True
 
         #print("Genome 1 length:", len(self.genome), ", Genome 2 length:", len(other_genome))
-            
+
         if len(self.genome) != len(other_genome):
             return False
 
@@ -99,14 +99,14 @@ class Species:
             #print("Comparing layer ", l)
             if not self.genome[layer_index].matches(other_genome[layer_index]):
                 return False
-            
+
         return True
 
     def calibrate(self):
 
-        from .network import Net
-        from .fitness import Fitness
-        from . import statistics as Stat
+        from cortex.network import Net
+        from cortex.fitness import Fitness
+        from cortex import statistics as Stat
 
         if len(self.nets) == 0:
             return (0.0, None)
