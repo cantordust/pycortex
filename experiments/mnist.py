@@ -36,9 +36,9 @@ def get_test_loader():
         batch_size = ctx.TestBatchSize, shuffle = True, **ctx.DataLoadArgs)
     return test_loader
 
-def test(model):
+def test(net):
 
-    model.eval()
+    net.eval()
     test_loss = 0
     correct = 0
 
@@ -47,7 +47,7 @@ def test(model):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(ctx.Device), target.to(ctx.Device)
-            output = model(data)
+            output = net(data)
             test_loss += ctx.LossFunction(output, target, reduction='sum').item() # sum up batch loss
             pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
@@ -59,16 +59,17 @@ def test(model):
 
 def train(net, epoch):
 
-    model = net.to(ctx.Device)
-    model.train()
-    optimiser = ctx.Optimiser(model.parameters())
+    net = net.to(ctx.Device)
+    net.train()
+    optimiser = ctx.Optimiser(net.parameters())
+
     train_loader = get_train_loader()
 
     for batch_idx, (data, target) in enumerate(train_loader):
 #        with detect_anomaly():
         data, target = data.to(ctx.Device), target.to(ctx.Device)
         optimiser.zero_grad()
-        output = model(data)
+        output = net(data)
         loss = ctx.LossFunction(output, target)
         loss.backward()
         optimiser.step()
@@ -77,10 +78,10 @@ def train(net, epoch):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
 
-        if (batch_idx + 1) % (30 * ctx.LogInterval) == 0:
-            net.mutate()
-            model = net.to(ctx.Device)
-            model.train()
-            optimiser = ctx.Optimiser(model.parameters())
+#        if (batch_idx + 1) % (30 * ctx.LogInterval) == 0:
+#            net.mutate()
+##            net = net.to(ctx.Device)
+##            net.train()
+#            optimiser = ctx.Optimiser(net.parameters())
 
-    return model
+    return net

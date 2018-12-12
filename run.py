@@ -11,6 +11,7 @@ import torch
 
 from cortex import cortex as ctx
 from experiments import mnist
+from tensorboardX import SummaryWriter
 
 def parse():
 
@@ -83,12 +84,38 @@ def main():
     # Initialise Cortex
     #ctx.init()
 
-    net = ctx.Net(_isolated = True)
-    #offspring = ctx.Net(_p1 = ctx.Net.population[1], _p2 = ctx.Net.population[2])
+#    net = ctx.Net(_isolated = True)
+
+    net1 = ctx.Net(_isolated = True)
+    net2 = ctx.Net(_isolated = True)
+
+    for i in range(5):
+        net1.mutate(_parameters = False)
+        net2.mutate(_parameters = False)
+
+    for i in range(15):
+        net1.mutate(_structure = False)
+        net2.mutate(_structure = False)
 
     for epoch in range(1, ctx.Epochs + 1):
-        model = mnist.train(net, epoch)
-        mnist.test(model)
+        net1 = mnist.train(net1, epoch)
+        mnist.test(net1)
+
+    for epoch in range(1, ctx.Epochs + 1):
+        net2 = mnist.train(net2, epoch)
+        mnist.test(net2)
+
+    offspring = ctx.Net(_p1 = net1, _p2 = net2)
+
+    mnist.test(offspring)
+
+    for epoch in range(1, ctx.Epochs + 1):
+        offspring = mnist.train(offspring, epoch)
+        mnist.test(offspring)
+
+#    dummy_input = torch.randn(1, *ctx.Net.Input.Shape)
+#    with SummaryWriter(comment='Cortex network') as w:
+#        w.add_graph(model, dummy_input, True)
 
 if __name__ == '__main__':
     main()
