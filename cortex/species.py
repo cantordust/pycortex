@@ -105,7 +105,7 @@ class Species:
     def calibrate(self):
 
         from cortex.network import Net
-        from cortex.fitness import Fitness
+#        from cortex.fitness import Fitness
         from cortex import statistics as Stat
 
         if len(self.nets) == 0:
@@ -116,7 +116,7 @@ class Species:
 
         # Compute the absolute fitness of the species
         for net_id in self.nets:
-            abs_fit = Net.population[net_id].fitness.absolute.value
+            abs_fit = Net.population[net_id].fitness.abs
 
             if abs_fit > max_fit:
                 max_fit = abs_fit
@@ -124,7 +124,7 @@ class Species:
             net_stats.update(abs_fit)
 
         # Sort the networks in order of decreasing fitness
-        self.nets = sorted(self.nets, key = lambda net_id: Net.population[net_id].fitness.absolute.value, reverse = True)
+        self.nets = sorted(self.nets, key = lambda net_id: Net.population[net_id].fitness.abs, reverse = True)
 
         # Compute the relative fitness of the networks
         # belonging to this species
@@ -133,15 +133,10 @@ class Species:
            Net.population[net_id].fitness.calibrate(net_stats)
 
            print("Network ", net_id, " fitness:",
-                 "\t\tAbsolute: ", Net.population[net_id].fitness.absolute.value,
-                 "(mean", Net.population[net_id].fitness.absolute.mean,
-                 ", sd", Net.population[net_id].fitness.absolute.sd() + ")"
+                 "\t\tAbsolute: ", Net.population[net_id].fitness.abs,
+                 "\t\tRelative: ", Net.population[net_id].fitness.rel)
 
-                 "\t\tRelative: ", Net.population[net_id].fitness.relative.value,
-                 "(mean", Net.population[net_id].fitness.relative.mean,
-                 ", sd", Net.population[net_id].fitness.relative.sd() + ")")
-
-        self.fitness.absolute.update(net_stats.mean)
+        self.fitness.abs = net_stats.max
 
         # Return the champion for this species and the genome fitness
-        return (self.fitness.absolute.value, self.nets[0] if len(self.nets) > 0 else None)
+        return (self.fitness.abs, self.nets[0] if len(self.nets) > 0 else None)

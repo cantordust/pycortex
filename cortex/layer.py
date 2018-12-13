@@ -708,7 +708,7 @@ class Layer(tn.Module):
                         sizes[dim] = int(node.size(dim + 1))
 
             self.kernel_size = sizes
-            #print("New kernel size:", self.kernel_size)
+#            print("New kernel size:", self.kernel_size)
 
             # Compute the padding
             self.padding = [size // 2 for size in self.kernel_size]
@@ -735,12 +735,12 @@ class Layer(tn.Module):
         for output_node in range(len(self.nodes)):
             self.weight_slices.append([slice(0, None)])
 
-            for dim, size in enumerate(self.nodes[output_node].size()[1:]):
+            for dim, size in enumerate(list(self.nodes[output_node].size())[1:]):
                 offset = (self.kernel_size[dim] - size) // 2
                 self.weight_slices[-1].append(slice(offset, self.kernel_size[dim] - offset))
 
 #        print("Weight slices:", self.weight_slices)
-#        print("Weights:\n", self.weight)
+#        print("Weights:\n", self.weight.size())
 #        print("Nodes:\n", self.nodes)
 
     def update_weights(self):
@@ -756,9 +756,6 @@ class Layer(tn.Module):
             self.update_kernel()
 
             self.update_slices()
-
-            for node in self.nodes:
-                node.grad = torch.zeros_like(node)
 
             self.weight = torch.zeros(len(self.nodes),       # Output node count
                                       self.input_shape[0],   # Input node count
@@ -807,7 +804,7 @@ class Layer(tn.Module):
         self.weight.detach_()
 
         for output_node in range(len(self.nodes)):
-#            self.nodes[output_node].detach_()
+
             self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node]
 
     def forward(self,

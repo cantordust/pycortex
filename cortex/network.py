@@ -6,8 +6,6 @@ Created on Wed Oct  3 22:49:52 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 
-#from __future__ import print_function
-
 import sys
 import math
 
@@ -15,11 +13,12 @@ import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
+from cortex import cortex as ctx
 from cortex.species import Species
 from cortex.layer import Layer
-from cortex.random import WeightType, RouletteWheel
-from cortex import random as Rand
 from cortex import functions as Func
+from cortex import random as Rand
+from cortex.random import WeightType, RouletteWheel
 
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
@@ -60,7 +59,6 @@ class Net(tn.Module):
 
         super(Net, self).__init__()
 
-        from cortex.species import Species
         from cortex.fitness import Fitness
 
         # Assign a network ID
@@ -96,6 +94,8 @@ class Net(tn.Module):
 
             if (isinstance(_p1, Net) and
                 isinstance(_p2, Net)):
+                with ctx.print_lock:
+                    print('Crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
                 self.crossover(_p1, _p2)
 
             else:
@@ -120,11 +120,11 @@ class Net(tn.Module):
                 _other):
 
         if len(self.layers) != len(_other.layers):
-            print("\t>>> Different number of layers")
-            print("\t>>> Network 1:\n")
-            self.print()
-            print("\t>>> Network 2:\n")
-            _other.print()
+#            print("\t>>> Different number of layers")
+#            print("\t>>> Network 1:\n")
+#            self.print()
+#            print("\t>>> Network 2:\n")
+#            _other.print()
             return False
 
         for layer_index in range(len(self.layers)):
@@ -162,10 +162,14 @@ class Net(tn.Module):
         genome = []
         for layer_index in range(len(self.layers) - 1):
             layer = self.layers[layer_index]
-            genome.append(Layer.Def(_shape = layer.get_output_shape(),
+            shape = [0] * len(layer.get_output_shape())
+            shape[0] = len(layer.nodes)
+
+            genome.append(Layer.Def(_shape = shape,
                                     _bias = layer.bias is not None,
                                     _activation = layer.activation,
                                     _type = layer.type))
+
         return genome
 
     def reindex(self):
@@ -380,7 +384,7 @@ class Net(tn.Module):
             (_layer_index < len(self.layers) and
              len(layer_def.shape) < len(self.get_output_shape(_layer_index)))):     # Attempting to add an FC layer below a conv one
 
-            print(">>> Invalid layer size: Cannot add layer of shape %r at position %r" % (layer_def.shape, _layer_index))
+            print("[Net", self.ID, "]>>> Invalid layer size: Cannot add layer of shape %r at position %r" % (layer_def.shape, _layer_index))
 
             return (False, _layer_index)
 
@@ -391,7 +395,7 @@ class Net(tn.Module):
                           _nodes = _nodes,
                           _bias_nodes = _bias_nodes)
 
-        print(">>> Adding new", new_layer.type , "layer with shape", _shape, "at position", _layer_index)
+        print("[Net", self.ID, "]>>> Adding new", new_layer.type , "layer with shape", _shape, "at position", _layer_index)
 
         # Rearrange the module stack if necessary
         if _layer_index == len(self.layers):
@@ -460,7 +464,7 @@ class Net(tn.Module):
         # Adjust the input size of the following layer
         self.layers[_layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(_layer_index))
 
-        print(">>> Erasing", self.layers[_layer_index].type , "layer at position", _layer_index)
+        print("[Net", self.ID, "]>>> Erasing", self.layers[_layer_index].type , "layer at position", _layer_index)
 
         # Remove the layer
         del self.layers[_layer_index]
@@ -526,7 +530,7 @@ class Net(tn.Module):
             not self.layers[_layer_index].is_conv)):
                 return (False, _layer_index, node_indices)
 
-        print(">>> Adding", _count, "node" if _count == 1 else "nodes", "to layer", _layer_index)
+        print("[Net", self.ID, "]>>> Adding", _count, "node" if _count == 1 else "nodes", "to layer", _layer_index)
 
         # Add the nodes
         success = self.layers[_layer_index].add_nodes(_count, _max_radius)
@@ -636,7 +640,7 @@ class Net(tn.Module):
                     return (False, _layer_index, _node_indices)
                 _count = -len(_node_indices)
 
-        print(">>> Erasing node(s)", *_node_indices, "from layer", _layer_index)
+        print("[Net", self.ID, "]>>> Erasing node(s)", *_node_indices, "from layer", _layer_index)
 
         # Erase the nodes
         success = self.layers[_layer_index].erase_nodes(sorted(list(_node_indices)))
@@ -704,7 +708,7 @@ class Net(tn.Module):
         for dim in _delta.keys():
             _delta[dim] = abs(_delta[dim])
 
-        print(">>> Growing dimension", *_delta.keys(), "of node", _node_index, "in layer", _layer_index, "by", *_delta.values() )
+        print("[Net", self.ID, "]>>> Growing dimension", *_delta.keys(), "of node", _node_index, "in layer", _layer_index, "by", *_delta.values() )
 
         # Grow the kernel
         success = self.layers[_layer_index].resize_kernel(_node_index, _delta)
@@ -765,7 +769,7 @@ class Net(tn.Module):
         for dim in _delta.keys():
             delta[dim] = -abs(_delta[dim])
 
-        print(">>> Shrinking dimension(s)", *delta.keys(), "of kernel", _node_index, "in layer", _layer_index, "by", abs(*delta.values()))
+        print("[Net", self.ID, "]>>> Shrinking dimension(s)", *delta.keys(), "of kernel", _node_index, "in layer", _layer_index, "by", abs(*delta.values()))
 
         # Shrink the kernel
         success = self.layers[_layer_index].resize_kernel(_node_index, delta)
@@ -779,35 +783,6 @@ class Net(tn.Module):
             _tensor = layer.forward(_tensor)
 
         return Net.Output.Function(_tensor, dim = 1)
-
-    #def optimise(self,
-                 #_data_loader,
-                 #_model):
-
-        #model = self.to(Net.Device)
-        #model.train()
-        #optimiser = Net.Optimiser(model.parameters())
-
-        #for batch_idx, (data, target) in enumerate(_data_loader):
-            #data, target = data.to(Net.Device), target.to(Net.Device)
-            #optimiser.zero_grad()
-            #output = model(data)
-            #loss = Net.LossFunction(output, target)
-            #loss.backward()
-            #optimiser.step()
-            #if batch_idx % 10 == 0:
-                #print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    #epoch, batch_idx * len(data), len(train_loader.dataset),
-                    #100. * batch_idx / len(train_loader), loss.item()))
-
-        #return model, loss
-
-    #def evaluate(self,
-                 #model):
-
-        ## TODO: Update the fitness based on the loss
-
-        #pass
 
     def crossover(self,
                   _p1,  # Parent 1
@@ -829,8 +804,8 @@ class Net(tn.Module):
         # (layers) and genes (nodes) from the two
         # parents based on their fitness.
         wheel = RouletteWheel()
-        wheel.add(_p1, _p1.fitness.relative.current_value)
-        wheel.add(_p2, _p2.fitness.relative.current_value)
+        wheel.add(_p1, _p1.fitness.rel)
+        wheel.add(_p2, _p2.fitness.rel)
 
 #        print(">>> _p1.ID:", _p1.ID)
 #        print(">>> _p2.ID:", _p2.ID)
@@ -880,7 +855,8 @@ class Net(tn.Module):
                 # Spin the wheel and lock it into a random position
                 wheel.lock()
 
-                while (larger_parent.layers[larger_parent.cur_layer].type < smaller_parent.layers[smaller_parent.cur_layer].type):
+                while (Layer.TypeRanks[larger_parent.layers[larger_parent.cur_layer].type] <
+                       Layer.TypeRanks[smaller_parent.layers[smaller_parent.cur_layer].type]):
 
                     # Select a parent at random.
                     # If we select the parent with the longer DNA,
@@ -962,9 +938,6 @@ class Net(tn.Module):
                _structure = True,
                _parameters = True):
 
-        from cortex import random as Rand
-        from cortex.species import Species
-
         # Statistics about the structure of this network
         stats = self.get_structure_stats()
 
@@ -982,13 +955,6 @@ class Net(tn.Module):
         # with probability proportional to the number
         # of parameters that the mutation will affect.
         wheel = RouletteWheel(WeightType.Inverse)
-
-        # Disable structural mutations if we have reached the limit
-        # on the species count
-        if (Species.Enabled and
-            Species.Max.Count > 0 and
-            len(Species.populations) == Species.Max.Count):
-            _structure = False
 
         if _structure:
             # Adding or erasing a layer involves severing existing links and adding new ones.
@@ -1013,10 +979,6 @@ class Net(tn.Module):
 
         element_type = wheel.spin()
 
-        # Perform a random mutation
-
-        success = False
-
         #print("Mutating network", self.ID)
 
         #for elem_index in range(len(wheel.elements)):
@@ -1026,21 +988,32 @@ class Net(tn.Module):
 
         #return
 
-        if element_type == 'layer':
-            success = self.add_layer(_stats = stats) if complexify else self.erase_layer()
+        success = False
 
-        elif element_type == 'node':
-            success = self.add_nodes(_stats = stats) if complexify else self.erase_nodes()
-
-        elif element_type == 'kernel':
+        # Non-structural mutation
+        if element_type == 'kernel':
             success = self.grow_kernel(_stats = stats) if complexify else self.shrink_kernel()
 
-        # Create a new species if...
-        if (success and                  # The mutation was successful
-            Species.Enabled and          # Speciation is enabled
-            self.ID > 0 and              # The network is not isolated
-            (element_type == 'layer' or
-             element_type == 'node')):   # The mutation was structural
+        # Structural mutation
+        else:
+
+            # Do not allow structural mutations if we have reached the limit
+            # on the species count and this network's species has more than one member
+            if (Species.Enabled and
+                Species.Max.Count > 0 and
+                len(Species.populations) == Species.Max.Count and
+                len(Species.populations[self.species_id].nets) > 1):
+                return False
+
+            if element_type == 'layer':
+                success = self.add_layer(_stats = stats) if complexify else self.erase_layer()
+
+            elif element_type == 'node':
+                success = self.add_nodes(_stats = stats) if complexify else self.erase_nodes()
+
+            if (success and           # If the mutation was successful
+                Species.Enabled and   # and speciation is enabled
+                self.species_id > 0): # and the network is not isolated
 
                 # Create a new species
                 new_species = Species(_genome = self.get_genome())
@@ -1051,7 +1024,14 @@ class Net(tn.Module):
                 # Remove the network from the current species
                 Species.populations[self.species_id].nets.remove(self.ID)
 
+                if len(Species.populations[self.species_id].nets) == 0:
+                    del Species.populations[self.species_id]
+
                 # Store the species ID in this network
                 self.species_id = new_species.ID
+
+        if success:
+            dummy_input = torch.randn(1, *Net.Input.Shape)
+            output = self(dummy_input)
 
         return success

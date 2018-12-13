@@ -9,12 +9,15 @@ Created on Thu Oct 11 14:52:44 2018
 
 import torch
 from torchvision import datasets, transforms
-from torch.autograd import detect_anomaly
+#from torch.autograd import detect_anomaly
 
 #import sys
 #sys.path.append("..")
 
 from cortex import cortex as ctx
+
+train_loader_lock = ctx.thd.Lock()
+test_loader_lock = ctx.thd.Lock()
 
 def get_train_loader():
 
@@ -42,7 +45,8 @@ def test(net):
     test_loss = 0
     correct = 0
 
-    test_loader = get_test_loader()
+    with test_loader_lock:
+        test_loader = get_test_loader()
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -53,9 +57,13 @@ def test(net):
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+    with ctx.print_lock:
+        accuracy = 100. * correct / len(test_loader.dataset)
+        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+            test_loss, correct, len(test_loader.dataset),
+            accuracy))
+
+    net.fitness.abs = accuracy
 
 def train(net, epoch):
 
@@ -63,10 +71,13 @@ def train(net, epoch):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    train_loader = get_train_loader()
+    print(optimiser)
+    ctx.pause()
+
+    with train_loader_lock:
+        train_loader = get_train_loader()
 
     for batch_idx, (data, target) in enumerate(train_loader):
-#        with detect_anomaly():
         data, target = data.to(ctx.Device), target.to(ctx.Device)
         optimiser.zero_grad()
         output = net(data)
@@ -74,14 +85,9 @@ def train(net, epoch):
         loss.backward()
         optimiser.step()
         if (batch_idx + 1) % ctx.LogInterval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
-
-#        if (batch_idx + 1) % (30 * ctx.LogInterval) == 0:
-#            net.mutate()
-##            net = net.to(ctx.Device)
-##            net.train()
-#            optimiser = ctx.Optimiser(net.parameters())
+            with ctx.print_lock:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(train_loader.dataset),
+                    100. * batch_idx / len(train_loader), loss.item()))
 
     return net

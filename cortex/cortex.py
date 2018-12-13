@@ -7,12 +7,14 @@ Created on Tue Oct 16 10:09:53 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 
+import threading as thd
+from concurrent.futures import ProcessPoolExecutor as ThreadPool
+
 import torch
 from torch.nn import functional as tnf
 
 from cortex.network import Net
 from cortex.species import Species
-from cortex.layer import Layer
 from cortex import random as Rand
 
 # Global settings
@@ -32,6 +34,13 @@ DataLoadArgs = {}
 
 LossFunction = tnf.cross_entropy
 Optimiser = torch.optim.Adadelta
+
+MaxThreads = None
+
+TrainFunction = None
+TestFunction = None
+
+print_lock = thd.Lock()
 
 def init():
     """
@@ -119,31 +128,29 @@ def calibrate():
         (species_fitness, species_champ) = species.calibrate()
 
         if (Net.champ is None or
-            (species_champ is not None and Net.ecosystem[species_champ].fitness.absolute.value > top_fitness)):
+            (species_champ is not None and Net.ecosystem[species_champ].fitness.abs > top_fitness)):
 
             Net.champ = species_champ
-            top_fitness = Net.ecosystem[species_champ].fitness.absolute
+            top_fitness = Net.ecosystem[species_champ].fitness.abs
 
     for species in Species.populations:
         # Compute the relative species fitness
         species.fitness.calibrate(species_stat)
 
         print("Species ", species.ID, "fitness:"
-             "\t\tAbsolute: ", species.fitness.absolute.value, "(mean", species.fitness.absolute.mean, ", sd", species.fitness.absolute.sd() + ")"
-             "\t\tRelative: ", species.fitness.relative.value, "(mean", species.fitness.relative.mean, ", sd", species.fitness.relative.sd() + ")")
+             "\t\tAbsolute: ", species.fitness.abs,
+             "\t\tRelative: ", species.fitness.rel)
 
 def cull():
-
-    from cortex import random as Rand
 
     while len(Net.ecosystem) > Net.Max.Count:
 
         # Get a random species ID
-        species_wheel = [(1.0 - species.fitness.relative.value) for species in Species.populations.values()]
+        species_wheel = [(1.0 - species.fitness.rel) for species in Species.populations.values()]
         species_id = Rand.roulette(Species.populations.keys(), species_wheel)
 
         # Get a random network ID
-        net_wheel = [Net.ecosystem[net_id].age * (1.0 - Net.ecosystem[net_id].fitness.relative.value) for net_id in Species.populations[species_id].nets]
+        net_wheel = [Net.ecosystem[net_id].age * (1.0 - Net.ecosystem[net_id].fitness.rel) for net_id in Species.populations[species_id].nets]
         net_id = Rand.roulette(Species.populations[species_id].nets.keys(), net_wheel)
 
         print("Erasing network ", net_id)
@@ -183,6 +190,14 @@ def evolve():
     # Eliminate unfit networks and empty speciess.
     print("\t`-> Culling...")
     cull()
+
+def evaluate():
+
+    assert TrainFunction is not None, "Please assign a function for training networks."
+    assert TrainFunction is not None, "Please assign a function for testing networks."
+
+    with ThreadPool(max_workers = MaxThreads) as threadpool:
+        threadpool.map(TrainFunction, Net.ecosystem.values())
 
 def print_config():
 

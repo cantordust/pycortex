@@ -9,9 +9,10 @@ Created on Mon Nov 19 19:42:46 2018
 import argparse
 import torch
 
+from tensorboardX import SummaryWriter
+
 from cortex import cortex as ctx
 from experiments import mnist
-from tensorboardX import SummaryWriter
 
 def parse():
 
@@ -32,8 +33,10 @@ def parse():
                         help='SGD momentum (default: 0.5)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='Enables CUDA training')
-    parser.add_argument('--seed', type=int, default=None, metavar='S',
+    parser.add_argument('--rand-seed', type=int, default=None, metavar='S',
                         help='random seed (default: None)')
+    parser.add_argument('--max-threads', type=int, default=None, metavar='S',
+                        help='number of threads (default: all available cores)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
 
@@ -62,8 +65,11 @@ def parse():
         ctx.Net.DataLoadArgs = {'num_workers': 1,
                             'pin_memory': True}
 
-    if args.seed is not None:
-        torch.manual_seed(args.seed)
+    if args.rand_seed is not None:
+        torch.manual_seed(args.rand_seed)
+
+    if args.max_threads is not None:
+        ctx.MaxThreads = args.max_threads
 
     if args.log_interval:
         ctx.Net.LogInterval = args.log_interval
@@ -77,25 +83,37 @@ def main():
     #ctx.Net.Input.Shape = [1, 28, 28]
     #ctx.Net.Output.Shape = [10]
     ctx.Epochs = 1
+    ctx.LogInterval = 50
+    ctx.Net.Init.Count = 2
+    ctx.Species.Init.Count = 1
+    ctx.Species.Max.Count = 2
 
     # Print the current configuration
     ctx.print_config()
 
     # Initialise Cortex
-    #ctx.init()
+    ctx.init()
 
-#    net = ctx.Net(_isolated = True)
+    for net in ctx.Net.ecosystem.values():
+#        for i in range(5):
+#            net.mutate(_parameters = False)
 
-    net1 = ctx.Net(_isolated = True)
-    net2 = ctx.Net(_isolated = True)
+        for i in range(20):
+            net.mutate(_structure = False)
 
-    for i in range(5):
-        net1.mutate(_parameters = False)
-        net2.mutate(_parameters = False)
+    print("Species:", len(ctx.Species.populations))
+    print("Nets:", len(ctx.Net.ecosystem))
+    for species in ctx.Species.populations.values():
+        print("Species", species.ID, "contains networks", *sorted(species.nets))
 
-    for i in range(15):
-        net1.mutate(_structure = False)
-        net2.mutate(_structure = False)
+    net1 = ctx.Net.ecosystem[1]
+    net2 = ctx.Net.ecosystem[2]
+
+    net1.print()
+    net2.print()
+    offspring = ctx.Net(_p1 = net1, _p2 = net2)
+
+    offspring.print()
 
     for epoch in range(1, ctx.Epochs + 1):
         net1 = mnist.train(net1, epoch)
@@ -105,13 +123,11 @@ def main():
         net2 = mnist.train(net2, epoch)
         mnist.test(net2)
 
-    offspring = ctx.Net(_p1 = net1, _p2 = net2)
-
     mnist.test(offspring)
-
-    for epoch in range(1, ctx.Epochs + 1):
-        offspring = mnist.train(offspring, epoch)
-        mnist.test(offspring)
+#
+#    for epoch in range(1, ctx.Epochs + 1):
+#        offspring = mnist.train(offspring, epoch)
+#        mnist.test(offspring)
 
 #    dummy_input = torch.randn(1, *ctx.Net.Input.Shape)
 #    with SummaryWriter(comment='Cortex network') as w:
