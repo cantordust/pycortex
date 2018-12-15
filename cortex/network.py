@@ -17,6 +17,7 @@ from cortex import cortex as ctx
 from cortex.species import Species
 from cortex.layer import Layer
 from cortex import functions as Func
+from cortex import statistics as Stat
 from cortex import random as Rand
 from cortex.random import WeightType, RouletteWheel
 
@@ -74,6 +75,7 @@ class Net(tn.Module):
 
         # Initialise the age
         self.age = 0
+        self.scaled_age = 0.0
 
         # Initialise the age
         self.fitness = Fitness()
@@ -135,7 +137,7 @@ class Net(tn.Module):
 
     def print(self,
               _file = None,
-              _truncate = False):
+              _truncate = True):
 
         if _file is None:
             fh = sys.stdout
@@ -147,6 +149,11 @@ class Net(tn.Module):
             fh = _file
 
         print("\n###################[ Network", self.ID, "]###################\n", file = fh)
+        print("\n>>> Fitness:\n", file = fh)
+        print("\tAbsolute:", self.fitness.absolute, file = fh)
+        print("\tRelative:", self.fitness.relative, file = fh)
+        print("\n>>> Age:", self.age, file = fh)
+        print("\n>>> Species:", self.species_id, file = fh)
         for layer in self.layers:
             layer.print(fh)
 
@@ -222,8 +229,6 @@ class Net(tn.Module):
 
     def get_structure_stats(self):
 
-        from cortex import statistics as Stat
-
         # Structural statistics
         layer_stats = Stat.SMAStat(_title = "Layers per network")
         node_stats = Stat.SMAStat(_title = "Nodes per layer")
@@ -247,19 +252,15 @@ class Net(tn.Module):
                 'kernel_sizes': kernel_size_stats,
                 'kernel_dims': kernel_dims}
 
-    def get_parametric_complexity(self):
-
-        from cortex import statistics as Stat
+    def get_complexity(self):
 
         global_parameter_count = Stat.SMAStat()
         self_parameter_count = 0
 
         for ID, net in Net.ecosystem.items():
 
-            parameters = 0
-            for layer in self.layers:
-                parameters += layer.get_link_count()
-
+            parameters = sum(param.numel() for param in net.parameters() if param.requires_grad)
+            print("Net", ID, "parameter count:", parameters)
             global_parameter_count.update(parameters)
 
             if ID == self.ID:
@@ -267,25 +268,23 @@ class Net(tn.Module):
 
         return global_parameter_count.get_offset(self_parameter_count)
 
-    def get_structural_complexity(self):
-
-        from cortex import statistics as Stat
-
-        global_node_count = Stat.SMAStat()
-        self_node_count = 0
-
-        for ID, net in Net.ecosystem.items():
-
-            nodes = 0
-            for layer in self.layers:
-                nodes += layer.get_output_nodes()
-
-            global_node_count.update(nodes)
-
-            if ID == self.ID:
-                self_node_count = nodes
-
-        return global_node_count.get_offset(self_node_count)
+#    def get_structural_complexity(self):
+#
+#        global_node_count = Stat.SMAStat()
+#        self_node_count = 0
+#
+#        for ID, net in Net.ecosystem.items():
+#
+#            nodes = 0
+#            for layer in self.layers:
+#                nodes += layer.get_output_nodes()
+#
+#            global_node_count.update(nodes)
+#
+#            if ID == self.ID:
+#                self_node_count = nodes
+#
+#        return global_node_count.get_offset(self_node_count)
 
     def add_layer(self,
                   _shape = [],
@@ -804,8 +803,8 @@ class Net(tn.Module):
         # (layers) and genes (nodes) from the two
         # parents based on their fitness.
         wheel = RouletteWheel()
-        wheel.add(_p1, _p1.fitness.rel)
-        wheel.add(_p2, _p2.fitness.rel)
+        wheel.add(_p1, _p1.fitness.relative)
+        wheel.add(_p2, _p2.fitness.relative)
 
 #        print(">>> _p1.ID:", _p1.ID)
 #        print(">>> _p2.ID:", _p2.ID)
@@ -842,15 +841,19 @@ class Net(tn.Module):
                 # Store the parents' layers into the reference genotypes.
                 dna1.append(_p1.layers[_p1.cur_layer])
                 dna2.append(_p2.layers[_p2.cur_layer])
-
                 _p1.cur_layer += 1
                 _p2.cur_layer += 1
 
             else:
 
                 # Determine the parent with the longer DNA
-                larger_parent = _p1 if Layer.TypeRanks[_p1.layers[_p1.cur_layer].type] < Layer.TypeRanks[_p2.layers[_p2.cur_layer].type] else _p2
-                smaller_parent = _p1 if larger_parent.ID == _p2.ID else _p2
+                if (Layer.TypeRanks[_p1.layers[_p1.cur_layer].type] <
+                    Layer.TypeRanks[_p2.layers[_p2.cur_layer].type]):
+                    larger_parent = _p1
+                    smaller_parent = _p2
+                else:
+                    larger_parent = _p2
+                    smaller_parent = _p1
 
                 # Spin the wheel and lock it into a random position
                 wheel.lock()
@@ -900,6 +903,7 @@ class Net(tn.Module):
                 rnd_layer = wheel.spin()
                 # Pick a node from either layer at random
                 nodes.append(rnd_layer.nodes[node_idx])
+
                 if bias_vals is not None:
                     bias_vals.append(rnd_layer.bias.data[node_idx])
 
@@ -949,7 +953,7 @@ class Net(tn.Module):
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
-        complexify = Rand.chance(1.0 - self.get_parametric_complexity())
+        complexify = Rand.chance(1.0 - self.get_complexity())
 
         # The complexity can be increased or decreased
         # with probability proportional to the number
@@ -1030,8 +1034,8 @@ class Net(tn.Module):
                 # Store the species ID in this network
                 self.species_id = new_species.ID
 
-        if success:
-            dummy_input = torch.randn(1, *Net.Input.Shape)
-            output = self(dummy_input)
+#        if success:
+#            dummy_input = torch.randn(1, *Net.Input.Shape)
+#            output = self(dummy_input)
 
         return success

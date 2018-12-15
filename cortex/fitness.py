@@ -13,10 +13,5 @@ class Fitness:
 
     def __init__(self):
 
-        self.abs = 0.0
-        self.rel = 0.0
-
-    def calibrate(self,
-                  _stat):
-
-        self.rel = (_stat.get_offset(self.abs))
+        self.absolute = 0.0
+        self.relative = 0.0

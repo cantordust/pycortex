@@ -63,7 +63,7 @@ def parse():
     if args.cuda and torch.cuda.is_available():
         ctx.Net.Device = torch.device('cuda')
         ctx.Net.DataLoadArgs = {'num_workers': 1,
-                            'pin_memory': True}
+                                'pin_memory': True}
 
     if args.rand_seed is not None:
         torch.manual_seed(args.rand_seed)
@@ -82,11 +82,16 @@ def main():
     # Set any other options
     #ctx.Net.Input.Shape = [1, 28, 28]
     #ctx.Net.Output.Shape = [10]
-    ctx.Epochs = 1
+    ctx.Epochs = 2
     ctx.LogInterval = 50
     ctx.Net.Init.Count = 2
+    ctx.Net.Max.Count = 6
     ctx.Species.Init.Count = 1
     ctx.Species.Max.Count = 2
+
+    ctx.MaxThreads = 2
+
+    ctx.TrainFunction = mnist.train
 
     # Print the current configuration
     ctx.print_config()
@@ -94,44 +99,9 @@ def main():
     # Initialise Cortex
     ctx.init()
 
-    for net in ctx.Net.ecosystem.values():
-#        for i in range(5):
-#            net.mutate(_parameters = False)
-
-        for i in range(20):
-            net.mutate(_structure = False)
-
-    print("Species:", len(ctx.Species.populations))
-    print("Nets:", len(ctx.Net.ecosystem))
-    for species in ctx.Species.populations.values():
-        print("Species", species.ID, "contains networks", *sorted(species.nets))
-
-    net1 = ctx.Net.ecosystem[1]
-    net2 = ctx.Net.ecosystem[2]
-
-    net1.print()
-    net2.print()
-    offspring = ctx.Net(_p1 = net1, _p2 = net2)
-
-    offspring.print()
-
     for epoch in range(1, ctx.Epochs + 1):
-        net1 = mnist.train(net1, epoch)
-        mnist.test(net1)
-
-    for epoch in range(1, ctx.Epochs + 1):
-        net2 = mnist.train(net2, epoch)
-        mnist.test(net2)
-
-    mnist.test(offspring)
-#
-#    for epoch in range(1, ctx.Epochs + 1):
-#        offspring = mnist.train(offspring, epoch)
-#        mnist.test(offspring)
-
-#    dummy_input = torch.randn(1, *ctx.Net.Input.Shape)
-#    with SummaryWriter(comment='Cortex network') as w:
-#        w.add_graph(model, dummy_input, True)
+        ctx.evaluate()
+        ctx.evolve()
 
 if __name__ == '__main__':
     main()

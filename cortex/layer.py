@@ -367,16 +367,16 @@ class Layer(tn.Module):
                                           self.dilation,
                                           self.stride)
 
-    def get_link_count(self,
+    def get_parameter_count(self,
                        _node_idx = None):
 
         nodes = [node for node in range(len(self.nodes))] if _node_idx is None else [_node_idx]
 
-        links = 0
+        parameters = 0
         for node_idx in nodes:
-            links += self.nodes[node_idx].numel()
+            parameters += self.nodes[node_idx].numel()
 
-        return links
+        return parameters
 
     def get_mean_link_count(self):
         return self.get_link_count() / len(self.nodes)

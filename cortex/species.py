@@ -6,6 +6,9 @@ Created on Wed Oct 17 12:54:42 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 
+from cortex import random as Rand
+from cortex.random import RouletteWheel, WeightType
+
 class Species:
 
     Enabled = True
@@ -73,8 +76,6 @@ class Species:
         Equality testing for species / genome
         """
 
-        from cortex.layer import Layer
-
         other_genome = None
         if isinstance(_other, list):
             other_genome = _other
@@ -102,41 +103,71 @@ class Species:
 
         return True
 
-    def calibrate(self):
+    def calibrate(self,
+                  _complexity_fitness_scale):
 
         from cortex.network import Net
-#        from cortex.fitness import Fitness
         from cortex import statistics as Stat
 
         if len(self.nets) == 0:
-            return (0.0, None)
+            return
+
+        # Reset the champion
+        self.champ = None
 
         net_stats = Stat.SMAStat()
-        max_fit = -1.0
+        top_fitness = -1.0
 
         # Compute the absolute fitness of the species
         for net_id in self.nets:
-            abs_fit = Net.population[net_id].fitness.abs
+            relative_fitness = _complexity_fitness_scale[net_id] * Net.ecosystem[net_id].fitness.absolute
 
-            if abs_fit > max_fit:
-                max_fit = abs_fit
+            if relative_fitness > top_fitness:
+                top_fitness = relative_fitness
 
-            net_stats.update(abs_fit)
+            net_stats.update(relative_fitness)
 
         # Sort the networks in order of decreasing fitness
-        self.nets = sorted(self.nets, key = lambda net_id: Net.population[net_id].fitness.abs, reverse = True)
+        self.nets = sorted(self.nets, key = lambda net_id: Net.ecosystem[net_id].fitness.absolute, reverse = True)
+
+        if len(self.nets) > 0:
+            self.champ = self.nets[0]
+#
+#        print("Networks for species", self.ID, "sorted in order of descending fitness:", self.nets)
+#        print("Champion for species", self.ID, ":", self.champ)
 
         # Compute the relative fitness of the networks
         # belonging to this species
         for net_id in self.nets:
             # Compute the relative fitness
-           Net.population[net_id].fitness.calibrate(net_stats)
+            net = Net.ecosystem[net_id]
+            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
-           print("Network ", net_id, " fitness:",
-                 "\t\tAbsolute: ", Net.population[net_id].fitness.abs,
-                 "\t\tRelative: ", Net.population[net_id].fitness.rel)
+            print("Network", net_id, "fitness:",
+                  "\t\tAbsolute:", Net.ecosystem[net_id].fitness.absolute,
+                  "\t\tRelative:", Net.ecosystem[net_id].fitness.relative)
 
-        self.fitness.abs = net_stats.max
+        self.fitness.absolute = net_stats.mean
 
-        # Return the champion for this species and the genome fitness
-        return (self.fitness.abs, self.nets[0] if len(self.nets) > 0 else None)
+    def evolve(self):
+
+        from cortex.network import Net
+
+        # Populate the parent wheel.
+        # Networks that have been selected for crossover
+        # will pick a partner at random by spinning the wheel.
+        parent_wheel = RouletteWheel()
+        for net_id in self.nets:
+            parent_wheel.add(net_id, Net.ecosystem[net_id].fitness.relative)
+
+        # Iterate over the networks and check if we should perform crossover or mutation
+        for net_id in self.nets:
+            if Rand.chance(Net.ecosystem[net_id].fitness.relative):
+                Net(_p1 = Net.ecosystem[net_id], _p2 = Net.ecosystem[parent_wheel.spin()])
+
+            else:
+                Net.ecosystem[net_id].mutate()
+
+
+
+

@@ -31,26 +31,26 @@ import cortex.random as Rand
 from cortex.random import RouletteWheel
 
 def pass_fail(cond, *args):
-    
+
     print(f'[ {Fore.GREEN}Passed{Style.RESET_ALL} ]' if cond else f'[ {Fore.RED}Failed{Style.RESET_ALL} ]', *args)
-    
+
     return cond
 
 def test_fmap(_val = 1.0):
-    
+
     for enum, f in Func.fmap.items():
         print(enum.name, f(_val))
 
 def test_stat(_type = Stat.MAType.Simple):
-    
+
     stat = Stat.SMAStat("Test stats") if _type == Stat.MAType.Simple else Stat.EMAStat()
     for i in range(1, 100):
         stat.update(i)
-    
+
     stat.print()
 
 def test_rand():
-    
+
     print("ND:", Rand.ND())
     print("negND:", Rand.negND())
     print("posND:", Rand.posND())
@@ -65,7 +65,7 @@ def test_rand():
     print("val:", Rand.val(table))
 
 def test_torch_allclose():
-    
+
     tensor1 = torch.ones(3,3)
     tensor2 = torch.ones(3,3)
     tensor2[0][0] += 1e-8
@@ -92,7 +92,7 @@ def test_init_tensor(_tensor = torch.zeros(3,3,3),
     print("Original tensor:\n", _tensor)
 
     _func(_tensor, **_args)
-    
+
     print("\nInitialised tensor:\n", _tensor)
 
 def test_output_shape(_input_shape = [3, 32, 32],
@@ -114,10 +114,10 @@ def test_output_shape(_input_shape = [3, 32, 32],
 
         if len(_padding) == 0:
             _padding = tuple([dim // 2 for dim in _kernel_size])
-            
+
         if len(_stride) == 0:
             _stride = tuple([1] * len(_kernel_size))
-            
+
         if len(_dilation) == 0:
             _dilation = tuple([1] * len(_kernel_size))
 
@@ -141,19 +141,19 @@ def test_output_shape(_input_shape = [3, 32, 32],
     print("Output shape:", layer_shape)
 
 def test_set_layer_kernel_size():
-    
+
     ctx.Net.Init.Layers = [Layer.Def([10, 0, 0])]
     #ctx.Net.Init.Layers = [Layer.Def([10, 3, 0])]
     #ctx.Net.Init.Layers = [Layer.Def([10, 0, 3])]
     #ctx.Net.Init.Layers = [Layer.Def([10, 3, 3])]
-    
+
     net = ctx.Net()
-    
+
     net.layers[0].print()
 
 def test_random_kernel_size(_max = 28,
                             _draws = 1000):
-    
+
     wheel = Rand.RouletteWheel()
 
     for i in range(1,_max):
@@ -175,11 +175,11 @@ def test_extract_subkernel(_layer_shape = [1,9,9],
                            _input_shape = [1, 28, 28],
                            _node_index = 0,
                            _patch_size = [3, 3]):
-    
+
     layer = Layer(Layer.Def(_layer_shape), _input_shape)
-        
+
     layer.print()
-    
+
     sub = layer.extract_patch(_node_index, _patch_size)
 
     print(sub)
@@ -212,15 +212,15 @@ def test_single_mutation(_mut = 'add_layer'):
         success = net.grow_kernel()
     elif _mut == 'shrink_kernel':
         success = net.shrink_kernel()
-        
+
     else:
         print("Invalid mutation type %r" % _mut)
         return
-    
+
     assert(pass_fail(success, "Mutating network..."))
-        
+
     net.print('after_mutation.txt', True)
-    
+
     model = net.to('cpu')
 
     tensor = torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)
@@ -229,7 +229,7 @@ def test_single_mutation(_mut = 'add_layer'):
     print(output)
 
 def test_tensor_slices():
-    
+
     tensor = torch.zeros(5,3,3)
     new_tensor = torch.Tensor()
 
@@ -307,7 +307,7 @@ def test_mutations():
         print("======================[ Original network ]======================")
         original_net.print()
 
-        print("======================[ Mutated network ]======================")
+        print("======================[ Mutated network ]=======================")
         net.print()
 
         model1 = net.to('cpu')
@@ -381,7 +381,7 @@ def test_crossover():
                     offspring.print()
 
 def test_init_population():
-            
+
     ctx.Species.Enabled = False
     ctx.init()
 
@@ -392,7 +392,7 @@ Print a header with some information and run a unit test.
 def run(_func,
         *_args,
         **_keywords):
-    
+
     print("\n==================================[ Unit test ]==================================")
     print("Function:", _func.__name__)
     print("Arguments:")
@@ -401,7 +401,7 @@ def run(_func,
     print("Keyword arguments:")
     for key, val in _keywords.items():
         print("\t", key, ":", val)
-    
+
     if ctx.pause() == 'Y':
         print("Function output:\n\n")
         _func(*_args, **_keywords)

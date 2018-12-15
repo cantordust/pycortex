@@ -57,13 +57,16 @@ def test(net):
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
+
     with ctx.print_lock:
         accuracy = 100. * correct / len(test_loader.dataset)
         print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
             test_loss, correct, len(test_loader.dataset),
             accuracy))
 
-    net.fitness.abs = accuracy
+    net.fitness.absolute = accuracy
+
+    return net
 
 def train(net, epoch):
 
@@ -71,11 +74,11 @@ def train(net, epoch):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    print(optimiser)
-    ctx.pause()
-
     with train_loader_lock:
         train_loader = get_train_loader()
+
+    with ctx.print_lock:
+        net.print(_file = "Network " + str(net.ID) + " before training.txt")
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(ctx.Device), target.to(ctx.Device)
@@ -86,8 +89,11 @@ def train(net, epoch):
         optimiser.step()
         if (batch_idx + 1) % ctx.LogInterval == 0:
             with ctx.print_lock:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
+                print('[Net {}] Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    net.ID, epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
-    return net
+    with ctx.print_lock:
+        net.print(_file = "Network " + str(net.ID) + " after training.txt")
+
+    return test(net)
