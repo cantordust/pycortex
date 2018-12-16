@@ -148,12 +148,14 @@ class Net(tn.Module):
         else:
             fh = _file
 
-        print("\n###################[ Network", self.ID, "]###################\n", file = fh)
-        print("\n>>> Fitness:\n", file = fh)
-        print("\tAbsolute:", self.fitness.absolute, file = fh)
-        print("\tRelative:", self.fitness.relative, file = fh)
-        print("\n>>> Age:", self.age, file = fh)
-        print("\n>>> Species:", self.species_id, file = fh)
+        print("\n###################[ Network", self.ID, "]###################\n",
+              "\n>>> Fitness:\n",
+              "\tAbsolute:", self.fitness.absolute,
+              "\tRelative:", self.fitness.relative,
+              "\n>>> Age:", self.age,
+              "\n>>> Species:", self.species_id,
+              file = fh)
+
         for layer in self.layers:
             layer.print(fh)
 
@@ -260,31 +262,13 @@ class Net(tn.Module):
         for ID, net in Net.ecosystem.items():
 
             parameters = sum(param.numel() for param in net.parameters() if param.requires_grad)
-            print("Net", ID, "parameter count:", parameters)
             global_parameter_count.update(parameters)
 
             if ID == self.ID:
+                print("Net", ID, "parameter count:", parameters)
                 self_parameter_count = parameters
 
         return global_parameter_count.get_offset(self_parameter_count)
-
-#    def get_structural_complexity(self):
-#
-#        global_node_count = Stat.SMAStat()
-#        self_node_count = 0
-#
-#        for ID, net in Net.ecosystem.items():
-#
-#            nodes = 0
-#            for layer in self.layers:
-#                nodes += layer.get_output_nodes()
-#
-#            global_node_count.update(nodes)
-#
-#            if ID == self.ID:
-#                self_node_count = nodes
-#
-#        return global_node_count.get_offset(self_node_count)
 
     def add_layer(self,
                   _shape = [],

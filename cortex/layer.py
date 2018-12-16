@@ -319,24 +319,23 @@ class Layer(tn.Module):
         else:
             fh = _file
 
-        print("\n==================[ Layer", self.index, "]==================", file = fh)
-        print("\n>>> Type:", self.type, file = fh)
-        print("\n>>> Activation:", self.activation.__name__, file = fh)
-        print("\n>>> Input shape:", self.input_shape, ", input nodes:", self.get_input_nodes(), ", multiplier:", self.get_multiplier(), file = fh)
-        print("\n>>> Output shape:", self.get_output_shape(), ", output nodes:", self.get_output_nodes(), file = fh)
-        print("\n>>> Size of weight tensor:\n", self.weight.size(), file = fh)
-        print("\n>>> Size of bias tensor:\n", self.bias.size(), file = fh)
-        print("\n>>> Attributes:", file = fh)
-        print("\tKernel size:", self.kernel_size, file = fh)
-        print("\tStride:", self.stride, file = fh)
-        print("\tPadding:", self.padding, file = fh)
-        print("\tDilation:", self.dilation, file = fh)
-        print("\n>>> Learnable parameters:", file = fh)
+        print("\n==================[ Layer", self.index, "]==================",
+              "\n>>> Type:", self.type,
+              "\n>>> Activation:", self.activation.__name__,
+              "\n>>> Input shape:", self.input_shape, ", input nodes:", self.get_input_nodes(), ", multiplier:", self.get_multiplier(),
+              "\n>>> Output shape:", self.get_output_shape(), ", output nodes:", self.get_output_nodes(),
+              "\n>>> Size of weight tensor:\n", self.weight.size(),
+              "\n>>> Size of bias tensor:\n", self.bias.size(),
+              "\n>>> Attributes:",
+              "\tKernel size:", self.kernel_size,
+              "\tStride:", self.stride,
+              "\tPadding:", self.padding,
+              "\tDilation:", self.dilation,
+              "\n>>> Learnable parameters:",
+              file = fh)
+
         for idx, param in enumerate(self.parameters()):
             print("\n>>> Parameter", idx, ":\n", param, file = fh)
-
-        if isinstance(_file, str):
-            fh.close()
 
     def get_multiplier(self,
                        _input_shape = None):

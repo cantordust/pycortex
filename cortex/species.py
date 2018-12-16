@@ -132,9 +132,9 @@ class Species:
 
         if len(self.nets) > 0:
             self.champ = self.nets[0]
-#
-#        print("Networks for species", self.ID, "sorted in order of descending fitness:", self.nets)
-#        print("Champion for species", self.ID, ":", self.champ)
+
+        print("Networks for species", self.ID, "sorted in order of descending fitness:", self.nets)
+        print("Champion for species", self.ID, ":", self.champ)
 
         # Compute the relative fitness of the networks
         # belonging to this species

@@ -7,7 +7,10 @@ Created on Tue Oct 16 10:09:53 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 
+import os
+import sys
 import math
+from datetime import datetime
 import threading as thd
 from concurrent.futures import ProcessPoolExecutor as ThreadPool
 
@@ -17,13 +20,13 @@ from torch.nn import functional as tnf
 from cortex.network import Net
 from cortex.species import Species
 from cortex.random import RouletteWheel, WeightType
-from cortex import functions as Func
 from cortex import statistics as Stat
 
 # Global settings
 LearningRate = 0.01
 Momentum = 0.0
 Epochs = 10
+
 TrainBatchSize = 8
 TestBatchSize = 1000
 Runs = 1
@@ -41,6 +44,13 @@ Optimiser = torch.optim.Adadelta
 
 MaxThreads = None
 
+ArchiveDir = './model_archive'
+
+# Operating variables for saving models
+ExperimentName = 'experiment'
+CurrentEpoch = 1
+CurrentRun = 1
+ArchiveDirPrefix = datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
 
 print_lock = thd.Lock()
 
@@ -106,11 +116,17 @@ def init():
     else:
         for net in range(net_quota):
             proto_net = Net()
+            proto_net.mutate()
 
     print("Species:", len(Species.populations))
     print("Nets:", len(Net.ecosystem))
     for species in Species.populations.values():
         print("Species", species.ID, "contains networks", *sorted(species.nets))
+
+    global ArchiveDir
+    ArchiveDir += '/' + ExperimentName + '/' + ArchiveDirPrefix
+
+    os.makedirs(ArchiveDir, exist_ok = True)
 
 def calibrate():
 
@@ -158,6 +174,7 @@ def calibrate():
         # Compute the relative network fitness
         # and the absolute species fitness.
         species.calibrate(complexity_fitness_scale)
+        species_stat.update(species.fitness.absolute)
 
         if (Net.champ is None or
             Net.ecosystem[species.champ].fitness.absolute > top_fitness):
@@ -170,8 +187,16 @@ def calibrate():
         species.fitness.relative = species_stat.get_offset(species.fitness.absolute)
 
         print("Species", species.ID, "fitness:"
-             "\t\tAbsolute:", species.fitness.absolute,
-             "\t\tRelative:", species.fitness.relative)
+              "\t\tAbsolute:", species.fitness.absolute,
+              "\t\tRelative:", species.fitness.relative)
+
+def save(net_id):
+
+    save_dir = ArchiveDir + '/run_' + str(CurrentRun) + '/epoch_' + str(CurrentEpoch)
+
+    os.makedirs(save_dir, exist_ok = True)
+
+    torch.save(Net.ecosystem[net_id].state_dict(), save_dir + '/net_' + str(net_id) + ".pt")
 
 def cull():
 
@@ -194,6 +219,9 @@ def cull():
 
         # Erase the network from the species.
         del Species.populations[species_id].nets[net_id]
+
+        # Archive the network
+        save(net_id)
 
         # Erase the network from the ecosystem.
         del Net.ecosystem[net_id]
@@ -218,74 +246,107 @@ def evolve():
     print("\t`-> Culling...")
     cull()
 
-def evaluate():
+def run():
 
     assert TrainFunction is not None, "Please assign a function for training networks."
-    assert TrainFunction is not None, "Please assign a function for testing networks."
 
-    with ThreadPool(max_workers = MaxThreads) as threadpool:
-        for net in threadpool.map(TrainFunction, Net.ecosystem.values(), [1] * len(Net.ecosystem)):
-            Net.ecosystem[net.ID] = net
-            print('Network %r: %r' % (net.ID, net.fitness.absolute))
+    global CurrentRun
+    global CurrentEpoch
 
-def print_config():
+    for run in range(Runs):
 
-    print("\n========================[ PyCortex configuration ]========================")
+        CurrentRun = run + 1
 
-    print("\n======[ Network input ]======")
-    print("Shape:", Net.Input.Shape)
+        init()
 
-    print("\n======[ Network output ]======")
-    print("Shape:", Net.Output.Shape)
-    print("Bias:", Net.Output.Bias)
-    print("Function:", Net.Output.Function.__name__)
+        for epoch in range(Epochs):
 
-    print("\n======[ Initial values ]======")
-    print("Network count:", Net.Init.Count)
-    print("Layers:\n")
+            CurrentEpoch = epoch + 1
+
+            with ThreadPool(max_workers = MaxThreads) as threadpool:
+                for net in threadpool.map(TrainFunction, Net.ecosystem.values(), [1] * len(Net.ecosystem)):
+                    Net.ecosystem[net.ID] = net
+                    print('Absolute fitness for network %r: %r' % (net.ID, net.fitness.absolute))
+
+            evolve()
+
+        for net_id in Net.ecosystem.keys():
+            save(net_id)
+
+def print_config(_file = None,
+                 _truncate = True):
+
+    if _file is None:
+        fh = sys.stdout
+    if isinstance(_file, str):
+        fh = open(_file, 'w')
+        if _truncate:
+            fh.truncate()
+    else:
+        fh = _file
+
+    print("\n========================[ PyCortex configuration ]========================",
+          "\n======[ Network input ]======",
+          "Shape:", Net.Input.Shape,
+          "\n======[ Network output ]======",
+          "Shape:", Net.Output.Shape,
+          "Bias:", Net.Output.Bias,
+          "Function:", Net.Output.Function.__name__,
+          "\n======[ Initial values ]======",
+          "Network count:", Net.Init.Count,
+          "Layers:\n",
+          file = fh)
+
     for layer_index, layer_def in enumerate(Net.Init.Layers):
-        print("\tLayer", layer_index + 1, ":")
-        print("\t\tShape:", layer_def.shape)
-        print("\t\tBias:", layer_def.bias)
-        print("\t\tType:", layer_def.op.__name__)
-        print("\t\tActivation:", layer_def.activation.__name__)
-        print("\t\tConvolutional:", layer_def.is_conv)
-        print("\t\tEmpty:", layer_def.empty)
+        print("\tLayer", layer_index + 1, ":",
+              "\t\tShape:", layer_def.shape,
+              "\t\tBias:", layer_def.bias,
+              "\t\tType:", layer_def.op.__name__,
+              "\t\tActivation:", layer_def.activation.__name__,
+              "\t\tConvolutional:", layer_def.is_conv,
+              "\t\tEmpty:", layer_def.empty,
+              file = fh)
 
-    print("\nFunction:", Net.Init.Function.__name__)
-    print("Arguments:")
+    print("\nFunction:", Net.Init.Function.__name__,
+          "Arguments:",
+          file = fh)
+
     for key, val in Net.Init.Args.items():
-        print("\t", key, ":", val)
+        print("\t", key, ":", val, file = fh)
 
-    print("\n======[ Maximal values ]======")
-    print("Network count:", Net.Max.Count)
-    print("Network age:", Net.Max.Age)
+    print("\n======[ Maximal values ]======",
+          "Network count:", Net.Max.Count,
+          "Network age:", Net.Max.Age,
+          "\n======[ Species ]======",
+          "Speciation:", "enabled" if Species.Enabled else "disabled",
+          file = fh)
 
-    print("\n======[ Species ]======")
-    print("Speciation:", "enabled" if Species.Enabled else "disabled")
     if Species.Enabled:
-        print("Species count:", Species.Init.Count)
-        print("Maximal count:", Species.Max.Count)
+        print("Species count:", Species.Init.Count,
+              "Maximal count:", Species.Max.Count,
+              file = fh)
 
-    print("\n======[ Optimisation ]======")
-    print("Learning rate:", LearningRate)
-    print("Momentum:", Momentum)
-    print("Epochs:", Epochs)
-    print("Train batch size:", TrainBatchSize)
-    print("Test batch size:", TestBatchSize)
-    print("Runs:", Runs)
-    print("Log interval ( x train batch size):", LogInterval)
+    print("\n======[ Optimisation ]======",
+          "Learning rate:", LearningRate,
+          "Momentum:", Momentum,
+          "Epochs:", Epochs,
+          "Train batch size:", TrainBatchSize,
+          "Test batch size:", TestBatchSize,
+          "Runs:", Runs,
+          "Log interval ( x train batch size):", LogInterval,
+          "Device:", Device,
+              file = fh)
 
-    print("Device:", Device)
     if len(DataLoadArgs) > 0:
-        print("Data loader arguments:\n")
+        print("Data loader arguments:\n", file = fh)
         for key, val in DataLoadArgs:
-            print("\t", key, ":", val)
+            print("\t", key, ":", val, file = fh)
 
-    print("Loss function:", LossFunction.__name__)
-    print("Optimiser:", Optimiser.__name__)
-
-    print("\n=====================[ End of PyCortex configuration ]====================\n")
+    print("Loss function:", LossFunction.__name__,
+          "Optimiser:", Optimiser.__name__,
+          "Archive directory:", ArchiveDir,
+          "\n=====================[ End of PyCortex configuration ]====================\n",
+          file = fh)
 
 def pause():
     key = input("Continue (Y/n)? ")

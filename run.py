@@ -93,15 +93,13 @@ def main():
 
     ctx.TrainFunction = mnist.train
 
+    ctx.ExperimentName = "MNIST"
     # Print the current configuration
+
     ctx.print_config()
 
-    # Initialise Cortex
-    ctx.init()
-
-    for epoch in range(1, ctx.Epochs + 1):
-        ctx.evaluate()
-        ctx.evolve()
+    # Run Cortex
+    ctx.run()
 
 if __name__ == '__main__':
     main()
