@@ -159,8 +159,8 @@ def calibrate():
     complexity_fitness_scale = {}
     complexity_stat = Stat.SMAStat()
     for net in Net.ecosystem.values():
-        complexity_fitness_scale[net.ID] = net.get_complexity()
-        print("Network", net.ID, "complexity:", complexity_fitness_scale[net.ID])
+        complexity_fitness_scale[net.ID] = net.get_parameter_count()
+        complexity_stat.update(complexity_fitness_scale[net.ID])
 
     for net_id in complexity_fitness_scale.keys():
         # Lower complexity = higher scale factor.
@@ -287,64 +287,64 @@ def print_config(_file = None,
 
     print("\n========================[ PyCortex configuration ]========================",
           "\n======[ Network input ]======",
-          "Shape:", Net.Input.Shape,
+          "\nShape:", Net.Input.Shape,
           "\n======[ Network output ]======",
-          "Shape:", Net.Output.Shape,
-          "Bias:", Net.Output.Bias,
-          "Function:", Net.Output.Function.__name__,
+          "\nShape:", Net.Output.Shape,
+          "\nBias:", Net.Output.Bias,
+          "\nFunction:", Net.Output.Function.__name__,
           "\n======[ Initial values ]======",
-          "Network count:", Net.Init.Count,
-          "Layers:\n",
+          "\nNetwork count:", Net.Init.Count,
+          "\nLayers:\n",
           file = fh)
 
     for layer_index, layer_def in enumerate(Net.Init.Layers):
-        print("\tLayer", layer_index + 1, ":",
-              "\t\tShape:", layer_def.shape,
-              "\t\tBias:", layer_def.bias,
-              "\t\tType:", layer_def.op.__name__,
-              "\t\tActivation:", layer_def.activation.__name__,
-              "\t\tConvolutional:", layer_def.is_conv,
-              "\t\tEmpty:", layer_def.empty,
+        print("\n\tLayer", layer_index + 1, ":",
+              "\n\t\tShape:", layer_def.shape,
+              "\n\t\tBias:", layer_def.bias,
+              "\n\t\tType:", layer_def.op.__name__,
+              "\n\t\tActivation:", layer_def.activation.__name__,
+              "\n\t\tConvolutional:", layer_def.is_conv,
+              "\n\t\tEmpty:", layer_def.empty,
               file = fh)
 
     print("\nFunction:", Net.Init.Function.__name__,
-          "Arguments:",
+          "\nArguments:",
           file = fh)
 
     for key, val in Net.Init.Args.items():
         print("\t", key, ":", val, file = fh)
 
     print("\n======[ Maximal values ]======",
-          "Network count:", Net.Max.Count,
-          "Network age:", Net.Max.Age,
+          "\nNetwork count:", Net.Max.Count,
+          "\nNetwork age:", Net.Max.Age,
           "\n======[ Species ]======",
-          "Speciation:", "enabled" if Species.Enabled else "disabled",
+          "\nSpeciation:", "enabled" if Species.Enabled else "disabled",
           file = fh)
 
     if Species.Enabled:
-        print("Species count:", Species.Init.Count,
-              "Maximal count:", Species.Max.Count,
+        print("\nSpecies count:", Species.Init.Count,
+              "\nMaximal count:", Species.Max.Count,
               file = fh)
 
     print("\n======[ Optimisation ]======",
-          "Learning rate:", LearningRate,
-          "Momentum:", Momentum,
-          "Epochs:", Epochs,
-          "Train batch size:", TrainBatchSize,
-          "Test batch size:", TestBatchSize,
-          "Runs:", Runs,
-          "Log interval ( x train batch size):", LogInterval,
-          "Device:", Device,
+          "\nLearning rate:", LearningRate,
+          "\nMomentum:", Momentum,
+          "\nEpochs:", Epochs,
+          "\nTrain batch size:", TrainBatchSize,
+          "\nTest batch size:", TestBatchSize,
+          "\nRuns:", Runs,
+          "\nLog interval ( x train batch size):", LogInterval,
+          "\nDevice:", Device,
               file = fh)
 
     if len(DataLoadArgs) > 0:
-        print("Data loader arguments:\n", file = fh)
+        print("\nData loader arguments:\n", file = fh)
         for key, val in DataLoadArgs:
             print("\t", key, ":", val, file = fh)
 
-    print("Loss function:", LossFunction.__name__,
-          "Optimiser:", Optimiser.__name__,
-          "Archive directory:", ArchiveDir,
+    print("\nLoss function:", LossFunction.__name__,
+          "\nOptimiser:", Optimiser.__name__,
+          "\nArchive directory:", ArchiveDir,
           "\n=====================[ End of PyCortex configuration ]====================\n",
           file = fh)
 

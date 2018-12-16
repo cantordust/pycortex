@@ -125,7 +125,7 @@ class Species:
             if relative_fitness > top_fitness:
                 top_fitness = relative_fitness
 
-            net_stats.update(relative_fitness)
+            net_stats.update(Net.ecosystem[net_id].fitness.absolute)
 
         # Sort the networks in order of decreasing fitness
         self.nets = sorted(self.nets, key = lambda net_id: Net.ecosystem[net_id].fitness.absolute, reverse = True)

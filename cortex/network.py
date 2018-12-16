@@ -150,8 +150,8 @@ class Net(tn.Module):
 
         print("\n###################[ Network", self.ID, "]###################\n",
               "\n>>> Fitness:\n",
-              "\tAbsolute:", self.fitness.absolute,
-              "\tRelative:", self.fitness.relative,
+              "\n\tAbsolute:", self.fitness.absolute,
+              "\n\tRelative:", self.fitness.relative,
               "\n>>> Age:", self.age,
               "\n>>> Species:", self.species_id,
               file = fh)
@@ -242,7 +242,7 @@ class Net(tn.Module):
         for layer in self.layers:
             node_stats.update(layer.get_output_nodes())
             for node_idx in range(len(layer.nodes)):
-                link_stats.update(layer.get_link_count(node_idx))
+                link_stats.update(layer.get_parameter_count(node_idx))
                 if layer.is_conv:
                     kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
                     if len(layer.kernel_size) > kernel_dims:
@@ -254,21 +254,20 @@ class Net(tn.Module):
                 'kernel_sizes': kernel_size_stats,
                 'kernel_dims': kernel_dims}
 
+    def get_parameter_count(self):
+
+        parameters = sum(param.numel() for param in self.parameters() if param.requires_grad)
+        print("Net", self.ID, "parameter count:", parameters)
+
+        return parameters
+
     def get_complexity(self):
 
-        global_parameter_count = Stat.SMAStat()
-        self_parameter_count = 0
+        complexity_stat = Stat.SMAStat()
+        for net in Net.ecosystem.values():
+            complexity_stat.update(net.get_parameter_count())
 
-        for ID, net in Net.ecosystem.items():
-
-            parameters = sum(param.numel() for param in net.parameters() if param.requires_grad)
-            global_parameter_count.update(parameters)
-
-            if ID == self.ID:
-                print("Net", ID, "parameter count:", parameters)
-                self_parameter_count = parameters
-
-        return global_parameter_count.get_offset(self_parameter_count)
+        return complexity_stat.get_offset(net.get_parameter_count())
 
     def add_layer(self,
                   _shape = [],
