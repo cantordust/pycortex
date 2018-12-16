@@ -18,8 +18,8 @@ from cortex.species import Species
 from cortex.layer import Layer
 from cortex import functions as Func
 from cortex import statistics as Stat
-from cortex import random as Rand
-from cortex.random import WeightType, RouletteWheel
+from cortex import rnd as Rand
+from cortex.rnd import WeightType, RouletteWheel
 
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 

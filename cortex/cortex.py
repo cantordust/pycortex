@@ -19,7 +19,7 @@ from torch.nn import functional as tnf
 
 from cortex.network import Net
 from cortex.species import Species
-from cortex.random import RouletteWheel, WeightType
+from cortex.rnd import RouletteWheel, WeightType
 from cortex import statistics as Stat
 
 # Global settings

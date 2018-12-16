@@ -6,8 +6,8 @@ Created on Wed Oct 17 12:54:42 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 
-from cortex import random as Rand
-from cortex.random import RouletteWheel, WeightType
+from cortex import rnd as Rand
+from cortex.rnd import RouletteWheel
 
 class Species:
 

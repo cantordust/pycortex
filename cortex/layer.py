@@ -13,7 +13,7 @@ import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
-from cortex.random import RouletteWheel, WeightType
+from cortex.rnd import RouletteWheel
 from cortex import functions as Func
 
 class Layer(tn.Module):

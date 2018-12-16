@@ -16,19 +16,16 @@ from colorama import Fore, Style
 
 import torch
 import torch.nn as tn
-import torch.nn.functional as tnf
 
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
 from cortex import cortex as ctx
-from cortex.network import Net
 from cortex.layer import Layer
-
 
 import cortex.functions as Func
 import cortex.statistics as Stat
-import cortex.random as Rand
-from cortex.random import RouletteWheel
+import cortex.rnd as Rand
+from cortex.rnd import RouletteWheel
 
 def pass_fail(cond, *args):
 
