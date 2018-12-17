@@ -77,9 +77,6 @@ def train(net, epoch):
     with train_loader_lock:
         train_loader = get_train_loader()
 
-#    with ctx.print_lock:
-#        net.print(_file = "Network " + str(net.ID) + " before training.txt")
-
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(ctx.Device), target.to(ctx.Device)
         optimiser.zero_grad()
@@ -92,8 +89,5 @@ def train(net, epoch):
                 print('[Net {}] Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     net.ID, epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
-
-#    with ctx.print_lock:
-#        net.print(_file = "Network " + str(net.ID) + " after training.txt")
 
     return test(net)

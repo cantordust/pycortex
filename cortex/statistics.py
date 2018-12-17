@@ -70,16 +70,22 @@ class Stat:
         return self.get_offset(_val, Func.Type.InvLogistic)
 
     def print(self,
-              _file = None):
-        file = sys.stdout if _file is None else _file
+              _file = sys.stdout,
+              _truncate = True):
 
-        print("\n======[", self.title ,"]======", file = file)
-        print("Current value: %r" % self.current_value, file = file)
-        print("Sum: %r" % self.sum, file = file)
-        print("Mean: %r" % self.mean, file = file)
-        print("Variance: %r (SD: %r)" % (self.var, self.get_sd()), file = file)
-        print("Minimum: %r" % self.min, file = file)
-        print("Maximum: %r" % self.max, file = file)
+        if isinstance(_file, str):
+            _file = open(_file, 'w')
+            if _truncate:
+                _file.truncate()
+
+        print("\n\n======[", self.title, "]======",
+              "\nCurrent value: %r" % self.current_value,
+              "\nSum: %r" % self.sum,
+              "\nMean: %r" % self.mean,
+              "\nVariance: %r (SD: %r)" % (self.var, self.get_sd()),
+              "\nMinimum: %r" % self.min,
+              "\nMaximum: %r" % self.max,
+              file = _file)
 
 class SMAStat(Stat):
 
@@ -99,11 +105,16 @@ class SMAStat(Stat):
             self.var += (self.current_value - old_mean) * (self.current_value - self.mean) / self.count
 
     def print(self,
-              _file = None):
-        file = sys.stdout if _file is None else _file
+              _file = sys.stdout,
+              _truncate = True):
 
-        super(SMAStat, self).print(_file = file)
-        print("Count: %r" % self.count, file = file)
+        if isinstance(_file, str):
+            _file = open(_file, 'w')
+            if _truncate:
+                _file.truncate()
+
+        super(SMAStat, self).print(_file = _file)
+        print("Count: %r" % self.count, file = _file)
 
 class EMAStat(Stat):
 
@@ -122,8 +133,13 @@ class EMAStat(Stat):
         self.var = (1.0 - self.alpha) * (self.var + diff * inc)
 
     def print(self,
-              _file = sys.stdout):
-        file = sys.stdout if _file is None else _file
+              _file = sys.stdout,
+              _truncate = True):
 
-        super(SMAStat, self).print(_file = file)
-        print("Alpha: %r" % self.alpha, file = file)
+        if isinstance(_file, str):
+            _file = open(_file, 'w')
+            if _truncate:
+                _file.truncate()
+
+        super(SMAStat, self).print(_file = _file)
+        print("Alpha: %r" % self.alpha, file = _file)

@@ -136,17 +136,13 @@ class Net(tn.Module):
         return True
 
     def print(self,
-              _file = None,
+              _file = sys.stdout,
               _truncate = True):
 
-        if _file is None:
-            fh = sys.stdout
         if isinstance(_file, str):
-            fh = open(_file, 'w')
+            _file = open(_file, 'w')
             if _truncate:
-                fh.truncate()
-        else:
-            fh = _file
+                _file.truncate()
 
         print("\n###################[ Network", self.ID, "]###################\n",
               "\n>>> Fitness:\n",
@@ -154,10 +150,11 @@ class Net(tn.Module):
               "\n\tRelative:", self.fitness.relative,
               "\n>>> Age:", self.age,
               "\n>>> Species:", self.species_id,
-              file = fh)
+              "\n>>> Total parameters:", self.get_parameter_count(),
+              file = _file)
 
         for layer in self.layers:
-            layer.print(fh)
+            layer.print(_file)
 
     def is_conv(self):
         # To determine whether this network is convolutional,
@@ -420,7 +417,7 @@ class Net(tn.Module):
                 #print("Number of links affected by erasing layer", layer_index)
 
                 # Links to erase
-                link_count.append(self.layers[layer_index].get_link_count())
+                link_count.append(self.layers[layer_index].get_parameter_count())
 
                 #print("\t>>> Erase:", link_count[-1])
 
@@ -480,7 +477,7 @@ class Net(tn.Module):
                 #print("Number of links affected by adding a node to layer", layer_index)
 
                 # Check how many links we would have to add
-                link_count.append(layer.get_mean_link_count()) # * 1 node
+                link_count.append(layer.get_mean_parameter_count()) # * 1 node
 
                 #print("\t>>> Add:", link_count[-1])
 
@@ -844,8 +841,7 @@ class Net(tn.Module):
                 while (Layer.TypeRanks[larger_parent.layers[larger_parent.cur_layer].type] <
                        Layer.TypeRanks[smaller_parent.layers[smaller_parent.cur_layer].type]):
 
-                    # Select a parent at random.
-                    # If we select the parent with the longer DNA,
+                    # If the wheel is locked to the parent with the longer DNA,
                     # store all subsequent layers of the same type from that parent.
                     if wheel.spin().ID == larger_parent.ID:
                         dna1.append(larger_parent.layers[larger_parent.cur_layer])
@@ -858,9 +854,6 @@ class Net(tn.Module):
 
                 # Allow the wheel to spin again
                 wheel.unlock()
-
-                # Reset the pointer to the larger parent
-                larger_parent = None
 
         #=================
         # Crossover
@@ -880,8 +873,8 @@ class Net(tn.Module):
             node_idx = 0
 
             # Pick kernels from the two reference chromosomes.
-            while (node_idx < wheel.elements[0].get_output_nodes() and
-                   node_idx < wheel.elements[1].get_output_nodes()):
+            while (node_idx < dna1[layer_index].get_output_nodes() and
+                   node_idx < dna2[layer_index].get_output_nodes()):
 
                 rnd_layer = wheel.spin()
                 # Pick a node from either layer at random
@@ -892,8 +885,8 @@ class Net(tn.Module):
 
                     node_idx += 1
 
-                if (node_idx == wheel.elements[0].get_output_nodes() or
-                    node_idx == wheel.elements[1].get_output_nodes()):
+                if (node_idx == dna1[layer_index].get_output_nodes() or
+                    node_idx == dna2[layer_index].get_output_nodes()):
 
                     # Optionally store any extra nodes.
                     rnd_layer = wheel.spin()
@@ -920,6 +913,11 @@ class Net(tn.Module):
                            _activation = wheel.spin().activation,
                            _nodes = nodes,
                            _bias_nodes = bias_nodes)
+
+        # Add the new network to the respective species
+        self.species_id = _p1.species_id
+        if self.species_id is not None:
+            Species.populations[self.species_id].nets.add(self.ID)
 
     def mutate(self,
                _structure = True,

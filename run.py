@@ -9,8 +9,6 @@ Created on Mon Nov 19 19:42:46 2018
 import argparse
 import torch
 
-from tensorboardX import SummaryWriter
-
 from cortex import cortex as ctx
 from experiments import mnist
 
@@ -82,12 +80,14 @@ def main():
     # Set any other options
     #ctx.Net.Input.Shape = [1, 28, 28]
     #ctx.Net.Output.Shape = [10]
-    ctx.Epochs = 2
+    ctx.Epochs = 10
     ctx.LogInterval = 50
-    ctx.Net.Init.Count = 2
-    ctx.Net.Max.Count = 6
-    ctx.Species.Init.Count = 1
-    ctx.Species.Max.Count = 2
+    ctx.Net.Init.Count = 4
+#    ctx.Net.Init.Layers = [ctx.Layer.Def([1,0,0])]
+    ctx.Net.Init.Layers = []
+    ctx.Net.Max.Count = 32
+    ctx.Species.Init.Count = 2
+    ctx.Species.Max.Count = 8
 
     ctx.MaxThreads = 2
 

@@ -14,10 +14,13 @@ from datetime import datetime
 import threading as thd
 from concurrent.futures import ProcessPoolExecutor as ThreadPool
 
+from tensorboardX import SummaryWriter
+
 import torch
 from torch.nn import functional as tnf
 
 from cortex.network import Net
+from cortex.layer import Layer
 from cortex.species import Species
 from cortex.rnd import RouletteWheel, WeightType
 from cortex import statistics as Stat
@@ -79,7 +82,7 @@ def init():
         Species.Init.Count = 1
         Species.Max.Count = 1
 
-    # Generate speciess and nets
+    # Generate species and nets
 
     # Population size (the number of networks per species).
     net_quota = int(Net.Init.Count)
@@ -190,13 +193,22 @@ def calibrate():
               "\t\tAbsolute:", species.fitness.absolute,
               "\t\tRelative:", species.fitness.relative)
 
-def save(net_id):
+def save(_net_id,
+         _name = None):
 
     save_dir = ArchiveDir + '/run_' + str(CurrentRun) + '/epoch_' + str(CurrentEpoch)
 
     os.makedirs(save_dir, exist_ok = True)
 
-    torch.save(Net.ecosystem[net_id].state_dict(), save_dir + '/net_' + str(net_id) + ".pt")
+    if _name is None:
+        name = 'net_' + str(_net_id)
+    else:
+        name = _name
+
+    torch.save(Net.ecosystem[_net_id], save_dir + '/' + name + '.pt')
+
+    with print_lock:
+        Net.ecosystem[_net_id].print(save_dir + '/' + name + '.txt')
 
 def cull():
 
@@ -217,11 +229,11 @@ def cull():
 
         print("Erasing network ", net_id)
 
-        # Erase the network from the species.
-        del Species.populations[species_id].nets[net_id]
-
         # Archive the network
         save(net_id)
+
+        # Erase the network from the species.
+        del Species.populations[species_id].nets[net_id]
 
         # Erase the network from the ecosystem.
         del Net.ecosystem[net_id]
@@ -233,18 +245,101 @@ def evolve():
 
     print(">>> Evolving ecosystem")
 
-    # Compute the relative fitness of networks and speciess.
+    # Compute the relative fitness of networks and species.
     print("\t`-> Calibrating...")
     calibrate()
 
+    for net_id in Net.ecosystem.keys():
+        save(net_id)
+
+    if Net.champ is not None:
+        save(Net.champ, 'champion')
+
     # Evolve networks in each species.
     print("\t`-> Evolving networks...")
-    for species in Species.populations.values():
-        species.evolve()
+    for species_id in list(Species.populations.keys()):
+        Species.populations[species_id].evolve()
 
-    # Eliminate unfit networks and empty speciess.
+    # Eliminate unfit networks and empty species.
     print("\t`-> Culling...")
     cull()
+
+def print_config(_file = sys.stdout,
+                 _truncate = True):
+
+    if isinstance(_file, str):
+        _file = open(_file, 'w')
+        if _truncate:
+            _file.truncate()
+
+    print("\n========================[ PyCortex configuration ]========================",
+          "\n\n======[ Network input ]======",
+          "\nShape:", Net.Input.Shape,
+          "\n\n======[ Network output ]======",
+          "\nShape:", Net.Output.Shape,
+          "\nBias:", Net.Output.Bias,
+          "\nFunction:", Net.Output.Function.__name__,
+          "\n\n======[ Initial values ]======",
+          "\nNetwork count:", Net.Init.Count,
+          "\nLayers:\n",
+          file = _file)
+
+    for layer_index, layer_def in enumerate(Net.Init.Layers):
+        print("\n\tLayer", layer_index + 1, ":",
+              "\n\t\tShape:", layer_def.shape,
+              "\n\t\tBias:", layer_def.bias,
+              "\n\t\tType:", layer_def.op.__name__,
+              "\n\t\tActivation:", layer_def.activation.__name__,
+              "\n\t\tConvolutional:", layer_def.is_conv,
+              "\n\t\tEmpty:", layer_def.empty,
+              file = _file)
+
+    print("\nFunction:", Net.Init.Function.__name__,
+          "\nArguments:",
+          file = _file)
+
+    for key, val in Net.Init.Args.items():
+        print("\t", key, ":", val, file = _file)
+
+    print("\n\n======[ Maximal values ]======",
+          "\nNetwork count:", Net.Max.Count,
+          "\nNetwork age:", Net.Max.Age,
+          "\n======[ Species ]======",
+          "\nSpeciation:", "enabled" if Species.Enabled else "disabled",
+          file = _file)
+
+    if Species.Enabled:
+        print("\nSpecies count:", Species.Init.Count,
+              "\nMaximal count:", Species.Max.Count,
+              file = _file)
+
+    print("\n\n======[ Optimisation ]======",
+          "\nLearning rate:", LearningRate,
+          "\nMomentum:", Momentum,
+          "\nEpochs:", Epochs,
+          "\nTrain batch size:", TrainBatchSize,
+          "\nTest batch size:", TestBatchSize,
+          "\nRuns:", Runs,
+          "\nLog interval ( x train batch size):", LogInterval,
+          "\nDevice:", Device,
+              file = _file)
+
+    if len(DataLoadArgs) > 0:
+        print("\nData loader arguments:\n", file = _file)
+        for key, val in DataLoadArgs:
+            print("\t", key, ":", val, file = _file)
+
+    print("\nLoss function:", LossFunction.__name__,
+          "\nOptimiser:", Optimiser,
+          "\nArchive directory:", ArchiveDir,
+          "\n\n=====================[ End of PyCortex configuration ]====================\n",
+          file = _file)
+
+def pause():
+    key = input("Continue (Y/n)? ")
+    if len(key) == 0:
+        key = 'Y'
+    return key
 
 def run():
 
@@ -253,11 +348,16 @@ def run():
     global CurrentRun
     global CurrentEpoch
 
+    parameter_stats = Stat.SMAStat('Parameters')
+    accuracy_stats = Stat.SMAStat('Accuracy')
+
     for run in range(Runs):
 
         CurrentRun = run + 1
 
         init()
+
+#        tboard = SummaryWriter(Archive_dir, "Run" + str(CurrentRun))
 
         for epoch in range(Epochs):
 
@@ -273,83 +373,9 @@ def run():
         for net_id in Net.ecosystem.keys():
             save(net_id)
 
-def print_config(_file = None,
-                 _truncate = True):
+        parameter_stats.update(Net.ecosystem[Net.champ].get_parameter_count())
+        accuracy_stats.update(Net.ecosystem[Net.champ].fitness.absolute)
 
-    if _file is None:
-        fh = sys.stdout
-    if isinstance(_file, str):
-        fh = open(_file, 'w')
-        if _truncate:
-            fh.truncate()
-    else:
-        fh = _file
+    print_config(ArchiveDir + '/config.txt')
+    parameter_stats.print()
 
-    print("\n========================[ PyCortex configuration ]========================",
-          "\n======[ Network input ]======",
-          "\nShape:", Net.Input.Shape,
-          "\n======[ Network output ]======",
-          "\nShape:", Net.Output.Shape,
-          "\nBias:", Net.Output.Bias,
-          "\nFunction:", Net.Output.Function.__name__,
-          "\n======[ Initial values ]======",
-          "\nNetwork count:", Net.Init.Count,
-          "\nLayers:\n",
-          file = fh)
-
-    for layer_index, layer_def in enumerate(Net.Init.Layers):
-        print("\n\tLayer", layer_index + 1, ":",
-              "\n\t\tShape:", layer_def.shape,
-              "\n\t\tBias:", layer_def.bias,
-              "\n\t\tType:", layer_def.op.__name__,
-              "\n\t\tActivation:", layer_def.activation.__name__,
-              "\n\t\tConvolutional:", layer_def.is_conv,
-              "\n\t\tEmpty:", layer_def.empty,
-              file = fh)
-
-    print("\nFunction:", Net.Init.Function.__name__,
-          "\nArguments:",
-          file = fh)
-
-    for key, val in Net.Init.Args.items():
-        print("\t", key, ":", val, file = fh)
-
-    print("\n======[ Maximal values ]======",
-          "\nNetwork count:", Net.Max.Count,
-          "\nNetwork age:", Net.Max.Age,
-          "\n======[ Species ]======",
-          "\nSpeciation:", "enabled" if Species.Enabled else "disabled",
-          file = fh)
-
-    if Species.Enabled:
-        print("\nSpecies count:", Species.Init.Count,
-              "\nMaximal count:", Species.Max.Count,
-              file = fh)
-
-    print("\n======[ Optimisation ]======",
-          "\nLearning rate:", LearningRate,
-          "\nMomentum:", Momentum,
-          "\nEpochs:", Epochs,
-          "\nTrain batch size:", TrainBatchSize,
-          "\nTest batch size:", TestBatchSize,
-          "\nRuns:", Runs,
-          "\nLog interval ( x train batch size):", LogInterval,
-          "\nDevice:", Device,
-              file = fh)
-
-    if len(DataLoadArgs) > 0:
-        print("\nData loader arguments:\n", file = fh)
-        for key, val in DataLoadArgs:
-            print("\t", key, ":", val, file = fh)
-
-    print("\nLoss function:", LossFunction.__name__,
-          "\nOptimiser:", Optimiser.__name__,
-          "\nArchive directory:", ArchiveDir,
-          "\n=====================[ End of PyCortex configuration ]====================\n",
-          file = fh)
-
-def pause():
-    key = input("Continue (Y/n)? ")
-    if len(key) == 0:
-        key = 'Y'
-    return key

@@ -6,6 +6,7 @@ Created on Wed Oct 17 12:54:42 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 
+import math
 from cortex import rnd as Rand
 from cortex.rnd import RouletteWheel
 
@@ -116,24 +117,21 @@ class Species:
         self.champ = None
 
         net_stats = Stat.SMAStat()
-        top_fitness = -1.0
+        top_fitness = -math.inf
 
         # Compute the absolute fitness of the species
         for net_id in self.nets:
-            relative_fitness = _complexity_fitness_scale[net_id] * Net.ecosystem[net_id].fitness.absolute
 
-            if relative_fitness > top_fitness:
-                top_fitness = relative_fitness
+            absolute_fitness = Net.ecosystem[net_id].fitness.absolute
 
-            net_stats.update(Net.ecosystem[net_id].fitness.absolute)
+            if (self.champ is None or
+                absolute_fitness > top_fitness):
+                self.champ = net_id
+                top_fitness = absolute_fitness
 
-        # Sort the networks in order of decreasing fitness
-        self.nets = sorted(self.nets, key = lambda net_id: Net.ecosystem[net_id].fitness.absolute, reverse = True)
+            net_stats.update(absolute_fitness)
 
-        if len(self.nets) > 0:
-            self.champ = self.nets[0]
-
-        print("Networks for species", self.ID, "sorted in order of descending fitness:", self.nets)
+#        print("Networks for species", self.ID, "sorted in order of descending fitness:", sorted_nets)
         print("Champion for species", self.ID, ":", self.champ)
 
         # Compute the relative fitness of the networks
@@ -141,13 +139,13 @@ class Species:
         for net_id in self.nets:
             # Compute the relative fitness
             net = Net.ecosystem[net_id]
-            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
+            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
 
             print("Network", net_id, "fitness:",
                   "\t\tAbsolute:", Net.ecosystem[net_id].fitness.absolute,
                   "\t\tRelative:", Net.ecosystem[net_id].fitness.relative)
 
-        self.fitness.absolute = net_stats.mean
+        self.fitness.absolute = net_stats.max
 
     def evolve(self):
 
@@ -157,17 +155,17 @@ class Species:
         # Networks that have been selected for crossover
         # will pick a partner at random by spinning the wheel.
         parent_wheel = RouletteWheel()
-        for net_id in self.nets:
+        for net_id in list(self.nets):
             parent_wheel.add(net_id, Net.ecosystem[net_id].fitness.relative)
 
         # Iterate over the networks and check if we should perform crossover or mutation
-        for net_id in self.nets:
+        for net_id in list(self.nets):
             if Rand.chance(Net.ecosystem[net_id].fitness.relative):
-                Net(_p1 = Net.ecosystem[net_id], _p2 = Net.ecosystem[parent_wheel.spin()])
+                p2 = Net.ecosystem[parent_wheel.spin()]
+                if p2.ID != net_id:
+                    Net(_p1 = Net.ecosystem[net_id], _p2 = p2)
+                else:
+                    Net.ecosystem[net_id].mutate()
 
             else:
                 Net.ecosystem[net_id].mutate()
-
-
-
-

@@ -307,17 +307,13 @@ class Layer(tn.Module):
         return True
 
     def print(self,
-              _file = None,
-              _truncate = False):
+              _file = sys.stdout,
+              _truncate = True):
 
-        if _file is None:
-            fh = sys.stdout
         if isinstance(_file, str):
-            fh = open(_file, 'w')
+            _file = open(_file, 'w')
             if _truncate:
-                fh.truncate()
-        else:
-            fh = _file
+                _file.truncate()
 
         print("\n==================[ Layer", self.index, "]==================",
               "\n>>> Type:", self.type,
@@ -332,10 +328,10 @@ class Layer(tn.Module):
               "\tPadding:", self.padding,
               "\tDilation:", self.dilation,
               "\n>>> Learnable parameters:",
-              file = fh)
+              file = _file)
 
         for idx, param in enumerate(self.parameters()):
-            print("\n>>> Parameter", idx, ":\n", param, file = fh)
+            print("\n>>> Parameter", idx, ":\n", param, file = _file)
 
     def get_multiplier(self,
                        _input_shape = None):
@@ -377,8 +373,8 @@ class Layer(tn.Module):
 
         return parameters
 
-    def get_mean_link_count(self):
-        return self.get_link_count() / len(self.nodes)
+    def get_mean_parameter_count(self):
+        return self.get_parameter_count() / len(self.nodes)
 
     def get_random_kernel_sizes(self,
                                 _count,
