@@ -233,7 +233,7 @@ def cull():
         save(net_id)
 
         # Erase the network from the species.
-        del Species.populations[species_id].nets[net_id]
+        Species.populations[species_id].nets.remove(net_id)
 
         # Erase the network from the ecosystem.
         del Net.ecosystem[net_id]

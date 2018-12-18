@@ -160,7 +160,7 @@ class Species:
 
         # Iterate over the networks and check if we should perform crossover or mutation
         for net_id in list(self.nets):
-            if Rand.chance(Net.ecosystem[net_id].fitness.relative):
+            if Rand.chance(self.fitness.relative):
                 p2 = Net.ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
                     Net(_p1 = Net.ecosystem[net_id], _p2 = p2)

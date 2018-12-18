@@ -220,7 +220,7 @@ def test_single_mutation(_mut = 'add_layer'):
 
     model = net.to('cpu')
 
-    tensor = torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)
+    tensor = torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)
     print("Input size:", tensor.size())
     output = model(tensor)
     print(output)
@@ -253,7 +253,8 @@ def test_mutations():
         wheel.add('grow_kernel', 1)
 
         net = ctx.Net()
-        original_net = copy.deepcopy(net)
+        original_net = ctx.Net()
+        original_net.load_state_dict(net.state_dict())
         mutations = []
 
         for mut in range(100):
@@ -275,7 +276,7 @@ def test_mutations():
             if success:
                 print("(", mut + 1, ") Mutation:", *mutations[-1])
             model = net.to('cpu')
-            assert(model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)).size())
+            assert(model(torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)).size())
 
         print("\n==============[ Reversing mutations ]==============\n")
 
@@ -297,7 +298,7 @@ def test_mutations():
 
             assert (pass_fail(success, "Reversing mutation", len(mutations) - mut, "(", mutation, ")..."))
             model = net.to('cpu')
-            output = model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape))
+            output = model(torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape))
 
         assert (pass_fail(net.matches(original_net), "Comparing the original network with the one with reversed mutations..."))
 
@@ -310,11 +311,12 @@ def test_mutations():
         model1 = net.to('cpu')
         model2 = original_net.to('cpu')
 
-        input1 = torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)
-        input2 = copy.deepcopy(input1)
+        input1 = torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)
+        input2 = torch.zeros(input1.size())
+        input2.data = input1.data
 
-        print("Input1 size:", input1.size())
-        print("Input2 size:", input2.size())
+        print("Input1:", input1, ", size:", input1.size())
+        print("Input2:", input2, ", size:", input2.size())
 
         output1 = model1(input1)
         output2 = model2(input2)
@@ -361,7 +363,7 @@ def test_crossover():
                 net.shrink_kernel()
 
             model = net.to('cpu')
-            match = list(model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.BatchSize, net.layers[-1].get_output_nodes()]
+            match = list(model(torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.TrainBatchSize, net.layers[-1].get_output_nodes()]
             if not pass_fail(match, "\tEvaluating the mutated network with random input..."):
                 net.print()
 
@@ -373,7 +375,7 @@ def test_crossover():
                 offspring = ctx.Net(_p1 = nets[p1], _p2 = nets[p2])
 
                 model = offspring.to('cpu')
-                match = list(model(torch.randn(ctx.BatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.BatchSize, net.layers[-1].get_output_nodes()]
+                match = list(model(torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.TrainBatchSize, net.layers[-1].get_output_nodes()]
                 if not pass_fail(match, "\tEvaluating the offspring network with random input..."):
                     offspring.print()
 
@@ -432,6 +434,6 @@ def run(_func,
 
 #run(test_mutations)
 
-#run(test_crossover)
+run(test_crossover)
 
-run(test_init_population)
+#run(test_init_population)

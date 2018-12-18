@@ -41,8 +41,7 @@ class Layer(tn.Module):
                      _shape = [1], # [nodes, depth, height, width]
                      _bias = None,
                      _activation = None,
-                     _type = None,
-                     _empty = False):
+                     _type = None):
 
             if isinstance(_shape, int):
                 self.shape = [_shape]
@@ -50,7 +49,7 @@ class Layer(tn.Module):
             elif isinstance(_shape, list):
 
                 if (len(_shape) == 0 or
-                    _shape[0] <= 0):
+                    _shape[0] < 0):
                     self.shape = [1]
 
                 else:
@@ -65,7 +64,7 @@ class Layer(tn.Module):
             self.type = self.op.__name__ if _type is None else _type
             self.activation = Layer.Def.Activations[self.op] if _activation is None else _activation
             self.is_conv = len(self.shape) > 1
-            self.empty = _empty
+            self.empty = (self.shape[0] == 0)
 
         def matches(self,
                     _other):
@@ -136,14 +135,12 @@ class Layer(tn.Module):
     def __init__(self,
                  _layer_def,
                  _input_shape,
-                 _layer_index = None,
-                 _nodes = None,
-                 _bias_nodes = None):
+                 _layer_index = None):
 
         assert 1 <= len(_layer_def.shape) <= 4, "Invalid layer shape %r" % _layer_def.shape
         assert 1 <= len(_input_shape) <= 4, "Invalid input shape %r" % _input_shape
         assert len(_layer_def.shape) == 1 or len(_layer_def.shape) == len(_input_shape), "Invalid input shape %r for layer shape %r" % (_input_shape, _layer_def.shape)
-        assert _layer_def.shape[0] > 0, "Invalid number of nodes (%r) provided for layer %r" % (_layer_def.shape[0], _layer_index)
+        assert _layer_def.shape[0] >= 0, "Invalid number of nodes (%r) provided for layer %r" % (_layer_def.shape[0], _layer_index)
         assert _input_shape[0] > 0, "Invalid number of input nodes (%r) provided for layer %r" % (_input_shape[0], _layer_index)
 
         # Initialise the base class
@@ -189,19 +186,10 @@ class Layer(tn.Module):
         self.bias = None if not _layer_def.bias else tn.Parameter()
 
         if not _layer_def.empty:
-
-            if _nodes is not None:
-                # Clone nodes
-                self.nodes = copy.deepcopy(_nodes)
-                if _bias_nodes is not None:
-                    self.bias = tn.Parameter(_bias_nodes.data)
-                self.adjust_input_size()
-
-            else:
-                # Generate nodes
-                self.add_nodes(_layer_def.shape[0],
-                               self.input_shape[1:],
-                               _layer_def.shape[1:])
+            # Generate nodes
+            self.add_nodes(_layer_def.shape[0],
+                           self.input_shape[1:],
+                           _layer_def.shape[1:])
 
     def matches(self,
                 _other):
@@ -799,7 +787,6 @@ class Layer(tn.Module):
         self.weight.detach_()
 
         for output_node in range(len(self.nodes)):
-
             self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node]
 
     def forward(self,
@@ -819,7 +806,5 @@ class Layer(tn.Module):
                 _tensor = Layer.stretch(_tensor)
             _tensor = self.op(_tensor, self.weight, self.bias)
 
-        _tensor = self.activation(_tensor)
-
-        return _tensor
+        return self.activation(_tensor)
 

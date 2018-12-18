@@ -8,6 +8,7 @@ Created on Wed Oct  3 22:49:52 2018
 
 import sys
 import math
+import copy
 
 import torch
 import torch.nn as tn
@@ -65,6 +66,9 @@ class Net(tn.Module):
         # Assign a network ID
         self.ID = 0
 
+        # Species ID
+        self.species_id = 0
+
         if not _isolated:
             # Increment the ID counter
             Net.ID += 1
@@ -73,31 +77,26 @@ class Net(tn.Module):
             # Add this network to the ecosystem
             Net.ecosystem[self.ID] = self
 
+            if isinstance(_species, Species):
+                self.species_id = _species.ID
+                Species.populations[self.species_id].nets.add(self.ID)
+
         # Initialise the age
         self.age = 0
         self.scaled_age = 0.0
 
-        # Initialise the age
+        # Initialise the fitness
         self.fitness = Fitness()
 
-        # Generate modules
+        # Generate a module list
         self.layers = tn.ModuleList()
-
-        # Species
-        self.species_id = 0
-
-        if not _isolated:
-
-            if isinstance(_species, Species):
-                self.species_id = _species.ID
-                Species.populations[self.species_id].nets.add(self.ID)
 
         if not _empty:
 
             if (isinstance(_p1, Net) and
                 isinstance(_p2, Net)):
                 with ctx.print_lock:
-                    print('Crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
+                    print('>>> Performing crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
                 self.crossover(_p1, _p2)
 
             else:
@@ -116,7 +115,7 @@ class Net(tn.Module):
                                _bias = Net.Output.Bias,
                                _layer_index = len(self.layers))
 
-#        print(">>> Network", self.ID, "created")
+        print(">>> Network", self.ID, "created")
 
     def matches(self,
                 _other):
@@ -254,7 +253,7 @@ class Net(tn.Module):
     def get_parameter_count(self):
 
         parameters = sum(param.numel() for param in self.parameters() if param.requires_grad)
-        print("Net", self.ID, "parameter count:", parameters)
+#        print("Net", self.ID, "parameter count:", parameters)
 
         return parameters
 
@@ -272,8 +271,6 @@ class Net(tn.Module):
                   _activation = None,
                   _layer_index = None,
                   _stats = None,
-                  _nodes = None,
-                  _bias_nodes = None,
                   _test = False):
 
         if (_layer_index is None or
@@ -282,7 +279,7 @@ class Net(tn.Module):
             if _stats is None:
                 _stats = self.get_structure_stats()
 
-            wheel = RouletteWheel()
+            wheel = RouletteWheel(WeightType.Inverse)
 
             for layer_index in range(len(self.layers)):
 
@@ -299,21 +296,19 @@ class Net(tn.Module):
                         new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
 
                     elif new_layer_shape[0] == 0:
-                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
-
-                    # Set the kernel size to 1 if the shape corresponds to a convolutional layer
-                    for dim in range(1,len(new_layer_shape)):
-                        new_layer_shape[dim] = 1
+#                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
+                        new_layer_shape[0] = 1
 
                     # Compute the output shape of a hypothetical layer of this shape
                     new_output_shape = Layer.compute_output_shape(new_layer_shape[0],
                                                                   self.get_input_shape(layer_index),
-                                                                  new_layer_shape[1:])
+                                                                  [1] * (len(new_layer_shape) - 1))
 
-                    #print("Input shape:", self.get_input_shape(layer_index))
-                    #print("New output shape:", new_output_shape)
-
-                    #print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
+#                    print("New layer shape:", new_layer_shape)
+#                    print("Input shape:", self.get_input_shape(layer_index))
+#                    print("New output shape:", new_output_shape)
+#
+#                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
 
                     # Links to add
                     input_shape = self.get_input_shape(layer_index)
@@ -321,7 +316,7 @@ class Net(tn.Module):
                     # The shape corresponds to an FC layer.
                     link_count.append(new_layer_shape[0] * Func.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
 
-                    #print("\t>>> Add:", link_count[-1])
+#                    print("\t>>> Add:", link_count[-1])
 
                     # Links to adjust
                     if layer_index < len(self.layers):
@@ -330,11 +325,11 @@ class Net(tn.Module):
                         link_count.append(self.layers[layer_index].adjust_input_size(_input_shape = new_output_shape,
                                                                                      _pretend = True))
 
-                        #print("\t>>> Adjust:", link_count[-1])
+#                        print("\t>>> Adjust:", link_count[-1])
 
-                    #print("\t>>> Total:", sum(link_count))
+#                    print("\t>>> Total:", sum(link_count))
 
-                    wheel.add((layer_index, new_layer_shape), 1 / sum(link_count))
+                    wheel.add((layer_index, new_layer_shape), sum(link_count))
 
             if wheel.is_empty():
                 return (False, _layer_index)
@@ -370,11 +365,9 @@ class Net(tn.Module):
         # Create the new layer
         new_layer = Layer(_layer_def = layer_def,
                           _input_shape = input_shape,
-                          _layer_index = _layer_index,
-                          _nodes = _nodes,
-                          _bias_nodes = _bias_nodes)
+                          _layer_index = _layer_index)
 
-        print("[Net", self.ID, "]>>> Adding new", new_layer.type , "layer with shape", _shape, "at position", _layer_index)
+        print("[Net", self.ID, "]>>> Adding new", new_layer.type , "layer with shape", layer_def.shape, "at position", _layer_index)
 
         # Rearrange the module stack if necessary
         if _layer_index == len(self.layers):
@@ -408,7 +401,7 @@ class Net(tn.Module):
         # Update the input size of the next layer (if there is one)
         if _layer_index is None:
 
-            wheel = RouletteWheel()
+            wheel = RouletteWheel(WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
 
                 # Check if we can erase a layer at all.
@@ -429,7 +422,7 @@ class Net(tn.Module):
 
                 #print("\t>>> Total:", sum(link_count))
 
-                wheel.add((layer_index,), 1 / sum(link_count))
+                wheel.add((layer_index,), sum(link_count))
 
             if wheel.is_empty():
                 return (False, _layer_index)
@@ -466,7 +459,7 @@ class Net(tn.Module):
             if _stats is None:
                 _stats = self.get_structure_stats()
 
-            wheel = RouletteWheel()
+            wheel = RouletteWheel(WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
 
                 layer = self.layers[layer_index]
@@ -491,7 +484,7 @@ class Net(tn.Module):
 
                 #print("\t>>> Total:", sum(link_count))
 
-                wheel.add((layer_index,), 1 / sum(link_count))
+                wheel.add((layer_index,), sum(link_count))
 
             if wheel.is_empty():
                 return (False, _layer_index, set())
@@ -541,7 +534,7 @@ class Net(tn.Module):
         if (_layer_index is None or
             len(_node_indices) == 0):
 
-            wheel = RouletteWheel()
+            wheel = RouletteWheel(WeightType.Inverse)
 
             for layer_index in range(len(self.layers) - 1):
                 # Check if we can erase a node at all:
@@ -575,7 +568,7 @@ class Net(tn.Module):
 
                         #print("\t>>> Total:", sum(link_count))
 
-                        wheel.add((layer_index, node_index), 1 / sum(link_count))
+                        wheel.add((layer_index, node_index), sum(link_count))
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_indices)
@@ -648,7 +641,7 @@ class Net(tn.Module):
             if _stats is None:
                 _stats = self.get_structure_stats()
 
-            wheel = RouletteWheel()
+            wheel = RouletteWheel(WeightType.Inverse)
 
             for layer_index, layer in enumerate(self.layers):
 
@@ -667,7 +660,7 @@ class Net(tn.Module):
                             #print("\t>>> Total:", link_count)
 
                             # Check how many links we would have to add
-                            wheel.add((layer_index, node_index, dim), 1 / link_count)
+                            wheel.add((layer_index, node_index, dim), link_count)
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_index, _delta)
@@ -706,7 +699,7 @@ class Net(tn.Module):
             _node_index is None or
             len(_delta) == 0):
 
-            wheel = RouletteWheel()
+            wheel = RouletteWheel(WeightType.Inverse)
 
             for layer_index, layer in enumerate(self.layers):
 
@@ -727,7 +720,7 @@ class Net(tn.Module):
                                 #print("\t>>> Total:", link_count)
 
                                 # Check how many links we would have to erase
-                                wheel.add((layer_index, node_index, dim), 1 / link_count)
+                                wheel.add((layer_index, node_index, dim), link_count)
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_index, _delta)
@@ -859,64 +852,64 @@ class Net(tn.Module):
         # Crossover
         #=================
 
+        assert len(dna1) == len(dna2), "Crossover failed: DNA length mismatch."
+
         # Perform crossover for each pair of chromosomes (layers).
         for layer_index in range(len(dna1)):
 
             wheel.replace([dna1[layer_index], dna2[layer_index]])
 
-            # An empty list of nodes.
-            # This holds copies of the actual weights
-            nodes = type(dna1[layer_index].nodes)()
-            bias_vals = None if dna1[layer_index].bias is None else []
+            # Compute the shape of the new layer
+            shape = [0] * len(list(dna1[layer_index].nodes[0].size()))
+
+#            print(">>> (Crossover for layer", layer_index, ") Shape:", shape)
+
+            # Create a new empty layer
+            self.add_layer(_shape = shape,
+                           _bias = wheel.spin().bias is not None,
+                           _layer_index = layer_index,
+                           _activation = wheel.spin().activation)
+
+            node_type = tn.Parameter if self.layers[-1].is_conv else torch.Tensor
+
+            # Bias weight values
+            bias_weights = None if dna1[layer_index].bias is None else []
 
             # Node counter
-            node_idx = 0
+            node_index = 0
 
             # Pick kernels from the two reference chromosomes.
-            while (node_idx < dna1[layer_index].get_output_nodes() and
-                   node_idx < dna2[layer_index].get_output_nodes()):
+            while (node_index < wheel.elements[0].get_output_nodes() and
+                   node_index < wheel.elements[1].get_output_nodes()):
 
+                # Pick a node (gene) from a random layer (chromosome)
                 rnd_layer = wheel.spin()
-                # Pick a node from either layer at random
-                nodes.append(rnd_layer.nodes[node_idx])
+                self.layers[-1].nodes.append(node_type(torch.zeros(rnd_layer.nodes[node_index].size())))
+                self.layers[-1].nodes[-1].data = rnd_layer.nodes[node_index].data
 
-                if bias_vals is not None:
-                    bias_vals.append(rnd_layer.bias.data[node_idx])
 
-                    node_idx += 1
+                if bias_weights is not None:
+                    bias_weights.append(rnd_layer.bias.data[node_index])
 
-                if (node_idx == dna1[layer_index].get_output_nodes() or
-                    node_idx == dna2[layer_index].get_output_nodes()):
+                node_index += 1
+
+                if (node_index == wheel.elements[0].get_output_nodes() or
+                    node_index == wheel.elements[1].get_output_nodes()):
 
                     # Optionally store any extra nodes.
                     rnd_layer = wheel.spin()
                     wheel.replace([rnd_layer, rnd_layer])
 
-            # Restore the elements in the roulette wheel
-            wheel.replace([dna1[layer_index], dna2[layer_index]])
+            if self.layers[-1].bias is not None:
+                self.layers[-1].bias = tn.Parameter(torch.zeros(len(bias_weights)))
+                for idx, val in enumerate(bias_weights):
+                    self.layers[-1].bias.data[idx] = val
 
-            # Compute the shape of the new layer
-            shape = [0] * len(list(nodes[0].size()))
-            shape[0] = len(nodes)
-
-            bias_nodes = None
-            if bias_vals is not None:
-                bias_nodes = tn.Parameter(torch.zeros(len(bias_vals)))
-                for idx, val in enumerate(bias_vals):
-                    bias_nodes.data[idx] = val
-
-#            print(">>> Layer", layer_index, ":", shape)
-
-            self.add_layer(_shape = shape,
-                           _bias = bias_nodes is not None,
-                           _layer_index = layer_index,
-                           _activation = wheel.spin().activation,
-                           _nodes = nodes,
-                           _bias_nodes = bias_nodes)
+            self.layers[-1].adjust_input_size()
 
         # Add the new network to the respective species
         self.species_id = _p1.species_id
-        if self.species_id is not None:
+        if self.species_id != 0:
             Species.populations[self.species_id].nets.add(self.ID)
 
     def mutate(self,
@@ -945,7 +938,7 @@ class Net(tn.Module):
             # Adding or erasing a layer involves severing existing links and adding new ones.
             # For this computation, we assume that the new layer will contain
             # the mean number of output nodes.
-            wheel.add('layer', (stats['nodes'].mean + stats['nodes'].get_sd()) * stats['links'].mean)
+            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
 
             if (len(self.layers) > 2 or
                 (len(self.layers) == 2 and
@@ -964,12 +957,10 @@ class Net(tn.Module):
 
         element_type = wheel.spin()
 
-        #print("Mutating network", self.ID)
+        print("Mutating network", self.ID)
 
         #for elem_index in range(len(wheel.elements)):
             #print(wheel.elements[elem_index], "|", wheel.weights[WeightType.Raw][elem_index], "|", wheel.weights[WeightType.Inverse][elem_index])
-
-        #print("Adding" if complexify else "Erasing", element_type)
 
         #return
 
@@ -977,7 +968,9 @@ class Net(tn.Module):
 
         # Non-structural mutation
         if element_type == 'kernel':
-            success = self.grow_kernel(_stats = stats) if complexify else self.shrink_kernel()
+            success, layer, node, delta = self.grow_kernel(_stats = stats) if complexify else self.shrink_kernel()
+
+            print("\t>>>", "Growing" if complexify else "Shrinking", element_type)
 
         # Structural mutation
         else:
@@ -991,10 +984,12 @@ class Net(tn.Module):
                 return False
 
             if element_type == 'layer':
-                success = self.add_layer(_stats = stats) if complexify else self.erase_layer()
+                success, layer = self.add_layer(_stats = stats) if complexify else self.erase_layer()
 
             elif element_type == 'node':
-                success = self.add_nodes(_stats = stats) if complexify else self.erase_nodes()
+                success, layer, node = self.add_nodes(_stats = stats) if complexify else self.erase_nodes()
+
+            print("\t>>>", "Adding" if complexify else "Erasing", element_type)
 
             if (success and           # If the mutation was successful
                 Species.Enabled and   # and speciation is enabled
@@ -1009,6 +1004,7 @@ class Net(tn.Module):
                 # Remove the network from the current species
                 Species.populations[self.species_id].nets.remove(self.ID)
 
+                # Remove the species from the ecosystem if it has gone extinct
                 if len(Species.populations[self.species_id].nets) == 0:
                     del Species.populations[self.species_id]
 
