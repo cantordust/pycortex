@@ -48,13 +48,13 @@ Optimiser = torch.optim.Adadelta
 
 MaxThreads = None
 
-ArchiveDir = './logs'
+LogDir = './logs'
 
 # Operating variables for saving models
 ExperimentName = 'experiment'
 CurrentEpoch = 1
 CurrentRun = 1
-ArchiveDirPrefix = datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
+LogDirPrefix = datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
 
 Logger = None
 LogInterval = 50
@@ -124,17 +124,20 @@ def init():
             proto_net.mutate()
 
     print("Species:", len(Species.populations))
-    print("Nets:", len(Net.ecosystem))
     for species in Species.populations.values():
-        print("Species", species.ID, "contains networks", *sorted(species.nets))
+        species.print()
 
-    global ArchiveDir
-    ArchiveDir += '/' + ExperimentName + '/' + ArchiveDirPrefix
+    print("Nets:", len(Net.ecosystem))
+    for net in Net.ecosystem.values():
+        net.print()
 
-    os.makedirs(ArchiveDir, exist_ok = True)
+    global LogDir
+    LogDir += '/' + ExperimentName + '/' + LogDirPrefix
+
+    os.makedirs(LogDir, exist_ok = True)
 
     global Logger
-    Logger = SummaryWriter(ArchiveDir + '/TensorBoard')
+    Logger = SummaryWriter(LogDir + '/TensorBoard')
 
 def calibrate():
 
@@ -193,15 +196,12 @@ def calibrate():
     for species in Species.populations.values():
         # Compute the relative species fitness
         species.fitness.relative = species_stat.get_offset(species.fitness.absolute)
-
-        print("Species", species.ID, "fitness:"
-              "\t\tAbsolute:", species.fitness.absolute,
-              "\t\tRelative:", species.fitness.relative)
+        species.print()
 
 def save(_net_id,
          _name = None):
 
-    save_dir = ArchiveDir + '/run_' + str(CurrentRun) + '/epoch_' + str(CurrentEpoch)
+    save_dir = LogDir + '/run_' + str(CurrentRun) + '/epoch_' + str(CurrentEpoch)
 
     os.makedirs(save_dir, exist_ok = True)
 
@@ -295,7 +295,7 @@ def print_config(_file = sys.stdout,
           "\nShape:", Net.Output.Shape,
           "\nBias:", Net.Output.Bias,
           "\nFunction:", Net.Output.Function.__name__,
-          "\n\n======[ Initial values ]======",
+          "\n\n======[ Initialisation parameters ]======",
           "\nNetwork count:", Net.Init.Count,
           "\nLayers:\n",
           file = _file)
@@ -317,10 +317,10 @@ def print_config(_file = sys.stdout,
     for key, val in Net.Init.Args.items():
         print("\t", key, ":", val, file = _file)
 
-    print("\n\n======[ Maximal values ]======",
+    print("\n======[ Maximal values ]======",
           "\nNetwork count:", Net.Max.Count,
           "\nNetwork age:", Net.Max.Age,
-          "\n======[ Species ]======",
+          "\n\n======[ Species ]======",
           "\nSpeciation:", "enabled" if Species.Enabled else "disabled",
           file = _file)
 
@@ -344,9 +344,9 @@ def print_config(_file = sys.stdout,
         for key, val in DataLoadArgs:
             print("\t", key, ":", val, file = _file)
 
-    print("\nLoss function:", LossFunction.__name__,
-          "\nOptimiser:", Optimiser.mro,
-          "\nArchive directory:", ArchiveDir,
+    print("Loss function:", LossFunction.__name__,
+          "\nOptimiser:", Optimiser.__name__,
+          "\nLog directory:", LogDir,
           "\nLog interval:", LogInterval,
           "\n\n=====================[ End of PyCortex configuration ]====================\n",
           file = _file)
@@ -395,6 +395,6 @@ def run():
         for net_id in Net.ecosystem.keys():
             save(net_id)
 
-    print_config(ArchiveDir + '/config.txt')
+    print_config(LogDir + '/config.txt')
     for stat in stats.values():
         stat.print()

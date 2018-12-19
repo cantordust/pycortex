@@ -38,8 +38,10 @@ class Net(tn.Module):
     class Init:
         Count = 64
         Layers = []
-        Function = tn.init.uniform_
-        Args = {'a': -0.01, 'b': 0.01}
+#        Function = tn.init.uniform_
+#        Args = {'a': -0.01, 'b': 0.1}
+        Function = tn.init.normal_
+        Args = {}
 
     class Max:
         Count = 256
@@ -292,8 +294,8 @@ class Net(tn.Module):
                         new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
 
                     elif new_layer_shape[0] == 0:
-                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
-#                        new_layer_shape[0] = 1
+#                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
+                        new_layer_shape[0] = 1
 
                     # Compute the output shape of a hypothetical layer of this shape
                     new_output_shape = Layer.compute_output_shape(new_layer_shape[0],
@@ -304,7 +306,7 @@ class Net(tn.Module):
 #                    print("Input shape:", self.get_input_shape(layer_index))
 #                    print("New output shape:", new_output_shape)
 #
-#                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
+                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
 
                     # Links to add
                     input_shape = self.get_input_shape(layer_index)
@@ -323,7 +325,7 @@ class Net(tn.Module):
 
 #                        print("\t>>> Adjust:", link_count[-1])
 
-#                    print("\t>>> Total:", sum(link_count))
+                    print("\t>>> Total:", sum(link_count))
 
                     wheel.add((layer_index, new_layer_shape), sum(link_count))
 
@@ -937,7 +939,7 @@ class Net(tn.Module):
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
-        complexify = Rand.chance(1.0 - self.get_complexity() * self.fitness.relative)
+        complexify = Rand.chance(1.0 - self.get_complexity())
 
         # The complexity can be increased or decreased
         # with probability proportional to the number
@@ -948,12 +950,10 @@ class Net(tn.Module):
             # Adding or erasing a layer involves severing existing links and adding new ones.
             # For this computation, we assume that the new layer will contain
             # the mean number of output nodes.
-            wheel.add('layer', (stats['nodes'].mean + stats['nodes'].get_sd()) * stats['links'].mean)
-#            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
+#            wheel.add('layer', (stats['nodes'].mean + stats['nodes'].get_sd()) * stats['links'].mean)
+            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
 
-            if (len(self.layers) > 2 or
-                (len(self.layers) == 2 and
-                 self.layers[0].is_conv)):
+            if len(self.layers) > 1:
                 # Adding or erasing a node involves adding or erasing new links.
                 wheel.add('node', stats['links'].mean)
 
@@ -970,8 +970,8 @@ class Net(tn.Module):
 
         print("Mutating network", self.ID)
 
-        #for elem_index in range(len(wheel.elements)):
-            #print(wheel.elements[elem_index], "|", wheel.weights[WeightType.Raw][elem_index], "|", wheel.weights[WeightType.Inverse][elem_index])
+        for elem_index in range(len(wheel.elements)):
+            print(wheel.elements[elem_index], "|\t", wheel.weights[WeightType.Raw][elem_index], "|\t", wheel.weights[WeightType.Inverse][elem_index])
 
         #return
 

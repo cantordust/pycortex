@@ -7,6 +7,8 @@ Created on Wed Oct 17 12:54:42 2018
 """
 
 import math
+import sys
+
 from cortex import rnd as Rand
 from cortex.rnd import RouletteWheel
 
@@ -104,6 +106,27 @@ class Species:
 
         return True
 
+    def print(self,
+              _file = sys.stdout,
+              _truncate = False):
+
+        if isinstance(_file, str):
+            _file = open(_file, 'w')
+            if _truncate:
+                _file.truncate()
+
+        print("\n\n===============[ Species", self.ID, "]===============",
+              "\nAbsolute fitness:", self.fitness.absolute,
+              "\nRelative fitness:", self.fitness.relative,
+              "\nNetworks:", self.nets,
+              "\nChampion:", self.champ,
+              "\n====[ Genome ]====",
+              file = _file)
+
+        for layer_index, layer in enumerate(self.genome):
+            print("Layer", layer_index, ":", file = _file)
+            layer.print(_file = _file)
+
     def calibrate(self,
                   _complexity_fitness_scale):
 
@@ -139,7 +162,8 @@ class Species:
         for net_id in self.nets:
             # Compute the relative fitness
             net = Net.ecosystem[net_id]
-            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
+#            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
+            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
             print("Network", net_id, "fitness:",
                   "\t\tAbsolute:", Net.ecosystem[net_id].fitness.absolute,
@@ -160,7 +184,8 @@ class Species:
 
         # Iterate over the networks and check if we should perform crossover or mutation
         for net_id in list(self.nets):
-            if Rand.chance(self.fitness.relative):
+            if Rand.chance(Net.ecosystem[net_id].fitness.relative):
+                # Fitter networks have a better chance of mating
                 p2 = Net.ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
                     Net(_p1 = Net.ecosystem[net_id], _p2 = p2)

@@ -7,7 +7,6 @@ Created on Wed Oct 31 11:45:57 2018
 @licence: MIT (https://opensource.org/licence/MIT)
 """
 import sys
-import copy
 
 import torch
 import torch.nn as tn
@@ -28,11 +27,17 @@ class Layer(tn.Module):
             4: tnf.conv3d
             }
 
+#        Activations = {
+#            tnf.linear: torch.tanh,
+#            tnf.conv1d: tnf.leaky_relu,
+#            tnf.conv2d: tnf.leaky_relu,
+#            tnf.conv3d: tnf.leaky_relu
+#            }
         Activations = {
-            tnf.linear: torch.tanh,
-            tnf.conv1d: tnf.leaky_relu,
-            tnf.conv2d: tnf.leaky_relu,
-            tnf.conv3d: tnf.leaky_relu
+            tnf.linear: tnf.selu,
+            tnf.conv1d: tnf.selu,
+            tnf.conv2d: tnf.selu,
+            tnf.conv3d: tnf.selu
             }
 
         Bias = True
@@ -73,8 +78,23 @@ class Layer(tn.Module):
                 return (self.shape[0] == _other.shape[0] and # Node count
                         self.op == _other.op and
                         self.bias == _other.bias and
-                        self.activation.__class__.__name__ == _other.activation.__class__.__name__)
+                        self.activation.__name__ == _other.activation.__name__)
             return False
+
+        def print(self,
+                  _file = sys.stdout,
+                  _truncate = True):
+
+            if isinstance(_file, str):
+                _file = open(_file, 'w')
+                if _truncate:
+                    _file.truncate()
+
+            print("\tOutput nodes:", self.shape[0],
+                  "\n\tType:", self.type,
+                  "\n\tBias:", self.bias,
+                  "\n\tActivation function:", self.activation.__name__,
+                  file = _file)
 
         ### /Def
 
