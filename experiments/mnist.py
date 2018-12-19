@@ -9,34 +9,40 @@ Created on Thu Oct 11 14:52:44 2018
 
 import torch
 from torchvision import datasets, transforms
-#from torch.autograd import detect_anomaly
-
-#import sys
-#sys.path.append("..")
 
 from cortex import cortex as ctx
 
-train_loader_lock = ctx.thd.Lock()
-test_loader_lock = ctx.thd.Lock()
+#train_loader_lock = ctx.thd.Lock()
+#test_loader_lock = ctx.thd.Lock()
 
 def get_train_loader():
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data/mnist', train=True, download=True,
-                       transform=transforms.Compose([
+        datasets.MNIST('./data/mnist',
+                       train=True,
+                       download=True,
+                       transform = transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
-        batch_size = ctx.TrainBatchSize, shuffle = True, **ctx.DataLoadArgs)
+                       batch_size = ctx.TrainBatchSize,
+                       shuffle = True,
+                       **ctx.DataLoadArgs)
+
     return train_loader
 
 def get_test_loader():
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data/mnist', train=False, transform=transforms.Compose([
+        datasets.MNIST('./data/mnist',
+                       train=False,
+                       transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
-        batch_size = ctx.TestBatchSize, shuffle = True, **ctx.DataLoadArgs)
+                       batch_size = ctx.TestBatchSize,
+                       shuffle = True,
+                       **ctx.DataLoadArgs)
+
     return test_loader
 
 def test(net):
@@ -45,8 +51,7 @@ def test(net):
     test_loss = 0
     correct = 0
 
-    with test_loader_lock:
-        test_loader = get_test_loader()
+    test_loader = get_test_loader()
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -58,15 +63,12 @@ def test(net):
 
     test_loss /= len(test_loader.dataset)
 
-    with ctx.print_lock:
-        accuracy = 100. * correct / len(test_loader.dataset)
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(test_loader.dataset),
-            accuracy))
+    accuracy = 100. * correct / len(test_loader.dataset)
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        test_loss, correct, len(test_loader.dataset),
+        accuracy))
 
     net.fitness.absolute = accuracy
-
-    return net
 
 def train(net, epoch):
 
@@ -74,20 +76,29 @@ def train(net, epoch):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    with train_loader_lock:
-        train_loader = get_train_loader()
+    train_loader = get_train_loader()
+    net.fitness.loss_stat.reset()
+    train_portion = 1.0 - net.fitness.relative
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(ctx.Device), target.to(ctx.Device)
-        optimiser.zero_grad()
-        output = net(data)
-        loss = ctx.LossFunction(output, target)
-        loss.backward()
-        optimiser.step()
-        if (batch_idx + 1) % ctx.LogInterval == 0:
-            with ctx.print_lock:
-                print('[Net {}] Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    net.ID, epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.item()))
+#        optimiser.zero_grad()
+#        output = net(data)
+#        loss = ctx.LossFunction(output, target)
+#        loss.backward()
+#        optimiser.step()
 
-    return test(net)
+        net.optimise(data, target, optimiser)
+        progress = batch_idx / len(train_loader)
+
+        if (batch_idx + 1) % ctx.LogInterval == 0:
+            print('[Net {}] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                net.ID, epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * progress, net.fitness.loss_stat.current_value))
+
+        if progress >= train_portion:
+            break
+
+    test(net)
+
+    return net

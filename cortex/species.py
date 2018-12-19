@@ -25,12 +25,12 @@ class Species:
     populations = {}
 
     @staticmethod
-    def exists(_genome):
-        for genome in Species.populations.values():
-            if genome.matches(_genome):
-                return True
+    def find(_genome):
+        for species in Species.populations.values():
+            if species.matches(_genome):
+                return species.ID
 
-        return False
+        return 0
 
     def __init__(self,
                  _genome = None,
@@ -74,7 +74,7 @@ class Species:
     def matches(self,
                 _other):
         """
-        Equality testing for species / genome
+        Equality testing for species / genomes
         """
 
         other_genome = None
@@ -164,8 +164,6 @@ class Species:
                 p2 = Net.ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
                     Net(_p1 = Net.ecosystem[net_id], _p2 = p2)
-                else:
-                    Net.ecosystem[net_id].mutate()
 
             else:
                 Net.ecosystem[net_id].mutate()

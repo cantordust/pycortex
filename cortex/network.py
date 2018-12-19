@@ -37,11 +37,9 @@ class Net(tn.Module):
 
     class Init:
         Count = 64
-        Layers = [Layer.Def([10, 0, 0]),
-                  Layer.Def([10, 0, 0]),
-                  Layer.Def(10)]
+        Layers = []
         Function = tn.init.uniform_
-        Args = {'a': -0.05, 'b': 0.05}
+        Args = {'a': -0.01, 'b': 0.01}
 
     class Max:
         Count = 256
@@ -95,8 +93,7 @@ class Net(tn.Module):
 
             if (isinstance(_p1, Net) and
                 isinstance(_p2, Net)):
-                with ctx.print_lock:
-                    print('>>> Performing crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
+                print('>>> Performing crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
                 self.crossover(_p1, _p2)
 
             else:
@@ -144,10 +141,10 @@ class Net(tn.Module):
                 _file.truncate()
 
         print("\n###################[ Network", self.ID, "]###################\n",
-              "\n>>> Fitness:\n",
+              "\n>>> Fitness:",
               "\n\tAbsolute:", self.fitness.absolute,
               "\n\tRelative:", self.fitness.relative,
-              "\n>>> Age:", self.age,
+              "\n\n>>> Age:", self.age,
               "\n>>> Species:", self.species_id,
               "\n>>> Total parameters:", self.get_parameter_count(),
               file = _file)
@@ -172,8 +169,7 @@ class Net(tn.Module):
 
             genome.append(Layer.Def(_shape = shape,
                                     _bias = layer.bias is not None,
-                                    _activation = layer.activation,
-                                    _type = layer.type))
+                                    _activation = layer.activation))
 
         return genome
 
@@ -296,8 +292,8 @@ class Net(tn.Module):
                         new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
 
                     elif new_layer_shape[0] == 0:
-#                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
-                        new_layer_shape[0] = 1
+                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
+#                        new_layer_shape[0] = 1
 
                     # Compute the output shape of a hypothetical layer of this shape
                     new_output_shape = Layer.compute_output_shape(new_layer_shape[0],
@@ -756,6 +752,20 @@ class Net(tn.Module):
 
         return Net.Output.Function(_tensor, dim = 1)
 
+    def optimise(self,
+                 _data,
+                 _target,
+                 _optimiser):
+
+        def closure():
+            _optimiser.zero_grad()
+            output = self(_data)
+            loss = ctx.LossFunction(output, _target)
+            loss.backward()
+            self.fitness.loss_stat.update(loss.item())
+
+        _optimiser.step(closure)
+
     def crossover(self,
                   _p1,  # Parent 1
                   _p2): # Parent 2
@@ -927,7 +937,7 @@ class Net(tn.Module):
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
-        complexify = Rand.chance(1.0 - self.get_complexity())
+        complexify = Rand.chance(1.0 - self.get_complexity() * self.fitness.relative)
 
         # The complexity can be increased or decreased
         # with probability proportional to the number
@@ -938,7 +948,8 @@ class Net(tn.Module):
             # Adding or erasing a layer involves severing existing links and adding new ones.
             # For this computation, we assume that the new layer will contain
             # the mean number of output nodes.
-            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
+            wheel.add('layer', (stats['nodes'].mean + stats['nodes'].get_sd()) * stats['links'].mean)
+#            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
 
             if (len(self.layers) > 2 or
                 (len(self.layers) == 2 and
@@ -950,7 +961,7 @@ class Net(tn.Module):
             # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
             # This is multiplied by the average number of input nodes.
             if stats['kernel_dims'] > 0:
-                wheel.add('kernel', 2 * stats['nodes'].mean * math.pow(stats['kernel_sizes'].mean, stats['kernel_dims'] - 1))
+                wheel.add('kernel_size', 2 * stats['nodes'].mean * math.pow(stats['kernel_sizes'].mean, stats['kernel_dims'] - 1))
 
         if wheel.is_empty():
             return False
@@ -967,7 +978,7 @@ class Net(tn.Module):
         success = False
 
         # Non-structural mutation
-        if element_type == 'kernel':
+        if element_type == 'kernel_size':
             success, layer, node, delta = self.grow_kernel(_stats = stats) if complexify else self.shrink_kernel()
 
             print("\t>>>", "Growing" if complexify else "Shrinking", element_type)
@@ -996,7 +1007,11 @@ class Net(tn.Module):
                 self.species_id > 0): # and the network is not isolated
 
                 # Create a new species
-                new_species = Species(_genome = self.get_genome())
+                new_species_id = Species.find(_genome = self.get_genome())
+                if new_species_id == 0:
+                    new_species = Species(_genome = self.get_genome())
+                else:
+                    new_species = Species.populations[new_species_id]
 
                 # Add the network to the new species
                 new_species.nets.add(self.ID)

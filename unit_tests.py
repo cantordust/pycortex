@@ -255,6 +255,8 @@ def test_mutations():
         net = ctx.Net()
         original_net = ctx.Net()
         original_net.load_state_dict(net.state_dict())
+        assert (pass_fail(net.matches(original_net), "Comparing the original network with the cloned one..."))
+
         mutations = []
 
         for mut in range(100):

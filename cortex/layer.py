@@ -73,7 +73,7 @@ class Layer(tn.Module):
                 return (self.shape[0] == _other.shape[0] and # Node count
                         self.op == _other.op and
                         self.bias == _other.bias and
-                        self.activation == _other.activation)
+                        self.activation.__class__.__name__ == _other.activation.__class__.__name__)
             return False
 
         ### /Def
@@ -311,10 +311,10 @@ class Layer(tn.Module):
               "\n>>> Size of weight tensor:\n", self.weight.size(),
               "\n>>> Size of bias tensor:\n", self.bias.size(),
               "\n>>> Attributes:",
-              "\tKernel size:", self.kernel_size,
-              "\tStride:", self.stride,
-              "\tPadding:", self.padding,
-              "\tDilation:", self.dilation,
+              "\n\tKernel size:", self.kernel_size,
+              "\n\tStride:", self.stride,
+              "\n\tPadding:", self.padding,
+              "\n\tDilation:", self.dilation,
               "\n>>> Learnable parameters:",
               file = _file)
 

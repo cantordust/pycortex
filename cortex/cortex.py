@@ -22,8 +22,10 @@ from torch.nn import functional as tnf
 from cortex.network import Net
 from cortex.layer import Layer
 from cortex.species import Species
+from cortex import rnd as Rand
 from cortex.rnd import RouletteWheel, WeightType
 from cortex import statistics as Stat
+from cortex.fitness import Fitness
 
 # Global settings
 LearningRate = 0.01
@@ -33,7 +35,6 @@ Epochs = 10
 TrainBatchSize = 8
 TestBatchSize = 1000
 Runs = 1
-LogInterval = 10
 
 # Data loading
 Device = torch.device('cpu')
@@ -47,7 +48,7 @@ Optimiser = torch.optim.Adadelta
 
 MaxThreads = None
 
-ArchiveDir = './model_archive'
+ArchiveDir = './logs'
 
 # Operating variables for saving models
 ExperimentName = 'experiment'
@@ -55,7 +56,8 @@ CurrentEpoch = 1
 CurrentRun = 1
 ArchiveDirPrefix = datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
 
-print_lock = thd.Lock()
+Logger = None
+LogInterval = 50
 
 def init():
     """
@@ -113,7 +115,7 @@ def init():
 
             proto_net = Net(_species = proto_species, _isolated = True)
 
-            while Species.exists(proto_net.get_genome()):
+            while Species.find(proto_net.get_genome()) != 0:
                 proto_net.mutate(_parameters = False)
 
     else:
@@ -130,6 +132,9 @@ def init():
     ArchiveDir += '/' + ExperimentName + '/' + ArchiveDirPrefix
 
     os.makedirs(ArchiveDir, exist_ok = True)
+
+    global Logger
+    Logger = SummaryWriter(ArchiveDir + '/TensorBoard')
 
 def calibrate():
 
@@ -207,8 +212,7 @@ def save(_net_id,
 
     torch.save(Net.ecosystem[_net_id], save_dir + '/' + name + '.pt')
 
-    with print_lock:
-        Net.ecosystem[_net_id].print(save_dir + '/' + name + '.txt')
+    Net.ecosystem[_net_id].print(save_dir + '/' + name + '.txt')
 
 def cull():
 
@@ -229,9 +233,6 @@ def cull():
 
         print("Erasing network ", net_id)
 
-        # Archive the network
-        save(net_id)
-
         # Erase the network from the species.
         Species.populations[species_id].nets.remove(net_id)
 
@@ -241,28 +242,43 @@ def cull():
         if len(Species.populations[species_id].nets) == 0:
             del Species.populations[species_id]
 
-def evolve():
+def evolve(_stats):
 
-    print(">>> Evolving ecosystem")
+    print("======[ Evolving ecosystem ]======")
 
     # Compute the relative fitness of networks and species.
     print("\t`-> Calibrating...")
     calibrate()
 
-    for net_id in Net.ecosystem.keys():
-        save(net_id)
+    for net in Net.ecosystem.values():
+#        Logger.add_scalars('Stats for network ' + str(Net.ID), {
+#                'Absolute fitness': net.fitness.absolute,
+#                'Relative fitness': net.fitness.relative,
+#                'Layers': len(net.layers),
+#                'Parameters': net.get_parameter_count()
+#                },
+#        CurrentEpoch)
+        save(net.ID)
+
+    Logger.add_scalar('Highest fitness', Net.ecosystem[Net.champ].fitness.absolute, CurrentEpoch)
+    Logger.add_scalar('Networks', len(Net.ecosystem), CurrentEpoch)
+    Logger.add_scalar('Species', len(Species.populations), CurrentEpoch)
 
     if Net.champ is not None:
         save(Net.champ, 'champion')
 
-    # Evolve networks in each species.
-    print("\t`-> Evolving networks...")
-    for species_id in list(Species.populations.keys()):
-        Species.populations[species_id].evolve()
+    _stats['Parameters'].update(Net.ecosystem[Net.champ].get_parameter_count())
+    _stats['Accuracy'].update(Net.ecosystem[Net.champ].fitness.absolute)
 
-    # Eliminate unfit networks and empty species.
-    print("\t`-> Culling...")
-    cull()
+    if CurrentEpoch < Epochs - 1:
+        # Evolve networks in each species.
+        print("\t`-> Evolving networks...")
+        for species_id in list(Species.populations.keys()):
+            Species.populations[species_id].evolve()
+
+        # Eliminate unfit networks and empty species.
+        print("\t`-> Culling...")
+        cull()
 
 def print_config(_file = sys.stdout,
                  _truncate = True):
@@ -320,7 +336,6 @@ def print_config(_file = sys.stdout,
           "\nTrain batch size:", TrainBatchSize,
           "\nTest batch size:", TestBatchSize,
           "\nRuns:", Runs,
-          "\nLog interval ( x train batch size):", LogInterval,
           "\nDevice:", Device,
               file = _file)
 
@@ -330,8 +345,9 @@ def print_config(_file = sys.stdout,
             print("\t", key, ":", val, file = _file)
 
     print("\nLoss function:", LossFunction.__name__,
-          "\nOptimiser:", Optimiser,
+          "\nOptimiser:", Optimiser.mro,
           "\nArchive directory:", ArchiveDir,
+          "\nLog interval:", LogInterval,
           "\n\n=====================[ End of PyCortex configuration ]====================\n",
           file = _file)
 
@@ -348,8 +364,10 @@ def run():
     global CurrentRun
     global CurrentEpoch
 
-    parameter_stats = Stat.SMAStat('Parameters')
-    accuracy_stats = Stat.SMAStat('Accuracy')
+    stats = {
+            'Parameters': Stat.SMAStat('Parameters'),
+            'Accuracy': Stat.SMAStat('Accuracy')
+            }
 
     for run in range(Runs):
 
@@ -357,25 +375,26 @@ def run():
 
         init()
 
-#        tboard = SummaryWriter(Archive_dir, "Run" + str(CurrentRun))
+        print("===============[ Run", CurrentRun, "]===============")
 
         for epoch in range(Epochs):
 
             CurrentEpoch = epoch + 1
 
+            print("======[ Epoch", CurrentEpoch, "]======")
+
+            print("\t`-> Evaluating networks...")
+
             with ThreadPool(max_workers = MaxThreads) as threadpool:
-                for net in threadpool.map(TrainFunction, Net.ecosystem.values(), [1] * len(Net.ecosystem)):
+                for net in threadpool.map(TrainFunction, Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem)):
                     Net.ecosystem[net.ID] = net
                     print('Absolute fitness for network %r: %r' % (net.ID, net.fitness.absolute))
 
-            evolve()
+            evolve(stats)
 
         for net_id in Net.ecosystem.keys():
             save(net_id)
 
-        parameter_stats.update(Net.ecosystem[Net.champ].get_parameter_count())
-        accuracy_stats.update(Net.ecosystem[Net.champ].fitness.absolute)
-
     print_config(ArchiveDir + '/config.txt')
-    parameter_stats.print()
-
+    for stat in stats.values():
+        stat.print()

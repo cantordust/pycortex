@@ -80,8 +80,7 @@ def main():
     # Set any other options
     #ctx.Net.Input.Shape = [1, 28, 28]
     #ctx.Net.Output.Shape = [10]
-    ctx.Epochs = 10
-    ctx.LogInterval = 50
+    ctx.Epochs = 30
     ctx.Net.Init.Count = 4
 #    ctx.Net.Init.Layers = [ctx.Layer.Def([1,0,0])]
     ctx.Net.Init.Layers = []
@@ -90,6 +89,7 @@ def main():
     ctx.Species.Max.Count = 8
 
     ctx.MaxThreads = 2
+    ctx.LogInterval = 50
 
     ctx.TrainFunction = mnist.train
 

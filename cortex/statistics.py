@@ -125,7 +125,7 @@ class EMAStat(Stat):
         self.alpha = _alpha
 
     def update(self, _new_val):
-        super(SMAStat, self).update(_new_val)
+        super(EMAStat, self).update(_new_val)
 
         diff = self.current_value - self.mean
         inc = self.alpha * diff
