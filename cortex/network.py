@@ -232,7 +232,9 @@ class Net(tn.Module):
         kernel_size_stats = Stat.SMAStat(_title = "Kernel sizes")
         kernel_dims = len(Net.Input.Shape) - 1
 
-        layer_stats.update(len(self.layers))
+        for net in Net.ecosystem.values():
+            layer_stats.update(len(net.layers))
+
         for layer in self.layers:
             node_stats.update(layer.get_output_nodes())
             for node_idx in range(len(layer.nodes)):

@@ -99,8 +99,8 @@ def main():
     ctx.print_config()
 
     # Run Cortex
-    ctx.init()
-#    ctx.run()
+#    ctx.init()
+    ctx.run()
 
 if __name__ == '__main__':
     main()

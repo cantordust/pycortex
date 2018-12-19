@@ -10,6 +10,9 @@ Created on Wed Oct 17 10:10:32 2018
 from enum import Enum
 import math
 
+import torch
+import torch.nn as tn
+
 class Type(Enum):
      Abs = 'Abs'
      Sin = 'Sin'
@@ -74,7 +77,15 @@ def softmax(_list):
 
 # Differentiable ReLU passing through the origin.
 def sqrl(_val):
-    return (0.5 * (math.sqrt(math.pow(_val, 2) + 4) + _val) - 1.0)
+    return (0.5 * (math.sqrt(math.pow(_val, 2.0) + 4.0) + _val) - 1.0)
+
+class SQRL(tn.Module):
+
+    def __init__(self):
+        super(SQRL, self).__init__()
+
+    def forward(self, x):
+        return (0.5 * (torch.sqrt(torch.pow(x, 2.0) + 4.0) + x) - 1.0)
 
 def prod(_list):
 

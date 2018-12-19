@@ -190,5 +190,8 @@ class Species:
                 if p2.ID != net_id:
                     Net(_p1 = Net.ecosystem[net_id], _p2 = p2)
 
+                else:
+                    Net.ecosystem[net_id].mutate(_structure = False)
+
             else:
-                Net.ecosystem[net_id].mutate()
+                Net.ecosystem[net_id].mutate(_parameters = False)

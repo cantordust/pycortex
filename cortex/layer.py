@@ -33,11 +33,17 @@ class Layer(tn.Module):
 #            tnf.conv2d: tnf.leaky_relu,
 #            tnf.conv3d: tnf.leaky_relu
 #            }
+#        Activations = {
+#            tnf.linear: tnf.selu,
+#            tnf.conv1d: tnf.selu,
+#            tnf.conv2d: tnf.selu,
+#            tnf.conv3d: tnf.selu
+#            }
         Activations = {
-            tnf.linear: tnf.selu,
-            tnf.conv1d: tnf.selu,
-            tnf.conv2d: tnf.selu,
-            tnf.conv3d: tnf.selu
+            tnf.linear: Func.SQRL(),
+            tnf.conv1d: Func.SQRL(),
+            tnf.conv2d: Func.SQRL(),
+            tnf.conv3d: Func.SQRL()
             }
 
         Bias = True
@@ -78,7 +84,7 @@ class Layer(tn.Module):
                 return (self.shape[0] == _other.shape[0] and # Node count
                         self.op == _other.op and
                         self.bias == _other.bias and
-                        self.activation.__name__ == _other.activation.__name__)
+                        self.activation.__class__.__name__ == _other.activation.__class__.__name__)
             return False
 
         def print(self,
@@ -93,7 +99,7 @@ class Layer(tn.Module):
             print("\tOutput nodes:", self.shape[0],
                   "\n\tType:", self.type,
                   "\n\tBias:", self.bias,
-                  "\n\tActivation function:", self.activation.__name__,
+                  "\n\tActivation function:", self.activation.__class__.__name__,
                   file = _file)
 
         ### /Def
@@ -325,7 +331,7 @@ class Layer(tn.Module):
 
         print("\n==================[ Layer", self.index, "]==================",
               "\n>>> Type:", self.type,
-              "\n>>> Activation:", self.activation.__name__,
+              "\n>>> Activation:", self.activation.__class__.__name__,
               "\n>>> Input shape:", self.input_shape, ", input nodes:", self.get_input_nodes(), ", multiplier:", self.get_multiplier(),
               "\n>>> Output shape:", self.get_output_shape(), ", output nodes:", self.get_output_nodes(),
               "\n>>> Size of weight tensor:\n", self.weight.size(),
