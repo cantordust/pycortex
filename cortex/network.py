@@ -8,7 +8,6 @@ Created on Wed Oct  3 22:49:52 2018
 
 import sys
 import math
-import copy
 
 import torch
 import torch.nn as tn
@@ -38,10 +37,10 @@ class Net(tn.Module):
     class Init:
         Count = 64
         Layers = []
-#        Function = tn.init.uniform_
-#        Args = {'a': -0.01, 'b': 0.1}
-        Function = tn.init.normal_
-        Args = {}
+        Function = tn.init.uniform_
+        Args = {'a': -0.01, 'b': 0.1}
+#        Function = tn.init.normal_
+#        Args = {}
 
     class Max:
         Count = 256

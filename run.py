@@ -21,10 +21,10 @@ def parse():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                        help='number of epochs to train (default: 10)')
-    parser.add_argument('--runs', type=int, default=100, metavar='N',
-                        help='number of runs (default: 100)')
+    parser.add_argument('--epochs', type=int, default=50, metavar='N',
+                        help='number of epochs to train (default: 50)')
+    parser.add_argument('--runs', type=int, default=1, metavar='N',
+                        help='number of runs (default: 1)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
     parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
@@ -35,6 +35,8 @@ def parse():
                         help='random seed (default: None)')
     parser.add_argument('--max-threads', type=int, default=None, metavar='S',
                         help='number of threads (default: all available cores)')
+    parser.add_argument('--experiment-name', type=str, default='Experiment', metavar='S',
+                        help='Experiment name')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
 
@@ -69,6 +71,9 @@ def parse():
     if args.max_threads is not None:
         ctx.MaxThreads = args.max_threads
 
+    if args.experiment_name is not None:
+        ctx.ExperimentName = args.experiment_name
+
     if args.log_interval:
         ctx.Net.LogInterval = args.log_interval
 
@@ -80,10 +85,10 @@ def main():
     # Set any other options
     #ctx.Net.Input.Shape = [1, 28, 28]
     #ctx.Net.Output.Shape = [10]
-    ctx.Epochs = 3
-    ctx.Net.Init.Count = 4
+#    ctx.Epochs = 20
 #    ctx.Net.Init.Layers = [ctx.Layer.Def([1,0,0])]
-    ctx.Net.Init.Layers = []
+#    ctx.Net.Init.Layers = []
+    ctx.Net.Init.Count = 4
     ctx.Net.Max.Count = 32
     ctx.Species.Init.Count = 2
     ctx.Species.Max.Count = 8
