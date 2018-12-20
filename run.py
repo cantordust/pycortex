@@ -37,6 +37,8 @@ def parse():
                         help='number of threads (default: all available cores)')
     parser.add_argument('--experiment-name', type=str, default='Experiment', metavar='S',
                         help='Experiment name')
+    parser.add_argument('--log-dir', type=str, default='./logs', metavar='N',
+                        help='Directory for storing the output logs')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
 
@@ -73,6 +75,9 @@ def parse():
 
     if args.experiment_name is not None:
         ctx.ExperimentName = args.experiment_name
+
+    if args.log_dir:
+        ctx.LogDir = args.log_dir
 
     if args.log_interval:
         ctx.LogInterval = args.log_interval
