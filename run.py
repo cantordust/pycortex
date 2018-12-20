@@ -10,7 +10,7 @@ import argparse
 import torch
 
 from cortex import cortex as ctx
-from experiments import mnist
+from experiments.MNIST import mnist
 
 def parse():
 
@@ -21,10 +21,18 @@ def parse():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=50, metavar='N',
-                        help='number of epochs to train (default: 50)')
     parser.add_argument('--runs', type=int, default=1, metavar='N',
                         help='number of runs (default: 1)')
+    parser.add_argument('--epochs', type=int, default=50, metavar='N',
+                        help='number of epochs to train (default: 50)')
+    parser.add_argument('--init-nets', type=int, default=32, metavar='N',
+                        help='Initial number of networks (default: 32)')
+    parser.add_argument('--max-nets', type=int, default=256, metavar='N',
+                        help='Maximal number of networks (default: 256)')
+    parser.add_argument('--init-species', type=int, default=8, metavar='N',
+                        help='Initial number of species (default: 8)')
+    parser.add_argument('--max-species', type=int, default=32, metavar='N',
+                        help='Maximal number of species (default: 32)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
     parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
@@ -45,27 +53,39 @@ def parse():
     args = parser.parse_args()
 
     if args.train_batch_size:
-        ctx.Net.TrainBatchSize = args.train_batch_size
+        ctx.TrainBatchSize = args.train_batch_size
 
     if args.test_batch_size:
-        ctx.Net.TestBatchSize = args.test_batch_size
-
-    if args.epochs:
-        ctx.Net.Epochs = args.epochs
+        ctx.TestBatchSize = args.test_batch_size
 
     if args.runs:
-        ctx.Net.Runs = args.runs
+        ctx.Runs = args.runs
+
+    if args.epochs:
+        ctx.Epochs = args.epochs
+
+    if args.init_nets:
+        ctx.Net.Init.Count = args.init_nets
+
+    if args.max_nets:
+        ctx.Net.Max.Count = args.max_nets
+
+    if args.init_species:
+        ctx.Species.Init.Count = args.init_species
+
+    if args.max_species:
+        ctx.Species.Max.Count = args.max_species
 
     if args.lr:
-        ctx.Net.LearningRate = args.lr
+        ctx.LearningRate = args.lr
 
     if args.momentum:
-        ctx.Net.Momentum = args.momentum
+        ctx.Momentum = args.momentum
 
     if args.cuda and torch.cuda.is_available():
-        ctx.Net.Device = torch.device('cuda')
-        ctx.Net.DataLoadArgs = {'num_workers': 1,
-                                'pin_memory': True}
+        ctx.Device = torch.device('cuda')
+        ctx.DataLoadArgs = {'num_workers': 1,
+                            'pin_memory': True}
 
     if args.rand_seed is not None:
         torch.manual_seed(args.rand_seed)
@@ -84,21 +104,7 @@ def parse():
 
 def main():
 
-    # Set any other options
-    ctx.Net.Input.Shape = [1, 28, 28]
-    ctx.Net.Output.Shape = [10]
-
     ctx.Net.Init.Layers = [ctx.Layer.Def(10)]
-
-    ctx.Epochs = 20
-
-    ctx.Net.Init.Count = 4
-    ctx.Net.Max.Count = 32
-
-    ctx.Species.Init.Count = 2
-    ctx.Species.Max.Count = 8
-
-    ctx.TrainFunction = mnist.train
 
     # Parse command line arguments
     parse()

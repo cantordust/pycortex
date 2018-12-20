@@ -11,7 +11,6 @@ import random
 random.seed()
 
 import math
-import copy
 from colorama import Fore, Style
 
 import torch

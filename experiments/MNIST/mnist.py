@@ -82,11 +82,6 @@ def train(net, epoch):
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(ctx.Device), target.to(ctx.Device)
-#        optimiser.zero_grad()
-#        output = net(data)
-#        loss = ctx.LossFunction(output, target)
-#        loss.backward()
-#        optimiser.step()
 
         net.optimise(data, target, optimiser)
         progress = batch_idx / len(train_loader)
@@ -102,3 +97,7 @@ def train(net, epoch):
     test(net)
 
     return net
+
+ctx.Net.Input.Shape = [1, 28, 28]
+ctx.Net.Output.Shape = [10]
+ctx.TrainFunction = train

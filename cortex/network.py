@@ -38,7 +38,7 @@ class Net(tn.Module):
         Count = 64
         Layers = []
         Function = tn.init.uniform_
-        Args = {'a': -0.01, 'b': 0.1}
+        Args = {'a': -0.01, 'b': 0.05}
 #        Function = tn.init.normal_
 #        Args = {}
 
@@ -92,10 +92,13 @@ class Net(tn.Module):
 
         if not _empty:
 
-            if (isinstance(_p1, Net) and
-                isinstance(_p2, Net)):
-                print('>>> Performing crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
-                self.crossover(_p1, _p2)
+            if (isinstance(_p1, Net)):
+                if (isinstance(_p2, Net)):
+                    print('>>> Performing crossover between networks {} and {}'.format(_p1.ID, _p2.ID))
+                    self.crossover(_p1, _p2)
+                else:
+                    print('>>> Cloning network {}'.format(_p1.ID))
+                    self.clone(_p1)
 
             else:
 
@@ -284,6 +287,8 @@ class Net(tn.Module):
 
                 # Check how many links we have to add and / or erase
                 # to insert a layer of each allowed shape
+#                new_nodes = Rand.uint(1, math.floor(_stats['nodes'].mean + 1))
+                new_nodes = math.floor(_stats['nodes'].mean)
                 for shape in self.get_allowed_layer_shapes(layer_index):
 
                     input_shape = self.get_input_shape(layer_index)
@@ -295,7 +300,7 @@ class Net(tn.Module):
                         new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
 
                     elif new_layer_shape[0] == 0:
-                        new_layer_shape[0] = input_shape[0]
+                        new_layer_shape[0] = new_nodes
 #                        new_layer_shape[0] = 1
 
                     # Compute the output shape of a hypothetical layer of this shape
@@ -307,25 +312,24 @@ class Net(tn.Module):
 #                    print("Input shape:", self.get_input_shape(layer_index))
 #                    print("New output shape:", new_output_shape)
 #
-                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
+#                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
 
                     # Links to add and remove
                     link_count = []
 
                     link_count.append(new_layer_shape[0] * Func.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
 
-                    print("\t>>> Add:", link_count[-1])
+#                    print("\t>>> Add:", link_count[-1])
 
                     # Links to adjust
                     if layer_index < len(self.layers):
                         # Only compute the number of links to erase if
                         # the new layer is *not* going to be the output layer.
-                        link_count.append(self.layers[layer_index].adjust_input_size(_input_shape = new_output_shape,
-                                                                                     _pretend = True))
+                        link_count.append(self.layers[layer_index].adjust_input_size(_input_shape = new_output_shape, _pretend = True))
 
-                        print("\t>>> Adjust:", link_count[-1])
+#                        print("\t>>> Adjust:", link_count[-1])
 
-                    print("\t>>> Total:", sum(link_count))
+#                    print("\t>>> Total:", sum(link_count))
 
                     wheel.add((layer_index, new_layer_shape), sum(link_count))
 
@@ -413,8 +417,7 @@ class Net(tn.Module):
                 #print("\t>>> Erase:", link_count[-1])
 
                 # Links to adjust
-                link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(layer_index),
-                                                                                 _pretend = True))
+                link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(layer_index), _pretend = True))
 
                 #print("\t>>> Adjust:", link_count[-1])
 
@@ -474,9 +477,9 @@ class Net(tn.Module):
 
                 # Adjust the input size of the next layer
                 new_output_shape = list(output_shape)
-                new_output_shape[0] += 1
-                link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = new_output_shape,
-                                                                                 _pretend = True))
+                new_output_shape[0] += _count
+
+                link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = new_output_shape, _pretend = True))
 
                 #print("\t>>> Adjust:", link_count[-1])
 
@@ -529,6 +532,9 @@ class Net(tn.Module):
                 node_indices.add(node_index)
             _node_indices = node_indices
 
+        if _count <= 0:
+            return (False, _layer_index, _node_indices)
+
         if (_layer_index is None or
             len(_node_indices) == 0):
 
@@ -558,9 +564,9 @@ class Net(tn.Module):
                         # Add the number of links lost through adjusting
                         # the size of the next layer
                         new_layer_shape = list(layer_shape)
-                        new_layer_shape[0] -= 1
-                        link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = new_layer_shape,
-                                                                                         _pretend = True))
+                        new_layer_shape[0] -= _count
+
+                        link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = new_layer_shape, _pretend = True))
 
                         #print("\t>>> Adjust:", link_count[-1])
 
@@ -882,10 +888,8 @@ class Net(tn.Module):
                            _layer_index = layer_index,
                            _activation = wheel.spin().activation)
 
-            node_type = tn.Parameter if self.layers[-1].is_conv else torch.Tensor
-
             # Bias weight values
-            bias_weights = None if dna1[layer_index].bias is None else []
+            bias_weights = []
 
             # Node counter
             node_index = 0
@@ -896,12 +900,10 @@ class Net(tn.Module):
 
                 # Pick a node (gene) from a random layer (chromosome)
                 rnd_layer = wheel.spin()
-                self.layers[-1].nodes.append(node_type(torch.zeros(rnd_layer.nodes[node_index].size())))
-                self.layers[-1].nodes[-1].data = rnd_layer.nodes[node_index].data
+                self.layers[-1].nodes.append(tn.Parameter(rnd_layer.nodes[node_index].clone().detach().requires_grad_(rnd_layer.is_conv)))
 
-
-                if bias_weights is not None:
-                    bias_weights.append(rnd_layer.bias.data[node_index])
+                if rnd_layer.bias is not None:
+                    bias_weights.append(rnd_layer.bias[node_index].item())
 
                 node_index += 1
 
@@ -913,9 +915,7 @@ class Net(tn.Module):
                     wheel.replace([rnd_layer, rnd_layer])
 
             if self.layers[-1].bias is not None:
-                self.layers[-1].bias = tn.Parameter(torch.zeros(len(bias_weights)))
-                for idx, val in enumerate(bias_weights):
-                    self.layers[-1].bias.data[idx] = val
+                self.layers[-1].bias = tn.Parameter(torch.Tensor(bias_weights))
 
             self.layers[-1].adjust_input_size()
 
@@ -923,6 +923,30 @@ class Net(tn.Module):
         self.species_id = _p1.species_id
         if self.species_id != 0:
             Species.populations[self.species_id].nets.add(self.ID)
+
+    def clone(self,
+              _parent):
+
+        for layer_index, layer in enumerate(_parent.layers):
+
+            layer.update_nodes()
+
+            self.add_layer(_shape = [0, *layer.kernel_size],
+                           _bias = layer.bias is not None,
+                           _layer_index = layer_index,
+                           _activation = layer.activation)
+
+            # Clone the nodes
+            for node_index, node in enumerate(layer.nodes):
+                self.layers[-1].nodes.append(tn.Parameter(node.clone().detach().requires_grad_(self.layers[-1].is_conv)))
+
+            # Clone the bias
+            if layer.bias is not None:
+                self.layers[-1].bias = tn.Parameter(layer.bias.clone().detach().requires_grad_(True))
+
+            self.layers[-1].update_weights()
+
+        self.species_id = _parent.species_id
 
     def mutate(self,
                _structure = True,

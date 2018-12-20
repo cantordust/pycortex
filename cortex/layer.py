@@ -34,13 +34,6 @@ class Layer(tn.Module):
 #            tnf.conv3d: tn.LeakyReLU()
 #            }
 
-#        Activations = {
-#            tnf.linear: tn.SELU(),
-#            tnf.conv1d: tn.SELU(),
-#            tnf.conv2d: tn.SELU(),
-#            tnf.conv3d: tn.SELU()
-#            }
-
         Activations = {
             tnf.linear: Func.SQRL(),
             tnf.conv1d: Func.SQRL(),
@@ -484,7 +477,7 @@ class Layer(tn.Module):
             bias = torch.zeros(_count)
             Layer.init(bias)
 #                    print("resize() extra bias:", bias)
-            self.bias = tn.Parameter(torch.cat((self.bias.data, bias)))
+            self.bias = tn.Parameter(torch.cat((self.bias.clone().detach(), bias)))
 
         # Nodes -> weights
         self.update_weights()
@@ -504,20 +497,18 @@ class Layer(tn.Module):
         #print("Nodes to erase:", *_node_indices)
 
         # Erase the selected nodes
-        nodes = type(self.nodes)()
-        bias = None if self.bias is None else []
+        nodes = tn.ParameterList()
+        bias = []
 
         for index, node in enumerate(self.nodes):
             if index not in _node_indices:
                 nodes.append(node)
                 if bias is not None:
-                    bias.append(self.bias.data[index])
+                    bias.append(self.bias[index].item())
 
         # Update the bias parameters
-        if bias is not None:
-            self.bias = tn.Parameter(torch.zeros(int(self.bias.size(0)) - len(_node_indices)))
-            for idx, val in enumerate(bias):
-                self.bias.data[idx] = val
+        if len(bias) > 0:
+            self.bias = tn.Parameter(torch.Tensor(bias))
 
         self.nodes = nodes
 
@@ -673,15 +664,12 @@ class Layer(tn.Module):
 
                         #print("Slices:", slices)
 
-                        new_node = torch.Tensor()
+                        new_node = self.nodes[output_node][slices[0]].clone().detach()
 
-                        for slice_index in range(len(slices)):
-                            if slice_index == 0:
-                                new_node.data = self.nodes[output_node].data[slices[slice_index]]
-                            else:
-                                new_node.data = torch.cat((new_node.data, self.nodes[output_node].data[slices[slice_index]]))
+                        for slice_index in range(1, len(slices)):
+                            new_node = torch.cat((new_node, self.nodes[output_node][slices[slice_index]].clone().detach()))
 
-                        self.nodes[output_node] = type(self.nodes[output_node])(new_node)
+                        self.nodes[output_node] = tn.Parameter(new_node)
 
                 elif input_node_diff < 0:
 
@@ -696,7 +684,7 @@ class Layer(tn.Module):
                     padding = torch.zeros(int(actual_input_nodes * multiplier - self.nodes[output_node].size(0)), *list(self.nodes[output_node].size())[1:])
                     Layer.init(padding)
 
-                    self.nodes[output_node] = type(self.nodes[output_node])(torch.cat((self.nodes[output_node].data, padding)))
+                    self.nodes[output_node] = tn.Parameter(torch.cat((self.nodes[output_node].clone().detach(), padding)))
 
         if _pretend:
             return link_diff
@@ -735,8 +723,8 @@ class Layer(tn.Module):
         # Update the node data from the weights for non-convolutional layers
         if (not self.is_conv and
             int(self.weight.size(0)) > 0):
-            for node_idx, node in enumerate(self.nodes):
-                node.data = self.weight.data[node_idx]
+            for node_index in range(len(self.nodes)):
+                self.nodes[node_index] = tn.Parameter(self.weight[node_index].clone().detach().requires_grad_(self.is_conv))
 
     def update_slices(self):
 
@@ -781,12 +769,14 @@ class Layer(tn.Module):
             # that manipulating non-convolutional nodes should be preceded
             # by a call to update_nodes() in order to update the
             # nodes from the current weights.
-            #self.weight = tn.Parameter(torch.stack(list(self.nodes)))
-            self.weight = tn.Parameter(torch.stack(self.nodes))
+#            self.weight = tn.Parameter(torch.stack(list(self.nodes)).clone().detach().requires_grad_(True))
+            self.weight = tn.Parameter(torch.stack(self.nodes).clone().detach().requires_grad_(False))
 
         # Update the requires_grad attribute of all nodes
         for node in self.nodes:
             node.requires_grad = self.is_conv
+            if not node.requires_grad:
+                node.detach()
 
     def extract_patch(self,
                       _node_idx,
@@ -810,7 +800,7 @@ class Layer(tn.Module):
             else:
                 slices.append(slice(0, kernel_size[dim]))
 
-        return self.nodes[_node_idx].data[slices]
+        return self.nodes[_node_idx][slices].clone().detach().requires_grad_(False)
 
     def overlay_kernels(self):
 
@@ -837,4 +827,3 @@ class Layer(tn.Module):
             _tensor = self.op(_tensor, self.weight, self.bias)
 
         return self.activation(_tensor)
-
