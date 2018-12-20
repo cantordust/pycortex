@@ -84,9 +84,6 @@ def parse():
 
 def main():
 
-    # Parse command line arguments
-    parse()
-
     # Set any other options
     ctx.Net.Input.Shape = [1, 28, 28]
     ctx.Net.Output.Shape = [10]
@@ -102,6 +99,9 @@ def main():
     ctx.Species.Max.Count = 8
 
     ctx.TrainFunction = mnist.train
+
+    # Parse command line arguments
+    parse()
 
     # Print the current configuration
     ctx.print_config()
