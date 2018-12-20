@@ -286,7 +286,7 @@ class Net(tn.Module):
                 # to insert a layer of each allowed shape
                 for shape in self.get_allowed_layer_shapes(layer_index):
 
-                    link_count = []
+                    input_shape = self.get_input_shape(layer_index)
                     new_layer_shape = list(shape)
 
                     # Set the number of output nodes
@@ -295,8 +295,8 @@ class Net(tn.Module):
                         new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
 
                     elif new_layer_shape[0] == 0:
-#                        new_layer_shape[0] = math.floor(_stats['nodes'].mean)
-                        new_layer_shape[0] = 1
+                        new_layer_shape[0] = input_shape[0]
+#                        new_layer_shape[0] = 1
 
                     # Compute the output shape of a hypothetical layer of this shape
                     new_output_shape = Layer.compute_output_shape(new_layer_shape[0],
@@ -309,13 +309,12 @@ class Net(tn.Module):
 #
                     print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
 
-                    # Links to add
-                    input_shape = self.get_input_shape(layer_index)
+                    # Links to add and remove
+                    link_count = []
 
-                    # The shape corresponds to an FC layer.
                     link_count.append(new_layer_shape[0] * Func.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
 
-#                    print("\t>>> Add:", link_count[-1])
+                    print("\t>>> Add:", link_count[-1])
 
                     # Links to adjust
                     if layer_index < len(self.layers):
@@ -324,7 +323,7 @@ class Net(tn.Module):
                         link_count.append(self.layers[layer_index].adjust_input_size(_input_shape = new_output_shape,
                                                                                      _pretend = True))
 
-#                        print("\t>>> Adjust:", link_count[-1])
+                        print("\t>>> Adjust:", link_count[-1])
 
                     print("\t>>> Total:", sum(link_count))
 
@@ -950,9 +949,11 @@ class Net(tn.Module):
         if _structure:
             # Adding or erasing a layer involves severing existing links and adding new ones.
             # For this computation, we assume that the new layer will contain
-            # the mean number of output nodes.
-#            wheel.add('layer', (stats['nodes'].mean + stats['nodes'].get_sd()) * stats['links'].mean)
-            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
+            # anywhere between 1 and the mean number of nodes (hence the 0.5).
+            # The SD is a correction term for the average number of nodes
+            # in the following layer whose links would need to be adjusted.
+            wheel.add('layer', (0.5 * (stats['nodes'].mean + 1) + stats['nodes'].get_sd()) * stats['links'].mean)
+#            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
 
             if len(self.layers) > 1:
                 # Adding or erasing a node involves adding or erasing new links.

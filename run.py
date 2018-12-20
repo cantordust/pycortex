@@ -75,7 +75,7 @@ def parse():
         ctx.ExperimentName = args.experiment_name
 
     if args.log_interval:
-        ctx.Net.LogInterval = args.log_interval
+        ctx.LogInterval = args.log_interval
 
 def main():
 
@@ -83,24 +83,22 @@ def main():
     parse()
 
     # Set any other options
-    #ctx.Net.Input.Shape = [1, 28, 28]
-    #ctx.Net.Output.Shape = [10]
-#    ctx.Epochs = 20
-#    ctx.Net.Init.Layers = [ctx.Layer.Def([1,0,0])]
-#    ctx.Net.Init.Layers = []
+    ctx.Net.Input.Shape = [1, 28, 28]
+    ctx.Net.Output.Shape = [10]
+
+    ctx.Net.Init.Layers = [ctx.Layer.Def(10)]
+
+    ctx.Epochs = 20
+
     ctx.Net.Init.Count = 4
     ctx.Net.Max.Count = 32
+
     ctx.Species.Init.Count = 2
     ctx.Species.Max.Count = 8
 
-    ctx.MaxThreads = 2
-    ctx.LogInterval = 50
-
     ctx.TrainFunction = mnist.train
 
-    ctx.ExperimentName = "MNIST"
     # Print the current configuration
-
     ctx.print_config()
 
     # Run Cortex

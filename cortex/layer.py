@@ -28,17 +28,19 @@ class Layer(tn.Module):
             }
 
 #        Activations = {
-#            tnf.linear: torch.tanh,
-#            tnf.conv1d: tnf.leaky_relu,
-#            tnf.conv2d: tnf.leaky_relu,
-#            tnf.conv3d: tnf.leaky_relu
+#            tnf.linear: tn.LeakyReLU(),
+#            tnf.conv1d: tn.LeakyReLU(),
+#            tnf.conv2d: tn.LeakyReLU(),
+#            tnf.conv3d: tn.LeakyReLU()
 #            }
+
 #        Activations = {
-#            tnf.linear: tnf.selu,
-#            tnf.conv1d: tnf.selu,
-#            tnf.conv2d: tnf.selu,
-#            tnf.conv3d: tnf.selu
+#            tnf.linear: tn.SELU(),
+#            tnf.conv1d: tn.SELU(),
+#            tnf.conv2d: tn.SELU(),
+#            tnf.conv3d: tn.SELU()
 #            }
+
         Activations = {
             tnf.linear: Func.SQRL(),
             tnf.conv1d: Func.SQRL(),
@@ -96,10 +98,12 @@ class Layer(tn.Module):
                 if _truncate:
                     _file.truncate()
 
-            print("\tOutput nodes:", self.shape[0],
-                  "\n\tType:", self.type,
-                  "\n\tBias:", self.bias,
-                  "\n\tActivation function:", self.activation.__class__.__name__,
+            print("\n\t\tShape:", self.shape,
+                  "\n\t\tBias:", self.bias,
+                  "\n\t\tType:", self.op.__name__,
+                  "\n\t\tActivation:", self.activation.__class__.__name__,
+                  "\n\t\tConvolutional:", self.is_conv,
+                  "\n\t\tEmpty:", self.empty,
                   file = _file)
 
         ### /Def
@@ -632,7 +636,7 @@ class Layer(tn.Module):
                 #print("node", output_node, "size:", self.nodes[output_node].size())
                 #print("link difference:", abs(input_node_diff) * self.nodes[output_node][0].numel() * multiplier)
 
-                link_diff += abs(input_node_diff) * self.nodes[output_node][0].numel() * multiplier
+                link_diff += abs(input_node_diff) * Func.prod(list(self.nodes[output_node].size())[1:]) * multiplier
 
             else:
 

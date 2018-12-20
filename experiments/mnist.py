@@ -64,8 +64,8 @@ def test(net):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
+    print('\n[Net {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        net.ID, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
     net.fitness.absolute = accuracy

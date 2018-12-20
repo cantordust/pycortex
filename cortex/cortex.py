@@ -289,6 +289,7 @@ def print_config(_file = sys.stdout,
             _file.truncate()
 
     print("\n========================[ PyCortex configuration ]========================",
+          "\nExperiment name:", ExperimentName,
           "\n\n======[ Network input ]======",
           "\nShape:", Net.Input.Shape,
           "\n\n======[ Network output ]======",
@@ -297,18 +298,12 @@ def print_config(_file = sys.stdout,
           "\nFunction:", Net.Output.Function.__name__,
           "\n\n======[ Initialisation parameters ]======",
           "\nNetwork count:", Net.Init.Count,
-          "\nLayers:\n",
+          "\nLayers:",
           file = _file)
 
     for layer_index, layer_def in enumerate(Net.Init.Layers):
-        print("\n\tLayer", layer_index + 1, ":",
-              "\n\t\tShape:", layer_def.shape,
-              "\n\t\tBias:", layer_def.bias,
-              "\n\t\tType:", layer_def.op.__name__,
-              "\n\t\tActivation:", layer_def.activation.__name__,
-              "\n\t\tConvolutional:", layer_def.is_conv,
-              "\n\t\tEmpty:", layer_def.empty,
-              file = _file)
+        print("\tLayer %r:" % layer_index, file = _file)
+        layer_def.print(_file = _file)
 
     print("\nFunction:", Net.Init.Function.__name__,
           "\nArguments:",
@@ -325,11 +320,11 @@ def print_config(_file = sys.stdout,
           file = _file)
 
     if Species.Enabled:
-        print("\nSpecies count:", Species.Init.Count,
+        print("Species count:", Species.Init.Count,
               "\nMaximal count:", Species.Max.Count,
               file = _file)
 
-    print("\n\n======[ Optimisation ]======",
+    print("\n======[ Optimisation ]======",
           "\nLearning rate:", LearningRate,
           "\nMomentum:", Momentum,
           "\nEpochs:", Epochs,
@@ -337,6 +332,7 @@ def print_config(_file = sys.stdout,
           "\nTest batch size:", TestBatchSize,
           "\nRuns:", Runs,
           "\nDevice:", Device,
+          "\nMax. threads:", MaxThreads,
               file = _file)
 
     if len(DataLoadArgs) > 0:
