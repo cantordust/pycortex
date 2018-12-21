@@ -467,7 +467,7 @@ class Layer(tn.Module):
                 #print("(Conv) New node with size", self.nodes[-1].size(), ", multiplier", self.get_multiplier())
 
             else:
-                self.nodes.append(torch.zeros(self.get_input_nodes() * self.get_multiplier()))
+                self.nodes.append(tn.Parameter(torch.zeros(self.get_input_nodes() * self.get_multiplier())))
                 #print("(FC) New node with size", self.nodes[-1].size(), ", multiplier", self.get_multiplier())
 
             Layer.init(self.nodes[-1])
