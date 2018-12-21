@@ -770,7 +770,11 @@ class Layer(tn.Module):
             # by a call to update_nodes() in order to update the
             # nodes from the current weights.
 #            self.weight = tn.Parameter(torch.stack(list(self.nodes)).clone().detach().requires_grad_(True))
-            self.weight = tn.Parameter(torch.stack(self.nodes).clone().detach().requires_grad_(False))
+            tensor_list = []
+            for node in self.nodes:
+                tensor_list.append(node.clone().detach().requires_grad_(False))
+
+            self.weight = tn.Parameter(torch.stack(tensor_list))
 
         # Update the requires_grad attribute of all nodes
         for node in self.nodes:
