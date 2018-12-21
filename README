@@ -1,3 +1,5 @@
+# Overview
+
 Python-based interface to PyTorch for evolving deep learning models.
 
 For now, the library supports the following operations:
@@ -10,3 +12,25 @@ For now, the library supports the following operations:
 All mutation and crossover operations should produce fully functional models which can be further trained with backprop.
 
 All functionality will be backported to the C++ version of Cortex (with Python bindings for the die-hard Python fans).
+
+# To install
+
+Needs Python <= 3.6. To setup a dev version of the library
+
+```
+virtualenv -python=python3 venv  # if python3 is Python 3.6
+pip install colorama torch numpy tensorboardX torchvision
+```
+
+# Check the tests run 
+
+```
+python unit_tests.py
+```
+
+# Run the MNIST test suite
+
+```
+cd experiments/MNIST
+sh mnist.sh
+```
