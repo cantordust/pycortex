@@ -1,16 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 17 09:36:09 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
-
 import sys
 import math
 from enum import Enum
-from cortex import functions as Func
+
+import cortex.functions as Func
 
 class MAType(Enum):
      Exponential = 'Exponential'
@@ -141,5 +133,5 @@ class EMAStat(Stat):
             if _truncate:
                 _file.truncate()
 
-        super(SMAStat, self).print(_file = _file)
+        super(EMAStat, self).print(_file = _file)
         print("Alpha: %r" % self.alpha, file = _file)

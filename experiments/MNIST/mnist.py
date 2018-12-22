@@ -12,9 +12,6 @@ from torchvision import datasets, transforms
 
 from cortex import cortex as ctx
 
-#train_loader_lock = ctx.thd.Lock()
-#test_loader_lock = ctx.thd.Lock()
-
 def get_train_loader():
 
     train_loader = torch.utils.data.DataLoader(
@@ -98,6 +95,23 @@ def train(net, epoch):
 
     return net
 
-ctx.Net.Input.Shape = [1, 28, 28]
-ctx.Net.Output.Shape = [10]
-ctx.TrainFunction = train
+def main():
+
+    ctx.Net.Input.Shape = [1, 28, 28]
+    ctx.Net.Output.Shape = [10]
+    ctx.TrainFunction = train
+
+    ctx.Net.Init.Layers = [ctx.Layer.Def(10)]
+
+    # Parse command line arguments
+    ctx.parse()
+
+    # Print the current configuration
+    ctx.print_config()
+
+    # Run Cortex
+#    ctx.init()
+#    ctx.run()
+
+if __name__ == '__main__':
+    main()

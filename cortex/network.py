@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct  3 22:49:52 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
-
 import sys
 import math
 
@@ -13,15 +5,13 @@ import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
-from cortex import cortex as ctx
+import cortex.cortex as ctx
+import cortex.functions as Func
+import cortex.statistics as Stat
+import cortex.random as Rand
+
 from cortex.species import Species
 from cortex.layer import Layer
-from cortex import functions as Func
-from cortex import statistics as Stat
-from cortex import rnd as Rand
-from cortex.rnd import WeightType, RouletteWheel
-
-torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
 class Net(tn.Module):
 
@@ -35,7 +25,7 @@ class Net(tn.Module):
         Function = tnf.log_softmax
 
     class Init:
-        Count = 64
+        Count = 8
         Layers = []
         Function = tn.init.uniform_
         Args = {'a': -0.01, 'b': 0.05}
@@ -43,7 +33,7 @@ class Net(tn.Module):
 #        Args = {}
 
     class Max:
-        Count = 256
+        Count = 16
         Age = 50
 
     # Static members
@@ -281,7 +271,7 @@ class Net(tn.Module):
             if _stats is None:
                 _stats = self.get_structure_stats()
 
-            wheel = RouletteWheel(WeightType.Inverse)
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index in range(len(self.layers)):
 
@@ -403,7 +393,7 @@ class Net(tn.Module):
         # Update the input size of the next layer (if there is one)
         if _layer_index is None:
 
-            wheel = RouletteWheel(WeightType.Inverse)
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
 
                 # Check if we can erase a layer at all.
@@ -460,7 +450,7 @@ class Net(tn.Module):
             if _stats is None:
                 _stats = self.get_structure_stats()
 
-            wheel = RouletteWheel(WeightType.Inverse)
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
 
                 layer = self.layers[layer_index]
@@ -538,7 +528,7 @@ class Net(tn.Module):
         if (_layer_index is None or
             len(_node_indices) == 0):
 
-            wheel = RouletteWheel(WeightType.Inverse)
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index in range(len(self.layers) - 1):
                 # Check if we can erase a node at all:
@@ -580,10 +570,10 @@ class Net(tn.Module):
             layer_index, node_index = wheel.spin()
 
             # Create a new wheel only for the nodes in the selected layer
-            new_wheel = RouletteWheel()
+            new_wheel = Rand.RouletteWheel()
             for index in range(len(wheel.elements)):
                 if wheel.elements[index][0] == layer_index:
-                    new_wheel.add(wheel.elements[index][1], wheel.weights[WeightType.Raw][index])
+                    new_wheel.add(wheel.elements[index][1], wheel.weights[Rand.WeightType.Raw][index])
 
             wheel = new_wheel
 
@@ -645,7 +635,7 @@ class Net(tn.Module):
             if _stats is None:
                 _stats = self.get_structure_stats()
 
-            wheel = RouletteWheel(WeightType.Inverse)
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index, layer in enumerate(self.layers):
 
@@ -703,7 +693,7 @@ class Net(tn.Module):
             _node_index is None or
             len(_delta) == 0):
 
-            wheel = RouletteWheel(WeightType.Inverse)
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index, layer in enumerate(self.layers):
 
@@ -793,7 +783,7 @@ class Net(tn.Module):
         # Roulette wheel for selecting chromosomes
         # (layers) and genes (nodes) from the two
         # parents based on their fitness.
-        wheel = RouletteWheel()
+        wheel = Rand.RouletteWheel()
         wheel.add(_p1, _p1.fitness.relative)
         wheel.add(_p2, _p2.fitness.relative)
 
@@ -968,7 +958,7 @@ class Net(tn.Module):
         # The complexity can be increased or decreased
         # with probability proportional to the number
         # of parameters that the mutation will affect.
-        wheel = RouletteWheel(WeightType.Inverse)
+        wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
         if _structure:
             # Adding or erasing a layer involves severing existing links and adding new ones.
@@ -997,7 +987,7 @@ class Net(tn.Module):
         print("Mutating network", self.ID)
 
         for elem_index in range(len(wheel.elements)):
-            print(wheel.elements[elem_index], "|\t", wheel.weights[WeightType.Raw][elem_index], "|\t", wheel.weights[WeightType.Inverse][elem_index])
+            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
 
         #return
 

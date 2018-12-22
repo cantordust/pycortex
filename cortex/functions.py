@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 17 10:10:32 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
-
 from enum import Enum
 import math
 
@@ -54,8 +45,6 @@ def softmax(_list):
 
     if len(_list) == 0:
         return _list
-
-    #_list = linscale(_list)
 
     normalised = []
 

@@ -7,7 +7,7 @@ For now, the library supports the following operations:
 - Add / erase layers (convolutional or fully connected)
 - Add / erase nodes (or kernels in convolutional layers)
 - Grow or shrink kernels
-- Crossover of deep NNs
+- Crossover / cloning deep NNs
 
 All mutation and crossover operations should produce fully functional models which can be further trained with backprop.
 

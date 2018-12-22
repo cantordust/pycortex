@@ -1,26 +1,17 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 17 12:54:42 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
-
 import math
 import sys
 
-from cortex import rnd as Rand
-from cortex.rnd import RouletteWheel
+import cortex.random as Rand
 
 class Species:
 
     Enabled = True
 
     class Init:
-        Count = 8
+        Count = 2
 
     class Max:
-        Count = 16
+        Count = 8
 
     # Static members
     ID = 0
@@ -178,7 +169,7 @@ class Species:
         # Populate the parent wheel.
         # Networks that have been selected for crossover
         # will pick a partner at random by spinning the wheel.
-        parent_wheel = RouletteWheel()
+        parent_wheel = Rand.RouletteWheel()
         for net_id in list(self.nets):
             parent_wheel.add(net_id, Net.ecosystem[net_id].fitness.relative)
 

@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 16 10:09:53 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
-
 import os
 import sys
 import math
@@ -19,13 +10,14 @@ from tensorboardX import SummaryWriter
 import torch
 from torch.nn import functional as tnf
 
+torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
+
+import cortex.random as Rand
+import cortex.statistics as Stat
+
 from cortex.network import Net
 from cortex.layer import Layer
 from cortex.species import Species
-from cortex import rnd as Rand
-from cortex.rnd import RouletteWheel, WeightType
-from cortex import statistics as Stat
-from cortex.fitness import Fitness
 
 # Global settings
 LearningRate = 0.01
@@ -58,6 +50,112 @@ LogDirPrefix = datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
 
 Logger = None
 LogInterval = 50
+
+UnitTestMode = False
+
+import argparse
+def parse():
+
+    # Training settings
+    parser = argparse.ArgumentParser(description='PyCortex argument parser')
+
+    parser.add_argument('--train-batch-size', type=int, default=16, metavar='N',
+                        help='input batch size for training (default: 64)')
+    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+                        help='input batch size for testing (default: 1000)')
+    parser.add_argument('--runs', type=int, default=1, metavar='N',
+                        help='number of runs (default: 1)')
+    parser.add_argument('--epochs', type=int, default=50, metavar='N',
+                        help='number of epochs to train (default: 50)')
+    parser.add_argument('--init-nets', type=int, default=32, metavar='N',
+                        help='Initial number of networks (default: 32)')
+    parser.add_argument('--max-nets', type=int, default=256, metavar='N',
+                        help='Maximal number of networks (default: 256)')
+    parser.add_argument('--init-species', type=int, default=8, metavar='N',
+                        help='Initial number of species (default: 8)')
+    parser.add_argument('--max-species', type=int, default=32, metavar='N',
+                        help='Maximal number of species (default: 32)')
+    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+                        help='learning rate (default: 0.01)')
+    parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
+                        help='SGD momentum (default: 0.5)')
+    parser.add_argument('--cuda', action='store_true', default=False,
+                        help='Enables CUDA training')
+    parser.add_argument('--rand-seed', type=int, default=None, metavar='S',
+                        help='random seed (default: None)')
+    parser.add_argument('--max-threads', type=int, default=None, metavar='S',
+                        help='number of threads (default: all available cores)')
+    parser.add_argument('--experiment-name', type=str, default='Experiment', metavar='S',
+                        help='Experiment name')
+    parser.add_argument('--log-dir', type=str, default='./logs', metavar='N',
+                        help='Directory for storing the output logs')
+    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+                        help='how many batches to wait before logging training status')
+
+    args = parser.parse_args()
+
+    if args.train_batch_size:
+        global TrainBatchSize
+        TrainBatchSize = args.train_batch_size
+
+    if args.test_batch_size:
+        global TestBatchSize
+        TestBatchSize = args.test_batch_size
+
+    if args.runs:
+        global Runs
+        Runs = args.runs
+
+    if args.epochs:
+        global Epochs
+        Epochs = args.epochs
+
+    if args.init_nets:
+        Net.Init.Count = args.init_nets
+
+    if args.max_nets:
+        Net.Max.Count = args.max_nets
+
+    if args.init_species:
+        Species.Init.Count = args.init_species
+
+    if args.max_species:
+        Species.Max.Count = args.max_species
+
+    if args.lr:
+        global LearningRate
+        LearningRate = args.lr
+
+    if args.momentum:
+        global Momentum
+        Momentum = args.momentum
+
+    if args.cuda and torch.cuda.is_available():
+        global Device
+        Device = torch.device('cuda')
+
+        global DataLoadArgs
+        DataLoadArgs = {'num_workers': 1,
+                            'pin_memory': True}
+
+    if args.rand_seed is not None:
+        torch.manual_seed(args.rand_seed)
+
+    if args.max_threads is not None:
+        global MaxThreads
+        MaxThreads = args.max_threads
+
+    if args.experiment_name is not None:
+        global ExperimentName
+        ExperimentName = args.experiment_name
+
+    if args.log_dir:
+        global LogDir
+        LogDir = args.log_dir
+
+    if args.log_interval:
+        global LogInterval
+        LogInterval = args.log_interval
 
 def init():
     """
@@ -131,13 +229,14 @@ def init():
     for net in Net.ecosystem.values():
         net.print()
 
-    global LogDir
-    LogDir += '/' + ExperimentName + '/' + LogDirPrefix
+    if not UnitTestMode:
+        global LogDir
+        LogDir += '/' + LogDirPrefix
 
-    os.makedirs(LogDir, exist_ok = True)
+        os.makedirs(LogDir, exist_ok = True)
 
-    global Logger
-    Logger = SummaryWriter(LogDir + '/TensorBoard')
+        global Logger
+        Logger = SummaryWriter(LogDir + '/TensorBoard')
 
 def calibrate():
 
@@ -219,14 +318,14 @@ def cull():
     while len(Net.ecosystem) > Net.Max.Count:
 
         # Get a random species ID
-        species_wheel = RouletteWheel(WeightType.Inverse)
+        species_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
         for species in Species.populations.values():
             species_wheel.add(species.ID, species.fitness.relative)
 
         species_id = species_wheel.spin()
 
         # Get a random network ID
-        net_wheel = RouletteWheel()
+        net_wheel = Rand.RouletteWheel()
         for net_id in Species.populations[species_id].nets:
             net_wheel.add(net_id, Net.ecosystem[net_id].scaled_age * (1.0 - Net.ecosystem[net_id].fitness.relative))
         net_id = net_wheel.spin()
@@ -250,35 +349,37 @@ def evolve(_stats):
     print("\t`-> Calibrating...")
     calibrate()
 
-    for net in Net.ecosystem.values():
-#        Logger.add_scalars('Stats for network ' + str(Net.ID), {
-#                'Absolute fitness': net.fitness.absolute,
-#                'Relative fitness': net.fitness.relative,
-#                'Layers': len(net.layers),
-#                'Parameters': net.get_parameter_count()
-#                },
-#        CurrentEpoch)
-        save(net.ID)
+    if not UnitTestMode:
+        for net in Net.ecosystem.values():
 
-    Logger.add_scalar('Highest fitness', Net.ecosystem[Net.champ].fitness.absolute, CurrentEpoch)
-    Logger.add_scalar('Networks', len(Net.ecosystem), CurrentEpoch)
-    Logger.add_scalar('Species', len(Species.populations), CurrentEpoch)
+            Logger.add_scalars('Stats for network ' + str(Net.ID), {
+                    'Absolute fitness': net.fitness.absolute,
+                    'Relative fitness': net.fitness.relative,
+                    'Layers': len(net.layers),
+                    'Parameters': net.get_parameter_count()
+                    },
+            CurrentEpoch)
+            save(net.ID)
 
-    if Net.champ is not None:
-        save(Net.champ, 'champion')
+        Logger.add_scalar('Highest fitness', Net.ecosystem[Net.champ].fitness.absolute, CurrentEpoch)
+        Logger.add_scalar('Networks', len(Net.ecosystem), CurrentEpoch)
+        Logger.add_scalar('Species', len(Species.populations), CurrentEpoch)
 
-    _stats['Parameters'].update(Net.ecosystem[Net.champ].get_parameter_count())
-    _stats['Accuracy'].update(Net.ecosystem[Net.champ].fitness.absolute)
+        if Net.champ is not None:
+            save(Net.champ, 'champion')
 
-    if CurrentEpoch < Epochs - 1:
-        # Evolve networks in each species.
-        print("\t`-> Evolving networks...")
-        for species_id in list(Species.populations.keys()):
-            Species.populations[species_id].evolve()
+        _stats['Parameters'].update(Net.ecosystem[Net.champ].get_parameter_count())
+        _stats['Accuracy'].update(Net.ecosystem[Net.champ].fitness.absolute)
 
-        # Eliminate unfit networks and empty species.
-        print("\t`-> Culling...")
-        cull()
+        if CurrentEpoch < Epochs - 1:
+            # Evolve networks in each species.
+            print("\t`-> Evolving networks...")
+            for species_id in list(Species.populations.keys()):
+                Species.populations[species_id].evolve()
+
+            # Eliminate unfit networks and empty species.
+            print("\t`-> Culling...")
+            cull()
 
 def print_config(_file = sys.stdout,
                  _truncate = True):

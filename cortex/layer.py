@@ -1,19 +1,11 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 31 11:45:57 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
 import sys
 
 import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
-from cortex.rnd import RouletteWheel
-from cortex import functions as Func
+import cortex.random as Rand
+import cortex.functions as Func
 
 class Layer(tn.Module):
 
@@ -394,7 +386,7 @@ class Layer(tn.Module):
 
         assert len(_kernel_size) == 0 or len(_kernel_size) == len(_max_radius), "Invalid kernel size %r" % _kernel_size
 
-        wheel = RouletteWheel()
+        wheel = Rand.RouletteWheel()
 
         #print("Kernel size:", _kernel_size)
 
@@ -439,8 +431,8 @@ class Layer(tn.Module):
             # Dummy zero-dimensional kernel
             wheel.add([], 1)
 
-        #for idx in range(len(wheel.elements)):
-            #print(wheel.elements[idx], "\t", wheel.weights[WeightType.Raw][idx], "\t", wheel.weights[WeightType.Inverse][idx])
+#        for idx in range(len(wheel.elements)):
+#            print(wheel.elements[idx], "\t", wheel.weights[Rand.WeightType.Raw][idx], "\t", wheel.weights[Rand.WeightType.Inverse][idx])
 
         return [wheel.spin() for k in range(_count)]
 

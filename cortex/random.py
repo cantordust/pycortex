@@ -1,17 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 18 10:02:21 2018
-
-@author: Alexander Hadjiivanov
-@licence: MIT (https://opensource.org/licence/MIT)
-"""
-
+import numpy as np
 import random
-from cortex import statistics as Stat
-from cortex import functions as Func
-
+random.seed()
 from enum import Enum
+
+import cortex.functions as Func
 
 # Returns a random number drawn from a normal distribution.
 def ND(_mean = 0.0, _sd = 1.0):
@@ -38,10 +30,21 @@ def inverse_chance(_prob):
     return chance(1.0 - _prob)
 
 # Roulette wheel selection.
-def roulette(_collection, _weights):
-    if len(_collection) == 0:
-        return None
-    return random.choices(_collection, _weights)[0]
+#def roulette(_len, _weights):
+#
+#    assert _len > 0, "Sequence length is 0"
+#
+#    return random.choices([n for n in range(_len)], _weights)[0]
+
+# Roulette wheel selection (numpy version).
+def roulette(_len, _weights):
+
+    assert _len > 0, "Sequence length is 0"
+
+    total = sum(_weights)
+    idx = np.random.choice(_len, p = [w / total for w in _weights])
+
+    return idx
 
 # Returns a random integer value in the range [_min, _max).
 def uint(_min, _max):
@@ -96,7 +99,10 @@ class RouletteWheel:
 
         weight_type = self.weight_type if _weight_type is None else _weight_type
 
-        return self.locked_elem if self.locked_elem is not None else roulette(self.elements, self.weights[weight_type])
+        if self.locked_elem is not None:
+            return self.locked_elem
+        else:
+            return self.elements[roulette(len(self.elements), self.weights[weight_type])]
 
     def pop(self,
             _weight_type = None):
@@ -110,8 +116,7 @@ class RouletteWheel:
         self.unlock()
 
         # Choose an element index
-        indices = [idx for idx in range(len(self.elements))]
-        index = roulette(indices, self.weights[weight_type])
+        index = roulette(len(self.elements), self.weights[weight_type])
 
         # Store the chosen element
         element = self.elements[index]
