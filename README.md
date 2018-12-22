@@ -13,24 +13,26 @@ All mutation and crossover operations should produce fully functional models whi
 
 All functionality will be backported to the C++ version of Cortex (with Python bindings for the die-hard Python fans).
 
-# To install
+# Installation
 
-Needs Python <= 3.6. To setup a dev version of the library
-
-```
-virtualenv -python=python3 venv  # if python3 is Python 3.6
-pip install colorama torch numpy tensorboardX torchvision
-```
-
-# Check the tests run 
+To setup a dev version of the library:
 
 ```
-python unit_tests.py
+$> python3 -m venv PyCortex
+$> cd PyCortex && . ./bin/activate
+$> pip3 install -e .
 ```
 
-# Run the MNIST test suite
+# Run unit tests
 
 ```
-cd experiments/MNIST
-sh mnist.sh
+$> cd unit_tests
+$> python <unit_test_script>
+```
+
+# Run the MNIST example
+
+```
+$> cd experiments/MNIST
+$> sh mnist.sh
 ```
