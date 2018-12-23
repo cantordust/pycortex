@@ -3,7 +3,9 @@ import cortex.cortex as ctx
 
 def pass_fail(cond, *args):
 
-    print(f'[ {Fore.GREEN}Passed{Style.RESET_ALL} ]' if cond else f'[ {Fore.RED}Failed{Style.RESET_ALL} ]', *args)
+    color = Fore.GREEN if cond else Fore.RED
+    text = 'Passed' if cond else 'Failed'
+    print('[ ' + color + text + Style.RESET_ALL + ' ]', *args)
 
     return cond
 
