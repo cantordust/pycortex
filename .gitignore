@@ -1,0 +1,10 @@
+*.*
+!*.py
+!/cortex/*.py
+!/experiments/**/*.py
+/experiments/**/data
+/experiments/**/logs
+!/unit_tests/**/*.py
+!/LICENCE.md
+!/README.md
+!/.gitignore
