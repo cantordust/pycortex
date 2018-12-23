@@ -9,13 +9,16 @@ Created on Thu Oct 11 14:52:44 2018
 
 import torch
 from torchvision import datasets, transforms
+import threading
 
 from cortex import cortex as ctx
+
+loader_lock = threading.Lock()
 
 def get_train_loader():
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data/mnist',
+        datasets.MNIST('./data',
                        train=True,
                        download=True,
                        transform = transforms.Compose([
@@ -29,8 +32,9 @@ def get_train_loader():
     return train_loader
 
 def get_test_loader():
+
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data/mnist',
+        datasets.MNIST('./data',
                        train=False,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
@@ -48,7 +52,8 @@ def test(net):
     test_loss = 0
     correct = 0
 
-    test_loader = get_test_loader()
+    with loader_lock:
+        test_loader = get_test_loader()
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -73,7 +78,9 @@ def train(net, epoch):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    train_loader = get_train_loader()
+    with loader_lock:
+        train_loader = get_train_loader()
+
     net.fitness.loss_stat.reset()
     train_portion = 1.0 - net.fitness.relative
 
@@ -109,9 +116,13 @@ def main():
     # Print the current configuration
     ctx.print_config()
 
+    # Download the data
+    with loader_lock:
+        get_train_loader()
+
     # Run Cortex
 #    ctx.init()
-#    ctx.run()
+    ctx.run()
 
 if __name__ == '__main__':
     main()

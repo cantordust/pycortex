@@ -1,6 +1,6 @@
 #!/bin/bash
 
-epochs=10
+epochs=1
 experiment_name=MNIST
 threads=2
 init_nets=4
