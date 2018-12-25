@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import random
 random.seed()
 from enum import Enum
@@ -40,9 +41,9 @@ def inverse_chance(_prob):
 def roulette(_len, _weights):
 
     assert _len > 0, "Sequence length is 0"
+    min_val = min(_weights)
 
-    total = sum(_weights)
-    idx = np.random.choice(_len, p = [w / total for w in _weights])
+    idx = np.random.choice(_len, p = Func.softmax([math.log1p(w + min_val) for w in _weights]))
 
     return idx
 

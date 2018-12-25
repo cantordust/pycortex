@@ -9,9 +9,8 @@ def test_random_functions():
     print("ureal(-100.0,100.0):", Rand.ureal(-100.0, 100.0))
     print("uint(-100,100):", Rand.uint(-100, 100))
 
-
     print("\n===[ Roulette wheel selection ]===\n")
-    weights = [5, 3, 100, 67, 22]
+    weights = [5, 3, 100, 67, 22, 0, 1e-3]
     array = [n for n in range(len(weights))]
 
     wheel = Rand.RouletteWheel()

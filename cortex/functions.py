@@ -13,6 +13,7 @@ class Type(Enum):
      InvLogistic = 'Inverse logistic'
      SQRL = 'SQRL'
      Tanh = 'Tanh'
+     Softmax = 'Softmax'
 
 def logistic(_val):
     return 0.5 * (math.tanh( 0.5 * _val ) + 1.0)
@@ -35,7 +36,8 @@ def linscale(_list):
     for elem in _list:
         stat.update(elem)
 
-    scaled = [stat.abs_min + (stat.abs_max - stat.abs_min) * (x - stat.min) / (stat.max - stat.min) for x in _list]
+    # Scale between 0 and the absolute maximum
+    scaled = [stat.abs_max * (x - stat.min) / (stat.max - stat.min) for x in _list]
 
     #print(scaled)
 
@@ -100,5 +102,6 @@ fmap = {
     Type.InvLogistic: inv_logistic,
     Type.SQRL: sqrl,
     Type.Sin: math.sin,
-    Type.Tanh: math.tanh
+    Type.Tanh: math.tanh,
+    Type.Softmax: softmax
 }
