@@ -121,8 +121,8 @@ def main():
         get_train_loader()
 
     # Run Cortex
-    ctx.init()
-#    ctx.run()
+#    ctx.init()
+    ctx.run()
 
 if __name__ == '__main__':
     main()

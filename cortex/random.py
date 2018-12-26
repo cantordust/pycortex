@@ -3,8 +3,7 @@ import random
 random.seed()
 from enum import Enum
 
-import cortex.functions as Func
-import math
+from . import functions as Func
 
 # Returns a random number drawn from a normal distribution.
 def ND(_mean = 0.0, _sd = 1.0):

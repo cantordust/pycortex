@@ -5,13 +5,13 @@ import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
-import cortex.cortex as ctx
-import cortex.functions as Func
-import cortex.statistics as Stat
-import cortex.random as Rand
+from . import cortex as ctx
+from . import functions as Func
+from . import statistics as Stat
+from . import random as Rand
 
-from cortex.species import Species
-from cortex.layer import Layer
+from .species import Species
+from .layer import Layer
 
 class Net(tn.Module):
 

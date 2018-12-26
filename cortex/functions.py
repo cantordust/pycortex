@@ -29,9 +29,9 @@ def linscale(_list):
     if len(_list) == 0:
         return _list
 
-    from cortex.statistics import SMAStat
+    from . import statistics as Stat
 
-    stat = SMAStat()
+    stat = Stat.SMAStat()
 
     for elem in _list:
         stat.update(elem)

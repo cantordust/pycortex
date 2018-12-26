@@ -12,12 +12,12 @@ from torch.nn import functional as tnf
 
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
-import cortex.random as Rand
-import cortex.statistics as Stat
+from . import random as Rand
+from . import statistics as Stat
 
-from cortex.network import Net
-from cortex.layer import Layer
-from cortex.species import Species
+from .network import Net
+from .layer import Layer
+from .species import Species
 
 # Global settings
 LearningRate = 0.01
