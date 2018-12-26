@@ -18,7 +18,7 @@ import cortex.cortex as ctx
 def get_train_loader():
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data',
+        datasets.MNIST(ctx.DataDir,
                        train=True,
                        download=True,
                        transform = transforms.Compose([
@@ -34,7 +34,7 @@ def get_train_loader():
 def get_test_loader():
 
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data',
+        datasets.MNIST(ctx.DataDir,
                        train=False,
                        transform=transforms.Compose([
                            transforms.ToTensor(),

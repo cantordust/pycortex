@@ -41,6 +41,7 @@ Optimiser = torch.optim.Adadelta
 MaxThreads = None
 
 LogDir = './logs'
+DataDir = './data'
 
 # Operating variables for saving models
 ExperimentName = 'experiment'
@@ -87,6 +88,8 @@ def parse():
                         help='number of threads (default: all available cores)')
     parser.add_argument('--experiment-name', type=str, default='Experiment', metavar='S',
                         help='Experiment name')
+    parser.add_argument('--data-dir', type=str, default='./data', metavar='N',
+                        help='Directory for storing the data')
     parser.add_argument('--log-dir', type=str, default='./logs', metavar='N',
                         help='Directory for storing the output logs')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
@@ -152,6 +155,10 @@ def parse():
     if args.log_dir:
         global LogDir
         LogDir = args.log_dir
+
+    if args.data_dir:
+        global DataDir
+        DataDir = args.data_dir
 
     if args.log_interval:
         global LogInterval
