@@ -3,10 +3,10 @@
 epochs=1
 experiment_name=MNIST
 threads=2
-init_nets=4
+init_nets=8
 max_nets=16
-init_species=2
-max_species=4
+init_species=8
+max_species=8
 
 log_dir=./logs
 

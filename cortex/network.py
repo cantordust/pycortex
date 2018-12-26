@@ -784,8 +784,12 @@ class Net(tn.Module):
         # (layers) and genes (nodes) from the two
         # parents based on their fitness.
         wheel = Rand.RouletteWheel()
-        wheel.add(_p1, _p1.fitness.relative)
-        wheel.add(_p2, _p2.fitness.relative)
+        stat = Stat.SMAStat()
+        stat.update(_p1.fitness.relative)
+        stat.update(_p2.fitness.relative)
+
+        wheel.add(_p1, stat.get_offset(_p1.fitness.relative))
+        wheel.add(_p2, stat.get_offset(_p2.fitness.relative))
 
 #        print(">>> _p1.ID:", _p1.ID)
 #        print(">>> _p2.ID:", _p2.ID)

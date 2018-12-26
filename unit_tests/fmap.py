@@ -19,7 +19,6 @@ if __name__ == '__main__':
             vals = [v - min_val for v in vals]
             print("Vals:", vals)
             vals = [math.log1p(v) for v in vals]
-            print("log1p(0):", math.log1p(0))
             utest.run(test_fmap, enum.name, f, vals)
         else:
             utest.run(test_fmap, enum.name, f)

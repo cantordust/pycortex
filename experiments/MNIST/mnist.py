@@ -11,7 +11,7 @@ import torch
 from torchvision import datasets, transforms
 import threading
 
-from cortex import cortex as ctx
+import cortex.cortex as ctx
 
 loader_lock = threading.Lock()
 
@@ -121,8 +121,8 @@ def main():
         get_train_loader()
 
     # Run Cortex
-#    ctx.init()
-    ctx.run()
+    ctx.init()
+#    ctx.run()
 
 if __name__ == '__main__':
     main()

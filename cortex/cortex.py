@@ -176,7 +176,7 @@ def init():
     # Sanity check on the species count
     if Species.Enabled:
         assert Species.Init.Count > 0, "Invalid initial species count %r" % Species.Init.Count
-        assert Species.Init.Count < Net.Init.Count, "Initial species count (%r) is greater than the initial network count (%r)" % (Species.Init.Count, Net.Init.Count)
+        assert Species.Init.Count <= Net.Init.Count, "Initial species count (%r) is greater than the initial network count (%r)" % (Species.Init.Count, Net.Init.Count)
 
     else:
         Species.Init.Count = 1
