@@ -14,11 +14,11 @@ if [ ! -d "$log_dir" ]; then
 	mkdir $log_dir
 fi
 
-python mnist.py --epochs $epochs \
-                --experiment-name $experiment_name \
-                --max-threads $threads \
-                --init-nets $init_nets \
-                --max-nets $max_nets \
-                --init-species $init_species \
-                --max-species $max_species \
-                --log-dir $log_dir
+python3 mnist.py --epochs $epochs \
+                 --experiment-name $experiment_name \
+                 --max-threads $threads \
+                 --init-nets $init_nets \
+                 --max-nets $max_nets \
+                 --init-species $init_species \
+                 --max-species $max_species \
+                 --log-dir $log_dir
