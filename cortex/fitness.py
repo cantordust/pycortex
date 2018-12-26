@@ -4,7 +4,7 @@ class Fitness:
 
     def __init__(self):
 
-        from . import statistics as Stat
+        import cortex.statistics as Stat
 
         self.absolute = 0.0
         self.relative = 0.0

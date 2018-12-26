@@ -1,7 +1,7 @@
 import math
 import sys
 
-from . import random as Rand
+import cortex.random as Rand
 
 class Species:
 
@@ -30,8 +30,8 @@ class Species:
                  _other = None,
                  _isolated = False):
 
-        from .network import Net
-        from .fitness import Fitness
+        from cortex.network import Net
+        from cortex.fitness import Fitness
 
         self.ID = 0
 
@@ -121,8 +121,8 @@ class Species:
     def calibrate(self,
                   _complexity_fitness_scale):
 
-        from .network import Net
-        from . import statistics as Stat
+        from cortex.network import Net
+        import cortex.statistics as Stat
 
         if len(self.nets) == 0:
             return
@@ -164,7 +164,7 @@ class Species:
 
     def evolve(self):
 
-        from .network import Net
+        from cortex.network import Net
 
         # Populate the parent wheel.
         # Networks that have been selected for crossover

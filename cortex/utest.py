@@ -1,5 +1,5 @@
 from colorama import Fore, Style
-from . import cortex as ctx
+import cortex.cortex as ctx
 
 def pass_fail(cond, *args):
 

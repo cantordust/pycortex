@@ -5,13 +5,12 @@ import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
-from . import cortex as ctx
-from . import functions as Func
-from . import statistics as Stat
-from . import random as Rand
+import cortex.functions as Func
+import cortex.statistics as Stat
+import cortex.random as Rand
 
-from .species import Species
-from .layer import Layer
+from cortex.species import Species
+from cortex.layer import Layer
 
 class Net(tn.Module):
 
@@ -756,6 +755,9 @@ class Net(tn.Module):
                  _optimiser):
 
         def closure():
+
+            import cortex.cortex as ctx
+
             _optimiser.zero_grad()
             output = self(_data)
             loss = ctx.LossFunction(output, _target)

@@ -4,8 +4,8 @@ import torch
 import torch.nn as tn
 import torch.nn.functional as tnf
 
-from . import random as Rand
-from . import functions as Func
+import cortex.random as Rand
+import cortex.functions as Func
 
 class Layer(tn.Module):
 
@@ -141,7 +141,7 @@ class Layer(tn.Module):
     @staticmethod
     def init(_tensor):
 
-        from .network import Net
+        from cortex.network import Net
 
         assert callable(Net.Init.Function), "Function %r not callable" % Net.Init.Function.__name__
 
