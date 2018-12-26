@@ -1,4 +1,5 @@
 *.*
+*.sh
 !*.py
 !/cortex/*.py
 !/experiments/**/*.py
