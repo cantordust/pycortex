@@ -43,6 +43,7 @@ MaxThreads = None
 
 LogDir = './logs'
 DataDir = './data'
+DownloadData = False
 
 # Operating variables for saving models
 ExperimentName = 'experiment'
@@ -89,6 +90,8 @@ def parse():
                         help='number of threads (default: all available cores)')
     parser.add_argument('--experiment-name', type=str, default='Experiment', metavar='S',
                         help='Experiment name')
+    parser.add_argument('--download-data', action='store_true', default=False,
+                        help='Indicate whether the training data should be downloaded automatically.')
     parser.add_argument('--data-dir', type=str, default='./data', metavar='N',
                         help='Directory for storing the training / testing data')
     parser.add_argument('--log-dir', type=str, default='./logs', metavar='N',
@@ -160,6 +163,10 @@ def parse():
     if args.data_dir:
         global DataDir
         DataDir = args.data_dir
+
+    if args.download_data:
+        global DownloadData
+        DownloadData = args.download_data
 
     if args.log_interval:
         global LogInterval
@@ -448,7 +455,9 @@ def print_config(_file = sys.stdout,
         print("\nData loader arguments:\n", file = _file)
         for key, val in DataLoadArgs:
             print("\t", key, ":", val, file = _file)
-    print("Data directory:", DataDir, file = _file)
+    print("Data directory:", DataDir,
+          "\nDownload:", DownloadData,
+          file = _file)
 
     print("Loss function:", LossFunction.__name__,
           "\nOptimiser:", Optimiser.__name__,
@@ -491,24 +500,25 @@ def run():
 
             print("\t`-> Evaluating networks...")
 
-#            with tm.Pool(processes = MaxThreads) as pool:
-#                results = pool.starmap(TrainFunction, zip(list(Net.ecosystem.values()), [CurrentEpoch] * len(Net.ecosystem)))
-#                for net in results:
-#                    Net.ecosystem[net.ID] = net
+            with tm.Pool(processes = MaxThreads) as pool:
+                results = pool.starmap(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
 
-            ecosystem = tm.Manager().dict()
-            context = tm.get_context('spawn')
-            processes = []
+            for net in results:
+                Net.ecosystem[net.ID] = net
 
-            for net in Net.ecosystem.values():
-                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem)))
-                processes[-1].start()
-
-            for process in processes:
-                process.join()
-
-            for net_id, net in ecosystem.items():
-                Net.ecosystem[net_id] = net
+#            ecosystem = tm.Manager().dict()
+#            context = tm.get_context('spawn')
+#            processes = []
+#
+#            for net in Net.ecosystem.values():
+#                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem)))
+#                processes[-1].start()
+#
+#            for process in processes:
+#                process.join()
+#
+#            for net_id, net in ecosystem.items():
+#                Net.ecosystem[net_id] = net
 
             evolve(stats)
 

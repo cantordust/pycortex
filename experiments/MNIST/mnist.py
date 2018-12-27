@@ -14,12 +14,11 @@ import cortex.cortex as ctx
 
 loader_lock = torch.multiprocessing.Lock()
 
-def get_train_loader():
+def get_train_loader(_data_dir):
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(ctx.DataDir,
+        datasets.MNIST(_data_dir,
                        train=True,
-                       download=True,
                        transform = transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
@@ -30,7 +29,7 @@ def get_train_loader():
 
     return train_loader
 
-def get_test_loader():
+def get_test_loader(_data_dir):
 
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST(ctx.DataDir,
@@ -45,13 +44,13 @@ def get_test_loader():
 
     return test_loader
 
-def test(net):
+def test(net, _data_dir):
 
     net.eval()
     test_loss = 0
     correct = 0
 
-    test_loader = get_test_loader()
+    test_loader = get_test_loader(_data_dir)
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -70,13 +69,13 @@ def test(net):
 
     net.fitness.absolute = accuracy
 
-def train(net, epoch, ecosystem):
+def train(net, epoch, _data_dir):
 
     net = net.to(ctx.Device)
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    train_loader = get_train_loader()
+    train_loader = get_train_loader(_data_dir)
 
     net.fitness.loss_stat.reset()
     train_portion = 1.0 - net.fitness.relative
@@ -95,9 +94,9 @@ def train(net, epoch, ecosystem):
         if progress >= train_portion:
             break
 
-    test(net)
+    test(net, _data_dir)
 
-    ecosystem[net.ID] = net
+    return net
 
 def main():
 
@@ -114,7 +113,8 @@ def main():
     ctx.print_config()
 
     # If necessary, run the train loader to download the data
-    get_train_loader()
+    if ctx.DownloadData:
+        datasets.MNIST(ctx.DataDir, download=True)
 
     # Run Cortex
 #    ctx.init()
