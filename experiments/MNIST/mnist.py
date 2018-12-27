@@ -19,7 +19,7 @@ def get_train_loader():
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(ctx.DataDir,
                        train=True,
-                       download=True,
+                       download=False,
                        transform = transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
@@ -51,8 +51,8 @@ def test(net):
     test_loss = 0
     correct = 0
 
-    with loader_lock:
-        test_loader = get_test_loader()
+#    with loader_lock:
+    test_loader = get_test_loader()
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -77,8 +77,8 @@ def train(net, epoch, ecosystem):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    with loader_lock:
-        train_loader = get_train_loader()
+#    with loader_lock:
+    train_loader = get_train_loader()
 
     net.fitness.loss_stat.reset()
     train_portion = 1.0 - net.fitness.relative
@@ -107,7 +107,7 @@ def main():
     ctx.Net.Output.Shape = [10]
     ctx.TrainFunction = train
 
-    ctx.Net.Init.Layers = [ctx.Layer.Def(10)]
+    ctx.Net.Init.Layers = []
 
     # Parse command line arguments
     ctx.parse()
