@@ -143,7 +143,7 @@ def parse():
 
         global DataLoadArgs
         DataLoadArgs = {'num_workers': 1,
-                            'pin_memory': True}
+                        'pin_memory': True}
 
     if args.rand_seed is not None:
         torch.manual_seed(args.rand_seed)
@@ -367,13 +367,13 @@ def evolve(_stats):
     if not UnitTestMode:
         for net in Net.ecosystem.values():
 
-            Logger.add_scalars('Stats for network ' + str(Net.ID), {
-                    'Absolute fitness': net.fitness.absolute,
-                    'Relative fitness': net.fitness.relative,
-                    'Layers': len(net.layers),
-                    'Parameters': net.get_parameter_count()
-                    },
-            CurrentEpoch)
+#            Logger.add_scalars('Stats for network ' + str(Net.ID), {
+#                    'Absolute fitness': net.fitness.absolute,
+#                    'Relative fitness': net.fitness.relative,
+#                    'Layers': len(net.layers),
+#                    'Parameters': net.get_parameter_count()
+#                    },
+#            CurrentEpoch)
             save(net.ID)
 
         Logger.add_scalar('Highest fitness', Net.ecosystem[Net.champ].fitness.absolute, CurrentEpoch)
