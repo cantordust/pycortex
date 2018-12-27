@@ -9,11 +9,10 @@ Created on Thu Oct 11 14:52:44 2018
 
 import torch
 from torchvision import datasets, transforms
-import threading
 
 import cortex.cortex as ctx
 
-loader_lock = threading.Lock()
+loader_lock = torch.multiprocessing.Lock()
 
 def get_train_loader():
 
@@ -52,8 +51,8 @@ def test(net):
     test_loss = 0
     correct = 0
 
-#    with loader_lock:
-    test_loader = get_test_loader()
+    with loader_lock:
+        test_loader = get_test_loader()
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -72,14 +71,14 @@ def test(net):
 
     net.fitness.absolute = accuracy
 
-def train(net, epoch):
+def train(net, epoch, ecosystem):
 
     net = net.to(ctx.Device)
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-#    with loader_lock:
-    train_loader = get_train_loader()
+    with loader_lock:
+        train_loader = get_train_loader()
 
     net.fitness.loss_stat.reset()
     train_portion = 1.0 - net.fitness.relative
@@ -100,7 +99,7 @@ def train(net, epoch):
 
     test(net)
 
-    return net
+    ecosystem[net.ID] = net
 
 def main():
 

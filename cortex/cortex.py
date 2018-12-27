@@ -1,17 +1,17 @@
+import torch
+torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
+
+import torch.multiprocessing as tm
+
+from torch.nn import functional as tnf
+
 import os
 import sys
 import math
 from datetime import datetime
 import threading as thd
-#from concurrent.futures import ProcessPoolExecutor as ThreadPool
-import torch.multiprocessing as tm
 
 from tensorboardX import SummaryWriter
-
-import torch
-from torch.nn import functional as tnf
-
-torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
 import cortex.random as Rand
 import cortex.statistics as Stat
@@ -490,10 +490,25 @@ def run():
 
             print("\t`-> Evaluating networks...")
 
-            with tm.Pool(processes = MaxThreads) as pool:
-                results = pool.starmap(TrainFunction, zip(list(Net.ecosystem.values()), [CurrentEpoch] * len(Net.ecosystem)))
-                for net in results:
-                    Net.ecosystem[net.ID] = net
+#            with tm.Pool(processes = MaxThreads) as pool:
+#                results = pool.starmap(TrainFunction, zip(list(Net.ecosystem.values()), [CurrentEpoch] * len(Net.ecosystem)))
+#                for net in results:
+#                    Net.ecosystem[net.ID] = net
+
+            ecosystem = tm.Manager().dict()
+            context = tm.get_context('spawn')
+            processes = []
+
+            for net in Net.ecosystem.values():
+                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem)))
+                processes[-1].start()
+
+            for process in processes:
+                process.join()
+
+            for net_id, net in ecosystem.items():
+                Net.ecosystem[net_id] = net
+            print("Ecosystem size:", len(Net.ecosystem))
 
             evolve(stats)
 
