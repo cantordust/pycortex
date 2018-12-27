@@ -399,11 +399,6 @@ def evolve(_stats):
 def print_config(_file = sys.stdout,
                  _truncate = True):
 
-    if isinstance(_file, str):
-        _file = open(_file, 'w')
-        if _truncate:
-            _file.truncate()
-
     print("\n========================[ PyCortex configuration ]========================",
           "\nExperiment name:", ExperimentName,
           "\n\n======[ Network input ]======",
@@ -511,6 +506,8 @@ def run():
         for net_id in Net.ecosystem.keys():
             save(net_id)
 
-    print_config(LogDir + '/config.txt')
+    with open(LogDir + '/config.txt', 'w') as cfg_file:
+        print_config(cfg_file)
+
     for stat in stats.values():
         stat.print()

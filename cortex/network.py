@@ -128,11 +128,6 @@ class Net(tn.Module):
               _file = sys.stdout,
               _truncate = True):
 
-        if isinstance(_file, str):
-            _file = open(_file, 'w')
-            if _truncate:
-                _file.truncate()
-
         print("\n###################[ Network", self.ID, "]###################\n",
               "\n>>> Fitness:",
               "\n\tAbsolute:", self.fitness.absolute,

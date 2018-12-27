@@ -101,11 +101,6 @@ class Species:
               _file = sys.stdout,
               _truncate = False):
 
-        if isinstance(_file, str):
-            _file = open(_file, 'w')
-            if _truncate:
-                _file.truncate()
-
         print("\n\n===============[ Species", self.ID, "]===============",
               "\nAbsolute fitness:", self.fitness.absolute,
               "\nRelative fitness:", self.fitness.relative,

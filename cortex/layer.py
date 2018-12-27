@@ -78,11 +78,6 @@ class Layer(tn.Module):
                   _file = sys.stdout,
                   _truncate = True):
 
-            if isinstance(_file, str):
-                _file = open(_file, 'w')
-                if _truncate:
-                    _file.truncate()
-
             print("\n\t\tShape:", self.shape,
                   "\n\t\tBias:", self.bias,
                   "\n\t\tType:", self.op.__name__,
@@ -312,11 +307,6 @@ class Layer(tn.Module):
     def print(self,
               _file = sys.stdout,
               _truncate = True):
-
-        if isinstance(_file, str):
-            _file = open(_file, 'w')
-            if _truncate:
-                _file.truncate()
 
         print("\n==================[ Layer", self.index, "]==================",
               "\n>>> Type:", self.type,
