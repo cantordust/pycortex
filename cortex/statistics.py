@@ -65,11 +65,6 @@ class Stat:
               _file = sys.stdout,
               _truncate = True):
 
-        if isinstance(_file, str):
-            _file = open(_file, 'w')
-            if _truncate:
-                _file.truncate()
-
         print("\n\n======[", self.title, "]======",
               "\nCurrent value: %r" % self.current_value,
               "\nSum: %r" % self.sum,
@@ -100,11 +95,6 @@ class SMAStat(Stat):
               _file = sys.stdout,
               _truncate = True):
 
-        if isinstance(_file, str):
-            _file = open(_file, 'w')
-            if _truncate:
-                _file.truncate()
-
         super(SMAStat, self).print(_file = _file)
         print("Count: %r" % self.count, file = _file)
 
@@ -127,11 +117,6 @@ class EMAStat(Stat):
     def print(self,
               _file = sys.stdout,
               _truncate = True):
-
-        if isinstance(_file, str):
-            _file = open(_file, 'w')
-            if _truncate:
-                _file.truncate()
 
         super(EMAStat, self).print(_file = _file)
         print("Alpha: %r" % self.alpha, file = _file)
