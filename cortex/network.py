@@ -221,7 +221,7 @@ class Net(tn.Module):
         node_stats = Stat.SMAStat(_title = "Nodes per layer")
         link_stats = Stat.SMAStat(_title = "Links per node")
         kernel_size_stats = Stat.SMAStat(_title = "Kernel sizes")
-        kernel_dims = len(Net.Input.Shape) - 1
+        kernel_dims = 0
 
         for net in Net.ecosystem.values():
             layer_stats.update(len(net.layers))
