@@ -52,8 +52,8 @@ def test(net):
     test_loss = 0
     correct = 0
 
-    with loader_lock:
-        test_loader = get_test_loader()
+#    with loader_lock:
+    test_loader = get_test_loader()
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -78,8 +78,8 @@ def train(net, epoch):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-    with loader_lock:
-        train_loader = get_train_loader()
+#    with loader_lock:
+    train_loader = get_train_loader()
 
     net.fitness.loss_stat.reset()
     train_portion = 1.0 - net.fitness.relative

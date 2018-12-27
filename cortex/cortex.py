@@ -3,7 +3,8 @@ import sys
 import math
 from datetime import datetime
 import threading as thd
-from concurrent.futures import ProcessPoolExecutor as ThreadPool
+#from concurrent.futures import ProcessPoolExecutor as ThreadPool
+import torch.multiprocessing as tm
 
 from tensorboardX import SummaryWriter
 
@@ -489,10 +490,10 @@ def run():
 
             print("\t`-> Evaluating networks...")
 
-            with ThreadPool(max_workers = MaxThreads) as threadpool:
-                for net in threadpool.map(TrainFunction, Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem)):
+            with tm.Pool(processes = MaxThreads) as pool:
+                results = pool.starmap(TrainFunction, zip(list(Net.ecosystem.values()), [CurrentEpoch] * len(Net.ecosystem)))
+                for net in results:
                     Net.ecosystem[net.ID] = net
-                    print('Absolute fitness for network %r: %r' % (net.ID, net.fitness.absolute))
 
             evolve(stats)
 
