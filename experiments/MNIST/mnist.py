@@ -16,13 +16,10 @@ loader_lock = torch.multiprocessing.Lock()
 
 def get_train_loader():
 
-    import os
-    print("Data dir contains", os.listdir(ctx.DataDir))
-
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(ctx.DataDir,
                        train=True,
-                       download=False,
+                       download=True,
                        transform = transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
@@ -54,7 +51,6 @@ def test(net):
     test_loss = 0
     correct = 0
 
-#    with loader_lock:
     test_loader = get_test_loader()
 
     with torch.no_grad():
@@ -80,7 +76,6 @@ def train(net, epoch):
     net.train()
     optimiser = ctx.Optimiser(net.parameters())
 
-#    with loader_lock:
     train_loader = get_train_loader()
 
     net.fitness.loss_stat.reset()
@@ -102,7 +97,6 @@ def train(net, epoch):
 
     test(net)
 
-#    ecosystem[net.ID] = net
     return net
 
 def main():
@@ -119,11 +113,12 @@ def main():
     # Print the current configuration
     ctx.print_config()
 
+    # If necessary, run the train loader to download the data
     get_train_loader()
 
     # Run Cortex
 #    ctx.init()
-#    ctx.run()
+    ctx.run()
 
 if __name__ == '__main__':
     main()
