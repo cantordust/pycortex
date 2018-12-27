@@ -990,10 +990,10 @@ class Net(tn.Module):
 
         element_type = wheel.spin()
 
-        print("Mutating network", self.ID)
-
-        for elem_index in range(len(wheel.elements)):
-            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
+#        print("Mutating network", self.ID)
+#
+#        for elem_index in range(len(wheel.elements)):
+#            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
 
         #return
 

@@ -52,7 +52,7 @@ CurrentRun = 1
 LogDirPrefix = datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
 
 Logger = None
-LogInterval = 50
+LogInterval = 200
 
 UnitTestMode = False
 
@@ -505,20 +505,6 @@ def run():
 
             for net in results:
                 Net.ecosystem[net.ID] = net
-
-#            ecosystem = tm.Manager().dict()
-#            context = tm.get_context('spawn')
-#            processes = []
-#
-#            for net in Net.ecosystem.values():
-#                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem)))
-#                processes[-1].start()
-#
-#            for process in processes:
-#                process.join()
-#
-#            for net_id, net in ecosystem.items():
-#                Net.ecosystem[net_id] = net
 
             evolve(stats)
 
