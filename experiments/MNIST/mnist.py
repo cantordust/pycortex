@@ -119,7 +119,7 @@ def main():
 
     # Run Cortex
 #    ctx.init()
-#    ctx.run()
+    ctx.run()
 
 if __name__ == '__main__':
     main()
