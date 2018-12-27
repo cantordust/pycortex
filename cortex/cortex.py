@@ -501,7 +501,7 @@ def run():
             print("\t`-> Evaluating networks...")
 
             with tm.Pool(processes = MaxThreads) as pool:
-                results = pool.starmap(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
+                results = pool.starmap_async(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
 
             for net in results:
                 Net.ecosystem[net.ID] = net
