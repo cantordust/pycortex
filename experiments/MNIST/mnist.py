@@ -16,6 +16,9 @@ loader_lock = torch.multiprocessing.Lock()
 
 def get_train_loader():
 
+    import os
+    print("Data dir contains", os.listdir(ctx.DataDir))
+
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(ctx.DataDir,
                        train=True,
@@ -71,7 +74,7 @@ def test(net):
 
     net.fitness.absolute = accuracy
 
-def train(net, epoch, ecosystem):
+def train(net, epoch):
 
     net = net.to(ctx.Device)
     net.train()
@@ -99,7 +102,8 @@ def train(net, epoch, ecosystem):
 
     test(net)
 
-    ecosystem[net.ID] = net
+#    ecosystem[net.ID] = net
+    return net
 
 def main():
 
@@ -119,7 +123,7 @@ def main():
 
     # Run Cortex
 #    ctx.init()
-    ctx.run()
+#    ctx.run()
 
 if __name__ == '__main__':
     main()
