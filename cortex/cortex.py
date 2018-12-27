@@ -326,7 +326,7 @@ def save(_net_id,
 
     torch.save(Net.ecosystem[_net_id], save_dir + '/' + name + '.pt')
 
-    Net.ecosystem[_net_id].print(save_dir + '/' + name + '.txt')
+#    Net.ecosystem[_net_id].print(save_dir + '/' + name + '.txt')
 
 def cull():
 
