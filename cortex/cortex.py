@@ -90,7 +90,7 @@ def parse():
     parser.add_argument('--experiment-name', type=str, default='Experiment', metavar='S',
                         help='Experiment name')
     parser.add_argument('--data-dir', type=str, default='./data', metavar='N',
-                        help='Directory for storing the data')
+                        help='Directory for storing the training / testing data')
     parser.add_argument('--log-dir', type=str, default='./logs', metavar='N',
                         help='Directory for storing the output logs')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
@@ -448,6 +448,7 @@ def print_config(_file = sys.stdout,
         print("\nData loader arguments:\n", file = _file)
         for key, val in DataLoadArgs:
             print("\t", key, ":", val, file = _file)
+    print("Data directory:", DataDir, file = _file)
 
     print("Loss function:", LossFunction.__name__,
           "\nOptimiser:", Optimiser.__name__,
