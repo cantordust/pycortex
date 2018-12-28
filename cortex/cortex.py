@@ -495,27 +495,27 @@ def run():
 
             print("\t`-> Evaluating networks...")
 
-#            with tm.Pool(processes = MaxThreads) as pool:
-#                results = pool.starmap(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
+            with context.Pool(processes = MaxThreads) as pool:
+                results = pool.starmap(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
+
+            for net in results:
+                Net.ecosystem[net.ID] = net
+
+#            ecosystem = tm.Manager().dict()
+#            processes = []
 #
-#            for net in results:
-#                Net.ecosystem[net.ID] = net
-
-            ecosystem = tm.Manager().dict()
-            processes = []
-
-            # Dispatch
-            for net in Net.ecosystem.values():
-                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem, DataDir)))
-                processes[-1].start()
-
-            # Block until results are ready
-            for process in processes:
-                process.join()
-
-            for net_id, net in ecosystem.items():
-                Net.ecosystem[net_id] = net
-            print("Ecosystem size:", len(Net.ecosystem))
+#            # Dispatch
+#            for net in Net.ecosystem.values():
+#                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem, DataDir)))
+#                processes[-1].start()
+#
+#            # Block until results are ready
+#            for process in processes:
+#                process.join()
+#
+#            for net_id, net in ecosystem.items():
+#                Net.ecosystem[net_id] = net
+#            print("Ecosystem size:", len(Net.ecosystem))
 
             evolve(stats)
 
