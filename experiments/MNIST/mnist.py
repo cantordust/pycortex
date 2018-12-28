@@ -44,9 +44,9 @@ def get_test_loader(_data_dir):
 
     return test_loader
 
-def test(net, _data_dir):
+def test(_net, _data_dir):
 
-    net.eval()
+    _net.eval()
     test_loss = 0
     correct = 0
 
@@ -55,7 +55,7 @@ def test(net, _data_dir):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(ctx.Device), target.to(ctx.Device)
-            output = net(data)
+            output = _net(data)
             test_loss += ctx.LossFunction(output, target, reduction='sum').item() # sum up batch loss
             pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
@@ -64,40 +64,39 @@ def test(net, _data_dir):
 
     accuracy = 100. * correct / len(test_loader.dataset)
     print('\n[Net {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        net.ID, test_loss, correct, len(test_loader.dataset),
+        _net.ID, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
-    net.fitness.absolute = accuracy
+    _net.fitness.absolute = accuracy
 
-def train(net, epoch, ecosystem, _data_dir):
+def train(_net, _epoch, _data_dir):
 
-    net = net.to(ctx.Device)
-    net.train()
-    optimiser = ctx.Optimiser(net.parameters())
+    _net = _net.to(ctx.Device)
+    _net.train()
+    optimiser = ctx.Optimiser(_net.parameters())
 
     train_loader = get_train_loader(_data_dir)
 
-    net.fitness.loss_stat.reset()
-    train_portion = 1.0 - net.fitness.relative
+    _net.fitness.loss_stat.reset()
+    train_portion = 1.0 - _net.fitness.relative
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(ctx.Device), target.to(ctx.Device)
 
-        net.optimise(data, target, optimiser)
+        _net.optimise(data, target, optimiser)
         progress = batch_idx / len(train_loader)
 
         if (batch_idx + 1) % ctx.LogInterval == 0:
             print('[Net {}] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                net.ID, epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * progress, net.fitness.loss_stat.current_value))
+                _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * progress, _net.fitness.loss_stat.current_value))
 
         if progress >= train_portion:
             break
 
-    test(net, _data_dir)
+    test(_net, _data_dir)
 
-    ecosystem[net.ID] = net
-#    return net
+    return _net
 
 def main():
 
