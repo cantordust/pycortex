@@ -69,7 +69,7 @@ def test(net, _data_dir):
 
     net.fitness.absolute = accuracy
 
-def train(net, epoch, _data_dir):
+def train(net, epoch, ecosystem, _data_dir):
 
     net = net.to(ctx.Device)
     net.train()
@@ -96,7 +96,8 @@ def train(net, epoch, _data_dir):
 
     test(net, _data_dir)
 
-    return net
+    ecosystem[net.ID] = net
+#    return net
 
 def main():
 

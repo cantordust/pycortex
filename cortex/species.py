@@ -148,8 +148,8 @@ class Species:
         for net_id in self.nets:
             # Compute the relative fitness
             net = Net.ecosystem[net_id]
-#            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
-            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
+            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
+#            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
             print("Network", net_id, "fitness:",
                   "\t\tAbsolute:", Net.ecosystem[net_id].fitness.absolute,

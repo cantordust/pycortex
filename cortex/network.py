@@ -71,7 +71,6 @@ class Net(tn.Module):
 
         # Initialise the age
         self.age = 0
-        self.scaled_age = 0.0
 
         # Initialise the fitness
         self.fitness = Fitness()
