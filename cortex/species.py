@@ -15,11 +15,12 @@ class Species:
 
     # Static members
     ID = 0
-    populations = {}
+    Offspring = 0
+    Populations = {}
 
     @staticmethod
     def find(_genome):
-        for species in Species.populations.values():
+        for species in Species.Populations.values():
             if species.matches(_genome):
                 return species.ID
 
@@ -39,10 +40,10 @@ class Species:
         if not _isolated:
             Species.ID += 1
             self.ID = Species.ID
-            Species.populations[self.ID] = self
+            Species.Populations[self.ID] = self
 
         # Species champion
-        self.champ = None
+        self.champion = None
 
         # Overall species fitness computed from the fitness
         # of networks belonging to this species
@@ -105,7 +106,7 @@ class Species:
               "\nAbsolute fitness:", self.fitness.absolute,
               "\nRelative fitness:", self.fitness.relative,
               "\nNetworks:", self.nets,
-              "\nChampion:", self.champ,
+              "\nchampion:", self.champion,
               "\n====[ Genome ]====",
               file = _file)
 
@@ -123,7 +124,7 @@ class Species:
             return
 
         # Reset the champion
-        self.champ = None
+        self.champion = None
 
         net_stats = Stat.SMAStat()
         top_fitness = -math.inf
@@ -131,29 +132,29 @@ class Species:
         # Compute the absolute fitness of the species
         for net_id in self.nets:
 
-            absolute_fitness = Net.ecosystem[net_id].fitness.absolute
+            absolute_fitness = Net.Ecosystem[net_id].fitness.absolute
 
-            if (self.champ is None or
+            if (self.champion is None or
                 absolute_fitness > top_fitness):
-                self.champ = net_id
+                self.champion = net_id
                 top_fitness = absolute_fitness
 
             net_stats.update(absolute_fitness)
 
 #        print("Networks for species", self.ID, "sorted in order of descending fitness:", sorted_nets)
-        print("Champion for species", self.ID, ":", self.champ)
+        print("champion for species", self.ID, ":", self.champion)
 
         # Compute the relative fitness of the networks
         # belonging to this species
         for net_id in self.nets:
             # Compute the relative fitness
-            net = Net.ecosystem[net_id]
+            net = Net.Ecosystem[net_id]
             net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
 #            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
             print("Network", net_id, "fitness:",
-                  "\t\tAbsolute:", Net.ecosystem[net_id].fitness.absolute,
-                  "\t\tRelative:", Net.ecosystem[net_id].fitness.relative)
+                  "\t\tAbsolute:", Net.Ecosystem[net_id].fitness.absolute,
+                  "\t\tRelative:", Net.Ecosystem[net_id].fitness.relative)
 
         self.fitness.absolute = net_stats.max
 
@@ -166,18 +167,20 @@ class Species:
         # will pick a partner at random by spinning the wheel.
         parent_wheel = Rand.RouletteWheel()
         for net_id in list(self.nets):
-            parent_wheel.add(net_id, Net.ecosystem[net_id].fitness.relative)
+            parent_wheel.add(net_id, Net.Ecosystem[net_id].fitness.relative)
 
         # Iterate over the networks and check if we should perform crossover or mutation
         for net_id in list(self.nets):
-            if Rand.chance(Net.ecosystem[net_id].fitness.relative):
+            if (Species.Offspring < len(Net.Ecosystem) // 2 and
+                Rand.chance(Net.Ecosystem[net_id].fitness.relative)):
                 # Fitter networks have a better chance of mating
-                p2 = Net.ecosystem[parent_wheel.spin()]
+                p2 = Net.Ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
-                    Net(_p1 = Net.ecosystem[net_id], _p2 = p2)
+                    offspring = Net(_p1 = Net.Ecosystem[net_id], _p2 = p2)
                 else:
-                    offspring = Net(_p1 = Net.ecosystem[net_id])
+                    offspring = Net(_p1 = Net.Ecosystem[net_id])
                     offspring.mutate(_structure = False)
+                Species.Offspring += 1
 
             else:
-                Net.ecosystem[net_id].mutate()
+                Net.Ecosystem[net_id].mutate()

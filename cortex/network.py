@@ -37,8 +37,8 @@ class Net(tn.Module):
 
     # Static members
     ID = 0
-    champ = None
-    ecosystem = {}
+    Champion = None
+    Ecosystem = {}
 
     def __init__(self,
                  _empty = False,
@@ -63,11 +63,11 @@ class Net(tn.Module):
             self.ID = Net.ID
 
             # Add this network to the ecosystem
-            Net.ecosystem[self.ID] = self
+            Net.Ecosystem[self.ID] = self
 
             if isinstance(_species, Species):
                 self.species_id = _species.ID
-                Species.populations[self.species_id].nets.add(self.ID)
+                Species.Populations[self.species_id].nets.add(self.ID)
 
         # Initialise the age
         self.age = 0
@@ -217,7 +217,7 @@ class Net(tn.Module):
         kernel_size_stats = Stat.SMAStat(_title = "Kernel sizes")
         kernel_dims = 0
 
-        for net in Net.ecosystem.values():
+        for net in Net.Ecosystem.values():
             layer_stats.update(len(net.layers))
 
         for layer in self.layers:
@@ -245,7 +245,7 @@ class Net(tn.Module):
     def get_complexity(self):
 
         complexity_stat = Stat.SMAStat()
-        for net in Net.ecosystem.values():
+        for net in Net.Ecosystem.values():
             complexity_stat.update(net.get_parameter_count())
 
         return complexity_stat.get_offset(net.get_parameter_count())
@@ -918,7 +918,7 @@ class Net(tn.Module):
         # Add the new network to the respective species
         self.species_id = _p1.species_id
         if self.species_id != 0:
-            Species.populations[self.species_id].nets.add(self.ID)
+            Species.Populations[self.species_id].nets.add(self.ID)
 
     def clone(self,
               _parent):
@@ -1012,8 +1012,8 @@ class Net(tn.Module):
             # on the species count and this network's species has more than one member
             if (Species.Enabled and
                 Species.Max.Count > 0 and
-                len(Species.populations) == Species.Max.Count and
-                len(Species.populations[self.species_id].nets) > 1):
+                len(Species.Populations) == Species.Max.Count and
+                len(Species.Populations[self.species_id].nets) > 1):
                 return False
 
             if element_type == 'layer':
@@ -1033,17 +1033,17 @@ class Net(tn.Module):
                 if new_species_id == 0:
                     new_species = Species(_genome = self.get_genome())
                 else:
-                    new_species = Species.populations[new_species_id]
+                    new_species = Species.Populations[new_species_id]
 
                 # Add the network to the new species
                 new_species.nets.add(self.ID)
 
                 # Remove the network from the current species
-                Species.populations[self.species_id].nets.remove(self.ID)
+                Species.Populations[self.species_id].nets.remove(self.ID)
 
                 # Remove the species from the ecosystem if it has gone extinct
-                if len(Species.populations[self.species_id].nets) == 0:
-                    del Species.populations[self.species_id]
+                if len(Species.Populations[self.species_id].nets) == 0:
+                    del Species.Populations[self.species_id]
 
                 # Store the species ID in this network
                 self.species_id = new_species.ID
