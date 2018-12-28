@@ -25,7 +25,7 @@ LearningRate = 0.01
 Momentum = 0.0
 Epochs = 10
 
-TrainBatchSize = 8
+TrainBatchSize = 16
 TestBatchSize = 1000
 Runs = 1
 
@@ -267,15 +267,10 @@ def calibrate():
         net.age += 1
         net_stat.update(net.age)
 
-    # Scale the age
-    for net in Net.ecosystem.values():
-        net.scaled_age = net_stat.get_offset(net.age)
-
     # Reset the champion.
     Net.champ = None
 
-    # A statistics package for collecting
-    # species statistics on the fly.
+    # Running statistics about species fitness
     species_stat = Stat.SMAStat()
 
     # Highest fitness seen so far.
@@ -342,7 +337,10 @@ def cull():
         # Get a random network ID
         net_wheel = Rand.RouletteWheel()
         for net_id in Species.populations[species_id].nets:
-            net_wheel.add(net_id, Net.ecosystem[net_id].scaled_age * (1.0 - Net.ecosystem[net_id].fitness.relative))
+            net = Net.ecosystem[net_id]
+            if net.age > 0:
+                net_wheel.add(net_id, net.age / Net.ecosystem[net_id].fitness.relative)
+
         net_id = net_wheel.spin()
 
         print("Erasing network ", net_id)
@@ -479,6 +477,8 @@ def run():
             'Accuracy': Stat.SMAStat('Accuracy')
             }
 
+    context = tm.get_context('forkserver')
+
     for run in range(Runs):
 
         CurrentRun = run + 1
@@ -495,11 +495,27 @@ def run():
 
             print("\t`-> Evaluating networks...")
 
-            with tm.Pool(processes = MaxThreads) as pool:
-                results = pool.starmap(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
+#            with tm.Pool(processes = MaxThreads) as pool:
+#                results = pool.starmap(TrainFunction, zip(Net.ecosystem.values(), [CurrentEpoch] * len(Net.ecosystem), [DataDir] * len(Net.ecosystem)))
+#
+#            for net in results:
+#                Net.ecosystem[net.ID] = net
 
-            for net in results:
-                Net.ecosystem[net.ID] = net
+            ecosystem = tm.Manager().dict()
+            processes = []
+
+            # Dispatch
+            for net in Net.ecosystem.values():
+                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem, DataDir)))
+                processes[-1].start()
+
+            # Block until results are ready
+            for process in processes:
+                process.join()
+
+            for net_id, net in ecosystem.items():
+                Net.ecosystem[net_id] = net
+            print("Ecosystem size:", len(Net.ecosystem))
 
             evolve(stats)
 
