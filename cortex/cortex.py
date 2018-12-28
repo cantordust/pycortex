@@ -339,7 +339,7 @@ def cull():
         for net_id in Species.populations[species_id].nets:
             net = Net.ecosystem[net_id]
             if net.age > 0:
-                net_wheel.add(net_id, net.age / Net.ecosystem[net_id].fitness.relative)
+                net_wheel.add(net_id, 1.0 / Net.ecosystem[net_id].fitness.relative)
 
         net_id = net_wheel.spin()
 
