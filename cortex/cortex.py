@@ -137,7 +137,7 @@ def init_conf():
     if args.log_dir:
         Conf.LogDir = args.log_dir
 
-    Conf.LogDir = Conf.LogDir + datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
+    Conf.LogDir = Conf.LogDir + '/' + datetime.now().strftime("%d_%b_%Y_%H_%M_%S")
 
     if args.log_interval:
         Conf.LogInterval = args.log_interval
@@ -455,7 +455,7 @@ def run():
             'Accuracy': Stat.SMAStat('Accuracy')
             }
 
-    context = tm.get_context('forkserver')
+    context = tm.get_context('spawn')
 
     shared_conf = tm.Manager().Namespace()
 
