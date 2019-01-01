@@ -15,12 +15,20 @@ class Layer(tn.Module):
         3: tnf.conv2d,
         4: tnf.conv3d
         }
+#
+#    Activations = {
+#        'linear': Func.SQRL(),
+#        'conv1d': Func.SQRL(),
+#        'conv2d': Func.SQRL(),
+#        'conv3d': Func.SQRL(),
+#        'output': tn.LogSoftmax()
+#    }
 
     Activations = {
-        'linear': Func.SQRL(),
-        'conv1d': Func.SQRL(),
-        'conv2d': Func.SQRL(),
-        'conv3d': Func.SQRL(),
+        'linear': tn.LeakyReLU(),
+        'conv1d': tn.LeakyReLU(),
+        'conv2d': tn.LeakyReLU(),
+        'conv3d': tn.LeakyReLU(),
         'output': tn.LogSoftmax()
     }
 

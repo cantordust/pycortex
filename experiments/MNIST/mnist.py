@@ -7,8 +7,8 @@ Created on Thu Oct 11 14:52:44 2018
 @license: MIT ((https://opensource.org/licence/MIT)
 """
 
-import torch
 import torch.multiprocessing as tm
+import torch
 from torchvision import datasets, transforms
 
 import cortex.cortex as ctx
@@ -74,7 +74,7 @@ def test(_net, _conf):
         _net.ID, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
-    _net.fitness.absolute = accuracy
+    return accuracy
 
 def train(_net, _epoch, _conf):
 
@@ -102,14 +102,13 @@ def train(_net, _epoch, _conf):
         if progress >= train_portion:
             break
 
-    test(_net, _conf)
+    _net.fitness.absolute = test(_net, _conf)
 
     return _net
 
 def main():
 
-    # Parse command line arguments
-
+    # Parse command line arguments and set default parameters
     ctx.init_conf()
 
     cn.Net.Input.Shape = [1, 28, 28]
@@ -119,10 +118,7 @@ def main():
     if ctx.Conf.DownloadData:
         datasets.MNIST(ctx.Conf.DataDir,
                        download=True,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ]))
+                       transform=transforms.Normalize((0.1307,), (0.3081,)))
 
     ctx.Conf.Evaluator = train
 
