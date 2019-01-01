@@ -9,37 +9,41 @@ import cortex.functions as Func
 
 class Layer(tn.Module):
 
+    Ops = {
+        1: tnf.linear,
+        2: tnf.conv1d,
+        3: tnf.conv2d,
+        4: tnf.conv3d
+        }
+
+    Activations = {
+        'linear': Func.SQRL(),
+        'conv1d': Func.SQRL(),
+        'conv2d': Func.SQRL(),
+        'conv3d': Func.SQRL(),
+        'output': tn.LogSoftmax()
+    }
+
+    Roles = {
+        'conv3d': 0,
+        'conv2d': 1,
+        'conv1d': 2,
+        'linear': 3,
+        'output': 4
+        }
+
+    Bias = True
+    InitFunction = tn.init.uniform_
+    InitArgs = {'a': -0.01, 'b': 0.05}
+
     ### Layer definition class
     class Def:
 
-        Ops = {
-            1: tnf.linear,
-            2: tnf.conv1d,
-            3: tnf.conv2d,
-            4: tnf.conv3d
-            }
-
-#        Activations = {
-#            tnf.linear: tn.LeakyReLU(),
-#            tnf.conv1d: tn.LeakyReLU(),
-#            tnf.conv2d: tn.LeakyReLU(),
-#            tnf.conv3d: tn.LeakyReLU()
-#            }
-
-        Activations = {
-            tnf.linear: Func.SQRL(),
-            tnf.conv1d: Func.SQRL(),
-            tnf.conv2d: Func.SQRL(),
-            tnf.conv3d: Func.SQRL()
-            }
-
-        Bias = True
-
         def __init__(self,
-                     _shape = [1], # [nodes, depth, height, width]
+                     _shape, # [nodes, depth, height, width]
                      _bias = None,
                      _activation = None,
-                     _type = None):
+                     _role = None):
 
             if isinstance(_shape, int):
                 self.shape = [_shape]
@@ -56,11 +60,17 @@ class Layer(tn.Module):
             else:
                 self.shape = [1]
 
-            self.bias = Layer.Def.Bias if _bias is None else _bias
-#            print("Layer def shape:", self.shape)
-            self.op = Layer.Def.Ops[len(self.shape)]
-            self.type = self.op.__name__ if _type is None else _type
-            self.activation = Layer.Def.Activations[self.op] if _activation is None else _activation
+            self.op = Layer.Ops[len(self.shape)]
+
+            self.bias = Layer.Bias if _bias is None else _bias
+            self.role = self.op.__name__ if _role is None else _role
+            self.activation = None
+            if _activation is not None:
+                self.activation =_activation
+            elif (self.role is not None and
+                  self.role in Layer.Activations):
+                self.activation = Layer.Activations[self.role]
+
             self.is_conv = len(self.shape) > 1
             self.empty = (self.shape[0] == 0)
 
@@ -69,32 +79,26 @@ class Layer(tn.Module):
 
             if isinstance(_other, Layer.Def):
                 return (self.shape[0] == _other.shape[0] and # Node count
-                        self.op == _other.op and
                         self.bias == _other.bias and
-                        self.activation.__class__.__name__ == _other.activation.__class__.__name__)
+                        self.role == _other.role and
+                        (self.activation is None and
+                         _other.activation is None) or
+                         self.activation.__class__.__name__ == _other.activation.__class__.__name__)
             return False
 
         def print(self,
-                  _file = sys.stdout,
-                  _truncate = True):
+                  _file = sys.stdout):
 
             print("\n\t\tShape:", self.shape,
                   "\n\t\tBias:", self.bias,
-                  "\n\t\tType:", self.op.__name__,
+                  "\n\t\tOp:", self.op,
+                  "\n\t\tRole:", self.role,
                   "\n\t\tActivation:", self.activation.__class__.__name__,
                   "\n\t\tConvolutional:", self.is_conv,
                   "\n\t\tEmpty:", self.empty,
                   file = _file)
 
         ### /Def
-
-    TypeRanks = {
-        'conv3d': 0,
-        'conv2d': 1,
-        'conv1d': 2,
-        'linear': 3,
-        'output': 4
-        }
 
     @staticmethod
     def stretch(_tensor):
@@ -135,12 +139,8 @@ class Layer(tn.Module):
 
     @staticmethod
     def init(_tensor):
-
-        from cortex.network import Net
-
-        assert callable(Net.Init.Function), "Function %r not callable" % Net.Init.Function.__name__
-
-        Net.Init.Function(_tensor, **Net.Init.Args)
+        if Layer.InitFunction is not None:
+            Layer.InitFunction(_tensor, **Layer.InitArgs)
 
     def __init__(self,
                  _layer_def,
@@ -166,8 +166,8 @@ class Layer(tn.Module):
         # Operation to perform on the input tensor
         self.op = _layer_def.op
 
-        # Layer type (string)
-        self.type = _layer_def.type
+        # Layer role (string)
+        self.role = _layer_def.role
 
         # Activation function
         self.activation = _layer_def.activation
@@ -215,10 +215,10 @@ class Layer(tn.Module):
             print("\t>>> Layer 2:\n", _other.nodes)
             return False
 
-        if (self.type != _other.type):
-            print("(Layer", self.index, ")\t>>> Different layer types")
-            print("\t>>> Layer 1:\n", self.type)
-            print("\t>>> Layer 2:\n", _other.type)
+        if (self.role != _other.role):
+            print("(Layer", self.index, ")\t>>> Different layer roles")
+            print("\t>>> Layer 1:\n", self.role)
+            print("\t>>> Layer 2:\n", _other.role)
             return False
 
         if self.activation != _other.activation:
@@ -305,11 +305,10 @@ class Layer(tn.Module):
         return True
 
     def print(self,
-              _file = sys.stdout,
-              _truncate = True):
+              _file = sys.stdout):
 
         print("\n==================[ Layer", self.index, "]==================",
-              "\n>>> Type:", self.type,
+              "\n>>> Role:", self.role,
               "\n>>> Activation:", self.activation.__class__.__name__,
               "\n>>> Input shape:", self.input_shape, ", input nodes:", self.get_input_nodes(), ", multiplier:", self.get_multiplier(),
               "\n>>> Output shape:", self.get_output_shape(), ", output nodes:", self.get_output_nodes(),
@@ -622,7 +621,7 @@ class Layer(tn.Module):
                     if len(_node_indices) == 0:
 
                         #print("Clipping node", output_node, "to have input size of", actual_input_nodes * multiplier)
-                        self.nodes[output_node] = type(self.nodes[output_node])(self.nodes[output_node][0:actual_input_nodes * multiplier])
+                        self.nodes[output_node] = tn.Parameter(self.nodes[output_node][0:actual_input_nodes * multiplier])
                         #print("Node", output_node, "size:", self.nodes[output_node].size())
 
                     else:

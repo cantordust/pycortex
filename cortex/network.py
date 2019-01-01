@@ -9,17 +9,17 @@ import cortex.functions as Func
 import cortex.statistics as Stat
 import cortex.random as Rand
 
-from cortex.species import Species
-from cortex.layer import Layer
+import cortex.species as cs
+import cortex.layer as cl
 
 class Net(tn.Module):
 
     # Configuration
     class Input:
-        Shape = [1, 28, 28]
+        Shape = []
 
     class Output:
-        Shape = [10]
+        Shape = []
         Bias = True
         Function = tnf.log_softmax
 
@@ -39,6 +39,12 @@ class Net(tn.Module):
     ID = 0
     Champion = None
     Ecosystem = {}
+
+    @staticmethod
+    def reset():
+        Net.ID = 0
+        Net.Champion = None
+        Net.Ecosystem = {}
 
     def __init__(self,
                  _empty = False,
@@ -65,9 +71,9 @@ class Net(tn.Module):
             # Add this network to the ecosystem
             Net.Ecosystem[self.ID] = self
 
-            if isinstance(_species, Species):
+            if isinstance(_species, cs.Species):
                 self.species_id = _species.ID
-                Species.Populations[self.species_id].nets.add(self.ID)
+                cs.Species.Populations[self.species_id].nets.add(self.ID)
 
         # Initialise the age
         self.age = 0
@@ -90,7 +96,7 @@ class Net(tn.Module):
 
             else:
 
-                layer_defs = _species.genome if isinstance(_species, Species) else Net.Init.Layers
+                layer_defs = _species.genome if isinstance(_species, cs.Species) else Net.Init.Layers
 
                 if len(layer_defs) > 0:
                     for layer_index, layer_def in enumerate(layer_defs):
@@ -124,8 +130,7 @@ class Net(tn.Module):
         return True
 
     def print(self,
-              _file = sys.stdout,
-              _truncate = True):
+              _file = sys.stdout):
 
         print("\n###################[ Network", self.ID, "]###################\n",
               "\n>>> Fitness:",
@@ -154,9 +159,9 @@ class Net(tn.Module):
             shape = [0] * len(layer.get_output_shape())
             shape[0] = len(layer.nodes)
 
-            genome.append(Layer.Def(_shape = shape,
-                                    _bias = layer.bias is not None,
-                                    _activation = layer.activation))
+            genome.append(cl.Layer.Def(_shape = shape,
+                                       _bias = layer.bias is not None,
+                                       _activation = layer.activation))
 
         return genome
 
@@ -165,9 +170,9 @@ class Net(tn.Module):
             layer.index = index
 
             if index == len(self.layers) - 1:
-                layer.type = 'output'
+                layer.role = 'output'
             else:
-                layer.type = layer.op.__name__
+                layer.role = layer.op.__name__
 
     def get_input_shape(self,
                         _layer_index):
@@ -287,9 +292,9 @@ class Net(tn.Module):
 #                        new_layer_shape[0] = 1
 
                     # Compute the output shape of a hypothetical layer of this shape
-                    new_output_shape = Layer.compute_output_shape(new_layer_shape[0],
-                                                                  self.get_input_shape(layer_index),
-                                                                  [1] * (len(new_layer_shape) - 1))
+                    new_output_shape = cl.Layer.compute_output_shape(new_layer_shape[0],
+                                                                     self.get_input_shape(layer_index),
+                                                                     [1] * (len(new_layer_shape) - 1))
 
 #                    print("New layer shape:", new_layer_shape)
 #                    print("Input shape:", self.get_input_shape(layer_index))
@@ -333,11 +338,11 @@ class Net(tn.Module):
             return (False, _layer_index)
 
         # Create a layer definition if not provided
-        layer_def = Layer.Def(_shape, _bias, _activation)
+        layer_def = cl.Layer.Def(_shape, _bias, _activation)
 
         input_shape = self.get_input_shape(_layer_index)
 
-        # Ensure that the layer types are contiguous.
+        # Ensure that the layer roles are contiguous.
         # This can be done with a simple comparison of the input and output shapes.
         if (len(input_shape) < len(layer_def.shape) or                              # Attempting to add a conv layer above an FC one
             (_layer_index < len(self.layers) and
@@ -348,11 +353,11 @@ class Net(tn.Module):
             return (False, _layer_index)
 
         # Create the new layer
-        new_layer = Layer(_layer_def = layer_def,
-                          _input_shape = input_shape,
-                          _layer_index = _layer_index)
+        new_layer = cl.Layer(_layer_def = layer_def,
+                             _input_shape = input_shape,
+                             _layer_index = _layer_index)
 
-        print("[Net", self.ID, "]>>> Adding new", new_layer.type , "layer with shape", layer_def.shape, "at position", _layer_index)
+        print("[Net", self.ID, "]>>> Adding new", new_layer.role , "layer with shape", layer_def.shape, "at position", _layer_index)
 
         # Rearrange the module stack if necessary
         if _layer_index == len(self.layers):
@@ -420,7 +425,7 @@ class Net(tn.Module):
         # Adjust the input size of the following layer
         self.layers[_layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(_layer_index))
 
-        print("[Net", self.ID, "]>>> Erasing", self.layers[_layer_index].type , "layer at position", _layer_index)
+        print("[Net", self.ID, "]>>> Erasing", self.layers[_layer_index].role , "layer at position", _layer_index)
 
         # Remove the layer
         del self.layers[_layer_index]
@@ -736,25 +741,26 @@ class Net(tn.Module):
         return (success, _layer_index, _node_index, delta)
 
     def forward(self,
-                _tensor): # Input tensor
+                _tensor,
+                _output_function): # Input tensor
 
         for layer in self.layers:
             _tensor = layer.forward(_tensor)
 
-        return Net.Output.Function(_tensor, dim = 1)
+        return _output_function(_tensor, dim = 1)
 
     def optimise(self,
                  _data,
                  _target,
-                 _optimiser):
+                 _optimiser,
+                 _output_function,
+                 _loss_function):
 
         def closure():
 
-            import cortex.cortex as ctx
-
             _optimiser.zero_grad()
-            output = self(_data)
-            loss = ctx.LossFunction(output, _target)
+            output = self(_data, _output_function)
+            loss = _loss_function(output, _target)
             loss.backward()
             self.fitness.loss_stat.update(loss.item())
 
@@ -816,8 +822,8 @@ class Net(tn.Module):
             #print(">>> _p2.cur_layer", _p2.cur_layer, " / ", len(_p2.layers))
 
             # Ensure that the types of the reference layers match.
-            if (_p1.layers[_p1.cur_layer].type ==
-                _p2.layers[_p2.cur_layer].type):
+            if (_p1.layers[_p1.cur_layer].role ==
+                _p2.layers[_p2.cur_layer].role):
 
                 # Store the parents' layers into the reference genotypes.
                 dna1.append(_p1.layers[_p1.cur_layer])
@@ -828,8 +834,8 @@ class Net(tn.Module):
             else:
 
                 # Determine the parent with the longer DNA
-                if (Layer.TypeRanks[_p1.layers[_p1.cur_layer].type] <
-                    Layer.TypeRanks[_p2.layers[_p2.cur_layer].type]):
+                if (cl.Layer.Roles[_p1.layers[_p1.cur_layer].role] <
+                    cl.Layer.Roles[_p2.layers[_p2.cur_layer].role]):
                     larger_parent = _p1
                     smaller_parent = _p2
                 else:
@@ -839,8 +845,8 @@ class Net(tn.Module):
                 # Spin the wheel and lock it into a random position
                 wheel.lock()
 
-                while (Layer.TypeRanks[larger_parent.layers[larger_parent.cur_layer].type] <
-                       Layer.TypeRanks[smaller_parent.layers[smaller_parent.cur_layer].type]):
+                while (cl.Layer.Roles[larger_parent.layers[larger_parent.cur_layer].role] <
+                       cl.Layer.Roles[smaller_parent.layers[smaller_parent.cur_layer].role]):
 
                     # If the wheel is locked to the parent with the longer DNA,
                     # store all subsequent layers of the same type from that parent.
@@ -848,8 +854,8 @@ class Net(tn.Module):
                         dna1.append(larger_parent.layers[larger_parent.cur_layer])
                         dna2.append(larger_parent.layers[larger_parent.cur_layer])
 
-                        #print(">>> _p1.cur_layer type", _p1.layers[_p1.cur_layer].type)
-                        #print(">>> _p2.cur_layer type", _p2.layers[_p2.cur_layer].type)
+                        #print(">>> _p1.cur_layer role", _p1.layers[_p1.cur_layer].role)
+                        #print(">>> _p2.cur_layer role", _p2.layers[_p2.cur_layer].role)
 
                     larger_parent.cur_layer += 1
 
@@ -912,7 +918,7 @@ class Net(tn.Module):
         # Add the new network to the respective species
         self.species_id = _p1.species_id
         if self.species_id != 0:
-            Species.Populations[self.species_id].nets.add(self.ID)
+            cs.Species.Populations[self.species_id].nets.add(self.ID)
 
     def clone(self,
               _parent):
@@ -1004,10 +1010,10 @@ class Net(tn.Module):
 
             # Do not allow structural mutations if we have reached the limit
             # on the species count and this network's species has more than one member
-            if (Species.Enabled and
-                Species.Max.Count > 0 and
-                len(Species.Populations) == Species.Max.Count and
-                len(Species.Populations[self.species_id].nets) > 1):
+            if (cs.Species.Enabled and
+                cs.Species.Max.Count > 0 and
+                len(cs.Species.Populations) == cs.Species.Max.Count and
+                len(cs.Species.Populations[self.species_id].nets) > 1):
                 return False
 
             if element_type == 'layer':
@@ -1019,31 +1025,27 @@ class Net(tn.Module):
             print("\t>>>", "Adding" if complexify else "Erasing", element_type)
 
             if (success and           # If the mutation was successful
-                Species.Enabled and   # and speciation is enabled
+                cs.Species.Enabled and   # and speciation is enabled
                 self.species_id > 0): # and the network is not isolated
 
                 # Create a new species
-                new_species_id = Species.find(_genome = self.get_genome())
+                new_species_id = cs.Species.find(_genome = self.get_genome())
                 if new_species_id == 0:
-                    new_species = Species(_genome = self.get_genome())
+                    new_species = cs.Species(_genome = self.get_genome())
                 else:
-                    new_species = Species.Populations[new_species_id]
+                    new_species = cs.Species.Populations[new_species_id]
 
                 # Add the network to the new species
                 new_species.nets.add(self.ID)
 
                 # Remove the network from the current species
-                Species.Populations[self.species_id].nets.remove(self.ID)
+                cs.Species.Populations[self.species_id].nets.remove(self.ID)
 
                 # Remove the species from the ecosystem if it has gone extinct
-                if len(Species.Populations[self.species_id].nets) == 0:
-                    del Species.Populations[self.species_id]
+                if len(cs.Species.Populations[self.species_id].nets) == 0:
+                    del cs.Species.Populations[self.species_id]
 
                 # Store the species ID in this network
                 self.species_id = new_species.ID
-
-#        if success:
-#            dummy_input = torch.randn(1, *Net.Input.Shape)
-#            output = self(dummy_input)
 
         return success

@@ -8,55 +8,62 @@ Created on Thu Oct 11 14:52:44 2018
 """
 
 import torch
+import torch.multiprocessing as tm
 from torchvision import datasets, transforms
 
 import cortex.cortex as ctx
+import cortex.network as cn
+import cortex.layer as cl
 
-loader_lock = torch.multiprocessing.Lock()
+#loader_lock = tm.Lock()
 
-def get_train_loader(_data_dir):
+def get_train_loader(_conf):
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(_data_dir,
+        datasets.MNIST(_conf.data_dir,
                        train=True,
-                       transform = transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-                       batch_size = ctx.TrainBatchSize,
+#                       download = _conf.data['download'],
+#                       transform = transforms.Compose([
+#                           transforms.ToTensor(),
+#                           transforms.Normalize((0.1307,), (0.3081,))
+#                       ])
+                       transform = transforms.ToTensor()),
+                       batch_size = _conf.train_batch_size,
                        shuffle = True,
-                       **ctx.DataLoadArgs)
+                       **_conf.data_load_args)
 
     return train_loader
 
-def get_test_loader(_data_dir):
+def get_test_loader(_conf):
 
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(ctx.DataDir,
+        datasets.MNIST(_conf.data_dir,
                        train=False,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-                       batch_size = ctx.TestBatchSize,
+#                       transform=transforms.Compose([
+#                           transforms.ToTensor(),
+#                           transforms.Normalize((0.1307,), (0.3081,))
+#                       ])
+                       transform = transforms.ToTensor()),
+                       batch_size = _conf.test_batch_size,
                        shuffle = True,
-                       **ctx.DataLoadArgs)
+                       **_conf.data_load_args)
 
     return test_loader
 
-def test(_net, _data_dir):
+def test(_net, _conf):
 
     _net.eval()
     test_loss = 0
     correct = 0
 
-    test_loader = get_test_loader(_data_dir)
+#    with loader_lock:
+    test_loader = get_test_loader(_conf)
 
     with torch.no_grad():
         for data, target in test_loader:
-            data, target = data.to(ctx.Device), target.to(ctx.Device)
-            output = _net(data)
-            test_loss += ctx.LossFunction(output, target, reduction='sum').item() # sum up batch loss
+            data, target = data.to(_conf.device), target.to(_conf.device)
+            output = _net(data, _conf.output_function)
+            test_loss += _conf.loss_function(output, target, reduction='sum').item() # sum up batch loss
             pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
@@ -69,24 +76,25 @@ def test(_net, _data_dir):
 
     _net.fitness.absolute = accuracy
 
-def train(_net, _epoch, _data_dir):
+def train(_net, _epoch, _conf):
 
-    _net = _net.to(ctx.Device)
+    _net = _net.to(_conf.device)
     _net.train()
-    optimiser = ctx.Optimiser(_net.parameters())
+    optimiser = _conf.optimiser(_net.parameters())
 
-    train_loader = get_train_loader(_data_dir)
+#    with loader_lock:
+    train_loader = get_train_loader(_conf)
 
     _net.fitness.loss_stat.reset()
     train_portion = 1.0 - _net.fitness.relative
 
     for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(ctx.Device), target.to(ctx.Device)
+        data, target = data.to(_conf.device), target.to(_conf.device)
 
-        _net.optimise(data, target, optimiser)
+        _net.optimise(data, target, optimiser, _conf.output_function, _conf.loss_function)
         progress = batch_idx / len(train_loader)
 
-        if (batch_idx + 1) % ctx.LogInterval == 0:
+        if (batch_idx + 1) % _conf.log_interval == 0:
             print('[Net {}] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, _net.fitness.loss_stat.current_value))
@@ -94,27 +102,33 @@ def train(_net, _epoch, _data_dir):
         if progress >= train_portion:
             break
 
-    test(_net, _data_dir)
+    test(_net, _conf)
 
     return _net
 
 def main():
 
-    ctx.Net.Input.Shape = [1, 28, 28]
-    ctx.Net.Output.Shape = [10]
-    ctx.TrainFunction = train
-
-    ctx.Net.Init.Layers = []
-
     # Parse command line arguments
-    ctx.parse()
 
-    # Print the current configuration
-    ctx.print_config()
+    ctx.init_conf()
+
+    cn.Net.Input.Shape = [1, 28, 28]
+    cn.Net.Output.Shape = [10]
 
     # If necessary, run the train loader to download the data
-    if ctx.DownloadData:
-        datasets.MNIST(ctx.DataDir, download=True)
+    if ctx.Conf.DownloadData:
+#        with loader_lock:
+        datasets.MNIST(ctx.Conf.DataDir,
+                       download=True,
+                       transform=transforms.Compose([
+                           transforms.ToTensor(),
+                           transforms.Normalize((0.1307,), (0.3081,))
+                       ]))
+
+    ctx.Conf.Evaluator = train
+
+    # Print the current configuration
+    ctx.print_conf()
 
     # Run Cortex
 #    ctx.init()
