@@ -484,6 +484,8 @@ def run():
 
             with context.Pool(processes = Conf.MaxWorkers) as pool:
                 nets = pool.starmap(Conf.Evaluator, zip(cn.Net.Ecosystem.values(), [epoch] * len(cn.Net.Ecosystem), [shared_conf] * len(cn.Net.Ecosystem)))
+                pool.close()
+                pool.join()
 
             for net in nets:
                 cn.Net.Ecosystem[net.ID] = net

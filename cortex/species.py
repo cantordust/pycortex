@@ -177,9 +177,9 @@ class Species:
                 # Fitter networks have a better chance of mating
                 p2 = cn.Net.Ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
-                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _p2 = p2)
+                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _p2 = p2, _species = self)
                 else:
-                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id])
+                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _species = self)
                     offspring.mutate(_structure = False)
                 Species.Offspring += 1
 
