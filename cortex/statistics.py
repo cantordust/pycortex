@@ -62,8 +62,7 @@ class Stat:
         return self.get_offset(_val, Func.Type.InvLogistic)
 
     def print(self,
-              _file = sys.stdout,
-              _truncate = True):
+              _file = sys.stdout):
 
         print("\n\n======[", self.title, "]======",
               "\nCurrent value: %r" % self.current_value,
@@ -92,8 +91,7 @@ class SMAStat(Stat):
             self.var += (self.current_value - old_mean) * (self.current_value - self.mean) / self.count
 
     def print(self,
-              _file = sys.stdout,
-              _truncate = True):
+              _file = sys.stdout):
 
         super(SMAStat, self).print(_file = _file)
         print("Count: %r" % self.count, file = _file)
@@ -115,8 +113,7 @@ class EMAStat(Stat):
         self.var = (1.0 - self.alpha) * (self.var + diff * inc)
 
     def print(self,
-              _file = sys.stdout,
-              _truncate = True):
+              _file = sys.stdout):
 
         super(EMAStat, self).print(_file = _file)
         print("Alpha: %r" % self.alpha, file = _file)

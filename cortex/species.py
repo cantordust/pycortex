@@ -2,18 +2,22 @@ import math
 import sys
 
 import cortex.random as Rand
+import cortex.statistics as Stat
+from cortex.fitness import Fitness
+
+import cortex.network as cn
 
 class Species:
 
+    # Static members
     Enabled = True
 
     class Init:
-        Count = 2
+        Count = 4
 
     class Max:
-        Count = 8
+        Count = 16
 
-    # Static members
     ID = 0
     Offspring = 0
     Populations = {}
@@ -26,13 +30,16 @@ class Species:
 
         return 0
 
+    @staticmethod
+    def reset():
+        Species.ID = 0
+        Species.Offspring = 0
+        Species.Populations = {}
+
     def __init__(self,
                  _genome = None,
                  _other = None,
                  _isolated = False):
-
-        from cortex.network import Net
-        from cortex.fitness import Fitness
 
         self.ID = 0
 
@@ -57,7 +64,7 @@ class Species:
 
         if _other is None:
 #            print("Creating genome from initial layer definitions")
-            self.genome = list(Net.Init.Layers) if _genome is None else list(_genome)
+            self.genome = list(cn.Net.Init.Layers) if _genome is None else list(_genome)
 
         else:
 #            print("Copying genome from species", _other.ID)
@@ -99,8 +106,7 @@ class Species:
         return True
 
     def print(self,
-              _file = sys.stdout,
-              _truncate = False):
+              _file = sys.stdout):
 
         print("\n\n===============[ Species", self.ID, "]===============",
               "\nAbsolute fitness:", self.fitness.absolute,
@@ -117,9 +123,6 @@ class Species:
     def calibrate(self,
                   _complexity_fitness_scale):
 
-        from cortex.network import Net
-        import cortex.statistics as Stat
-
         if len(self.nets) == 0:
             return
 
@@ -132,7 +135,7 @@ class Species:
         # Compute the absolute fitness of the species
         for net_id in self.nets:
 
-            absolute_fitness = Net.Ecosystem[net_id].fitness.absolute
+            absolute_fitness = cn.Net.Ecosystem[net_id].fitness.absolute
 
             if (self.champion is None or
                 absolute_fitness > top_fitness):
@@ -148,39 +151,37 @@ class Species:
         # belonging to this species
         for net_id in self.nets:
             # Compute the relative fitness
-            net = Net.Ecosystem[net_id]
+            net = cn.Net.Ecosystem[net_id]
             net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
 #            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
             print("Network", net_id, "fitness:",
-                  "\t\tAbsolute:", Net.Ecosystem[net_id].fitness.absolute,
-                  "\t\tRelative:", Net.Ecosystem[net_id].fitness.relative)
+                  "\t\tAbsolute:", cn.Net.Ecosystem[net_id].fitness.absolute,
+                  "\t\tRelative:", cn.Net.Ecosystem[net_id].fitness.relative)
 
         self.fitness.absolute = net_stats.max
 
     def evolve(self):
-
-        from cortex.network import Net
 
         # Populate the parent wheel.
         # Networks that have been selected for crossover
         # will pick a partner at random by spinning the wheel.
         parent_wheel = Rand.RouletteWheel()
         for net_id in list(self.nets):
-            parent_wheel.add(net_id, Net.Ecosystem[net_id].fitness.relative)
+            parent_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
 
         # Iterate over the networks and check if we should perform crossover or mutation
         for net_id in list(self.nets):
-            if (Species.Offspring < len(Net.Ecosystem) // 2 and
-                Rand.chance(Net.Ecosystem[net_id].fitness.relative)):
+            if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
+                Rand.chance(cn.Net.Ecosystem[net_id].fitness.relative)):
                 # Fitter networks have a better chance of mating
-                p2 = Net.Ecosystem[parent_wheel.spin()]
+                p2 = cn.Net.Ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
-                    offspring = Net(_p1 = Net.Ecosystem[net_id], _p2 = p2)
+                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _p2 = p2)
                 else:
-                    offspring = Net(_p1 = Net.Ecosystem[net_id])
+                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id])
                     offspring.mutate(_structure = False)
                 Species.Offspring += 1
 
             else:
-                Net.Ecosystem[net_id].mutate()
+                cn.Net.Ecosystem[net_id].mutate()
