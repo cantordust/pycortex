@@ -15,7 +15,7 @@ import cortex.cortex as ctx
 import cortex.network as cn
 import cortex.layer as cl
 
-#loader_lock = tm.Lock()
+loader_lock = tm.Lock()
 
 def get_train_loader(_conf):
 
@@ -56,8 +56,8 @@ def test(_net, _conf):
     test_loss = 0
     correct = 0
 
-#    with loader_lock:
-    test_loader = get_test_loader(_conf)
+    with loader_lock:
+        test_loader = get_test_loader(_conf)
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -82,8 +82,8 @@ def train(_net, _epoch, _conf):
     _net.train()
     optimiser = _conf.optimiser(_net.parameters())
 
-#    with loader_lock:
-    train_loader = get_train_loader(_conf)
+    with loader_lock:
+        train_loader = get_train_loader(_conf)
 
     _net.fitness.loss_stat.reset()
     train_portion = 1.0 - _net.fitness.relative
@@ -117,7 +117,6 @@ def main():
 
     # If necessary, run the train loader to download the data
     if ctx.Conf.DownloadData:
-#        with loader_lock:
         datasets.MNIST(ctx.Conf.DataDir,
                        download=True,
                        transform=transforms.Compose([
