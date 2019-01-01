@@ -10,6 +10,7 @@ torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth
 import torch.nn as tn
 import torch.nn.functional as tnf
 import torch.multiprocessing as tm
+tm.set_sharing_strategy('file_system')
 
 from tensorboardX import SummaryWriter
 
