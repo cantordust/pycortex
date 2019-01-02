@@ -759,7 +759,8 @@ class Layer(tn.Module):
 
         # Update the requires_grad attribute of all nodes
         for node_id in range(len(self.nodes)):
-            self.nodes[node_id].requires_grad = self.is_conv
+            if not self.is_conv:
+            self.nodes[node_id].requires_grad = False
 
     def extract_patch(self,
                       _node_idx,
@@ -787,10 +788,10 @@ class Layer(tn.Module):
 
     def overlay_kernels(self):
 
-        self.weight = self.weight.detach()
+#        self.weight = self.weight.detach()
 
         for output_node in range(len(self.nodes)):
-            self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node]
+            self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node].detach()
 
     def forward(self,
                 _tensor):
