@@ -760,8 +760,6 @@ class Layer(tn.Module):
         # Update the requires_grad attribute of all nodes
         for node_id in range(len(self.nodes)):
             self.nodes[node_id].requires_grad = self.is_conv
-            if not self.nodes[node_id].requires_grad:
-                self.nodes[node_id] = self.nodes[node_id].detach().requires_grad_(False)
 
     def extract_patch(self,
                       _node_idx,
