@@ -275,8 +275,8 @@ class Net(tn.Module):
 
                 # Check how many links we have to add and / or erase
                 # to insert a layer of each allowed shape
-#                new_nodes = Rand.uint(1, math.floor(_stats['nodes'].mean + 1))
-                new_nodes = math.floor(_stats['nodes'].mean)
+                new_nodes = Rand.uint(1, math.floor(_stats['nodes'].mean + 1))
+#                new_nodes = math.floor(_stats['nodes'].mean)
                 for shape in self.get_allowed_layer_shapes(layer_index):
 
                     input_shape = self.get_input_shape(layer_index)

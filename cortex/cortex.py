@@ -391,13 +391,14 @@ def cull():
 
         net_id = net_wheel.spin()
 
-        print("Erasing network ", net_id)
+        if net_id is not None:
+            print("Erasing network", net_id, "from species", cn.Net.Ecosystem[net_id].species_id)
 
-        # Erase the network from the species.
-        cs.Species.Populations[species_id].nets.remove(net_id)
+            # Erase the network from the species.
+            cs.Species.Populations[species_id].nets.remove(net_id)
 
-        # Erase the network from the ecosystem.
-        del cn.Net.Ecosystem[net_id]
+            # Erase the network from the ecosystem.
+            del cn.Net.Ecosystem[net_id]
 
         if len(cs.Species.Populations[species_id].nets) == 0:
             del cs.Species.Populations[species_id]

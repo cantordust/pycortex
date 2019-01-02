@@ -20,14 +20,18 @@ def run(_func,
     ctx.UnitTestMode = True
 
     print("\n==================================[ Unit test ]==================================")
+
     print("Function:", _func.__name__)
+
     print("Arguments:")
     for arg in _args:
         print("\t", arg)
+
     print("Keyword arguments:")
     for key, val in _keywords.items():
         print("\t", key, ":", val)
 
     print("\nFunction output:")
     _func(*_args, **_keywords)
+
     print("\n===============================[ End of unit test ]==============================")
