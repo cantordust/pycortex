@@ -17,20 +17,12 @@ class Layer(tn.Module):
         }
 
     Activations = {
-        'linear': Func.sqrl,
-        'conv1d': Func.sqrl,
-        'conv2d': Func.sqrl,
-        'conv3d': Func.sqrl,
+        'linear': tnf.leaky_relu,
+        'conv1d': tnf.leaky_relu,
+        'conv2d': tnf.leaky_relu,
+        'conv3d': tnf.leaky_relu,
         'output': tnf.log_softmax
     }
-
-#    Activations = {
-#        'linear': tnf.leaky_relu,
-#        'conv1d': tnf.leaky_relu,
-#        'conv2d': tnf.leaky_relu,
-#        'conv3d': tnf.leaky_relu,
-#        'output': tnf.log_softmax
-#    }
 
     Roles = {
         'conv3d': 0,
@@ -41,10 +33,8 @@ class Layer(tn.Module):
         }
 
     Bias = True
-    InitFunction = tn.init.normal_
-    InitArgs = {}
-#    InitFunction = tn.init.uniform_
-#    InitArgs = {'a': -0.05, 'b': 0.05}
+    InitFunction = tn.init.uniform_
+    InitArgs = {'a': -0.01, 'b': 0.01}
 
     ### Layer definition class
     class Def:

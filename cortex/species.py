@@ -161,7 +161,7 @@ class Species:
                   "\t\tAbsolute:", cn.Net.Ecosystem[net_id].fitness.absolute,
                   "\t\tRelative:", cn.Net.Ecosystem[net_id].fitness.relative)
 
-        self.fitness.absolute = net_stats.max
+        self.fitness.absolute = net_stats.mean
 
     def evolve(self):
 
