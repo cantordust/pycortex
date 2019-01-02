@@ -296,8 +296,7 @@ def init():
 
     if not Conf.UnitTestMode:
         os.makedirs(Conf.LogDir, exist_ok = True)
-        global Logger
-        Logger = SummaryWriter(Conf.LogDir + '/TensorBoard')
+        Conf.Logger = SummaryWriter(Conf.LogDir + '/TensorBoard')
 
 def calibrate():
 
@@ -369,7 +368,8 @@ def save(_net_id,
 
     torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
 
-#    Net.Ecosystem[_net_id].print(save_dir + '/' + name + '.txt')
+    with open(save_dir + '/' + name + '.txt') as plaintext:
+        cn.Net.Ecosystem[_net_id].print(_file = plaintext)
 
 def cull():
 
@@ -419,18 +419,18 @@ def evolve(_stats,
     if not Conf.UnitTestMode:
         for net in cn.Net.Ecosystem.values():
 
-#            Logger.add_scalars('Stats for network ' + str(Net.ID), {
-#                    'Absolute fitness': net.fitness.absolute,
-#                    'Relative fitness': net.fitness.relative,
-#                    'Layers': len(net.layers),
-#                    'Parameters': net.get_parameter_count()
-#                    },
-#            CurrentEpoch)
+#            Conf.Logger.add_scalars('Stats for network ' + str(net.ID), {
+#                                    'Absolute fitness': net.fitness.absolute,
+#                                    'Relative fitness': net.fitness.relative,
+#                                    'Layers': len(net.layers),
+#                                    'Parameters': net.get_parameter_count()
+#                                    },
+#                        _epoch)
             save(net.ID, _run, _epoch)
 
-        Logger.add_scalar('Highest fitness', cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute, _epoch)
-        Logger.add_scalar('Networks', len(cn.Net.Ecosystem), _epoch)
-        Logger.add_scalar('Species', len(cs.Species.Populations), _epoch)
+        Conf.Logger.add_scalar('Highest fitness', cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute, _epoch)
+        Conf.Logger.add_scalar('Networks', len(cn.Net.Ecosystem), _epoch)
+        Conf.Logger.add_scalar('Species', len(cs.Species.Populations), _epoch)
 
         if cn.Net.Champion is not None:
             save(cn.Net.Champion, _run, _epoch, 'champion')
