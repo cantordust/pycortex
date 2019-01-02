@@ -761,6 +761,7 @@ class Layer(tn.Module):
         for node_id in range(len(self.nodes)):
             if not self.is_conv:
                 self.nodes[node_id].requires_grad = False
+                self.nodes[node_id].detach_()
 
     def extract_patch(self,
                       _node_idx,
@@ -791,7 +792,7 @@ class Layer(tn.Module):
         self.weight = self.weight.detach()
 
         for output_node in range(len(self.nodes)):
-            self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node].clone()
+            self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node].clone().detach().requires_grad_(False)
 
     def forward(self,
                 _tensor):
