@@ -51,6 +51,9 @@ class Conf:
     Optimiser = torch.optim.Adadelta
     LossFunction = tnf.cross_entropy
 
+    OutputFunction = tnf.log_softmax
+    OutputFunctionArgs = {'dim': 1}
+
     UnitTestMode = False
 
     Evaluator = None
@@ -173,7 +176,7 @@ def print_conf(_file = sys.stdout):
           file = _file)
 
     for key, val in cl.Layer.Activations.items():
-        print('\t', key, ':', val.__class__.__name__)
+        print('\t', key, ':', val.__name__)
 
     for layer_index, layer_def in enumerate(cn.Net.Init.Layers):
         print("\tLayer %r:" % layer_index, file = _file)
@@ -467,7 +470,8 @@ def run():
     shared_conf.test_batch_size = Conf.TestBatchSize
     shared_conf.device = Conf.Device
     shared_conf.loss_function = Conf.LossFunction
-    shared_conf.output_function = cn.Net.Output.Function
+    shared_conf.output_function = Conf.OutputFunction
+    shared_conf.output_function_args = Conf.OutputFunctionArgs
     shared_conf.optimiser = Conf.Optimiser
     shared_conf.log_interval = Conf.LogInterval
 

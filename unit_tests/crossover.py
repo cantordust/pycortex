@@ -14,7 +14,7 @@ def test_crossover():
     wheel.add('grow_kernel', 1)
     wheel.add('shrink_kernel', 1)
 
-    nets = [ctx.Net() for _ in range(20)]
+    nets = [ctx.cn.Net(_isolated = True) for _ in range(20)]
 
     for mut in range(10):
         for n in range(len(nets)):
@@ -41,7 +41,7 @@ def test_crossover():
                 net.shrink_kernel()
 
             model = net.to('cpu')
-            match = list(model(torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.TrainBatchSize, net.layers[-1].get_output_nodes()]
+            match = list(model(torch.randn(ctx.Conf.TrainBatchSize, *ctx.cn.Net.Input.Shape)).size()) == [ctx.Conf.TrainBatchSize, net.layers[-1].get_output_nodes()]
             if not utest.pass_fail(match, "\tEvaluating the mutated network with random input..."):
                 net.print()
 
@@ -50,10 +50,10 @@ def test_crossover():
 
             if p1 != p2:
 
-                offspring = ctx.Net(_p1 = nets[p1], _p2 = nets[p2])
+                offspring = ctx.cn.Net(_p1 = nets[p1], _p2 = nets[p2], _isolated = True)
 
                 model = offspring.to('cpu')
-                match = list(model(torch.randn(ctx.TrainBatchSize, *ctx.Net.Input.Shape)).size()) == [ctx.TrainBatchSize, net.layers[-1].get_output_nodes()]
+                match = list(model(torch.randn(ctx.Conf.TrainBatchSize, *ctx.cn.Net.Input.Shape)).size()) == [ctx.Conf.TrainBatchSize, net.layers[-1].get_output_nodes()]
                 if not utest.pass_fail(match, "\tEvaluating the offspring network with random input..."):
                     offspring.print()
 

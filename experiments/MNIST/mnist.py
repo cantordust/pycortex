@@ -62,7 +62,7 @@ def test(_net, _conf):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(_conf.device), target.to(_conf.device)
-            output = _net(data, _conf.output_function)
+            output = _conf.output_function(_net(data), **_conf.output_function_args)
             test_loss += _conf.loss_function(output, target, reduction='sum').item() # sum up batch loss
             pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
@@ -91,7 +91,7 @@ def train(_net, _epoch, _conf):
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(_conf.device), target.to(_conf.device)
 
-        _net.optimise(data, target, optimiser, _conf.output_function, _conf.loss_function)
+        _net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
         progress = batch_idx / len(train_loader)
 
         if (batch_idx + 1) % _conf.log_interval == 0:

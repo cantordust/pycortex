@@ -112,9 +112,9 @@ class Layer(tn.Module):
     def compute_output_shape(_output_nodes,
                              _input_shape,
                              _kernel_size = [],
+                             _stride = None,
                              _padding = None,
-                             _dilation = None,
-                             _stride = None):
+                             _dilation = None):
 
         """
         Compute the output shape of a layer based on the input shape and the layer's attributes.
@@ -350,9 +350,9 @@ class Layer(tn.Module):
         return Layer.compute_output_shape(self.get_output_nodes(),
                                           _input_shape,
                                           self.kernel_size,
+                                          self.stride,
                                           self.padding,
-                                          self.dilation,
-                                          self.stride)
+                                          self.dilation)
 
     def get_parameter_count(self,
                        _node_idx = None):
@@ -758,10 +758,10 @@ class Layer(tn.Module):
             self.weight = tn.Parameter(torch.stack(tensor_list))
 
         # Update the requires_grad attribute of all nodes
-        for node in self.nodes:
-            node.requires_grad = self.is_conv
-            if not node.requires_grad:
-                node.detach()
+        for node_id in range(len(self.nodes)):
+            self.nodes[node_id].requires_grad = self.is_conv
+            if not self.nodes[node_id].requires_grad:
+                self.nodes[node_id] = tn.Parameter(self.nodes[node_id].clone().detach().requires_grad_(False))
 
     def extract_patch(self,
                       _node_idx,
@@ -789,7 +789,7 @@ class Layer(tn.Module):
 
     def overlay_kernels(self):
 
-        self.weight.detach_()
+        self.weight = self.weight.detach()
 
         for output_node in range(len(self.nodes)):
             self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node]
