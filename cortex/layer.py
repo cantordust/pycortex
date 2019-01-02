@@ -17,19 +17,19 @@ class Layer(tn.Module):
         }
 
     Activations = {
-        'linear': Func.SQRL(),
-        'conv1d': Func.SQRL(),
-        'conv2d': Func.SQRL(),
-        'conv3d': Func.SQRL(),
-        'output': tn.LogSoftmax()
+        'linear': Func.sqrl,
+        'conv1d': Func.sqrl,
+        'conv2d': Func.sqrl,
+        'conv3d': Func.sqrl,
+        'output': tnf.log_softmax
     }
 
 #    Activations = {
-#        'linear': tn.LeakyReLU(),
-#        'conv1d': tn.LeakyReLU(),
-#        'conv2d': tn.LeakyReLU(),
-#        'conv3d': tn.LeakyReLU(),
-#        'output': tn.LogSoftmax()
+#        'linear': tnf.leaky_relu,
+#        'conv1d': tnf.leaky_relu,
+#        'conv2d': tnf.leaky_relu,
+#        'conv3d': tnf.leaky_relu,
+#        'output': tnf.log_softmax
 #    }
 
     Roles = {
@@ -41,8 +41,10 @@ class Layer(tn.Module):
         }
 
     Bias = True
-    InitFunction = tn.init.uniform_
-    InitArgs = {'a': -0.05, 'b': 0.05}
+    InitFunction = tn.init.normal_
+    InitArgs = {}
+#    InitFunction = tn.init.uniform_
+#    InitArgs = {'a': -0.05, 'b': 0.05}
 
     ### Layer definition class
     class Def:
@@ -91,7 +93,7 @@ class Layer(tn.Module):
                         self.role == _other.role and
                         (self.activation is None and
                          _other.activation is None) or
-                         self.activation.__class__.__name__ == _other.activation.__class__.__name__)
+                         self.activation.__name__ == _other.activation.__name__)
             return False
 
         def print(self,
@@ -101,7 +103,7 @@ class Layer(tn.Module):
                   "\n\t\tBias:", self.bias,
                   "\n\t\tOp:", self.op,
                   "\n\t\tRole:", self.role,
-                  "\n\t\tActivation:", self.activation.__class__.__name__,
+                  "\n\t\tActivation:", self.activation.__name__,
                   "\n\t\tConvolutional:", self.is_conv,
                   "\n\t\tEmpty:", self.empty,
                   file = _file)

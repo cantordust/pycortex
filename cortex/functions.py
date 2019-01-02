@@ -67,8 +67,8 @@ def softmax(_list):
     return normalised
 
 # Differentiable ReLU passing through the origin.
-def sqrl(_val):
-    return (0.5 * (math.sqrt(math.pow(_val, 2.0) + 4.0) + _val) - 1.0)
+def sqrl(_x):
+    return (0.5 * (torch.sqrt(torch.pow(_x, 2.0) + 4.0) + _x) - 1.0)
 
 class SQRL(tn.Module):
 
