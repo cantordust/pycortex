@@ -319,7 +319,8 @@ class Net(tn.Module):
 
 #                    print("\t>>> Total:", sum(link_count))
 
-                    wheel.add((layer_index, new_layer_shape), sum(link_count))
+#                    wheel.add((layer_index, new_layer_shape), sum(link_count))
+                    wheel.add((layer_index, new_layer_shape), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index)
@@ -411,7 +412,8 @@ class Net(tn.Module):
 
                 #print("\t>>> Total:", sum(link_count))
 
-                wheel.add((layer_index,), sum(link_count))
+#                wheel.add((layer_index,), sum(link_count))
+                wheel.add((layer_index,), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index)
@@ -473,7 +475,8 @@ class Net(tn.Module):
 
                 #print("\t>>> Total:", sum(link_count))
 
-                wheel.add((layer_index,), sum(link_count))
+#                wheel.add((layer_index,), sum(link_count))
+                wheel.add((layer_index,), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index, set())
@@ -560,7 +563,8 @@ class Net(tn.Module):
 
                         #print("\t>>> Total:", sum(link_count))
 
-                        wheel.add((layer_index, node_index), sum(link_count))
+#                        wheel.add((layer_index, node_index), sum(link_count))
+                        wheel.add((layer_index, node_index), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_indices)
@@ -652,7 +656,8 @@ class Net(tn.Module):
                             #print("\t>>> Total:", link_count)
 
                             # Check how many links we would have to add
-                            wheel.add((layer_index, node_index, dim), link_count)
+#                            wheel.add((layer_index, node_index, dim), link_count)
+                            wheel.add((layer_index, node_index, dim), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_index, _delta)
@@ -712,7 +717,8 @@ class Net(tn.Module):
                                 #print("\t>>> Total:", link_count)
 
                                 # Check how many links we would have to erase
-                                wheel.add((layer_index, node_index, dim), link_count)
+#                                wheel.add((layer_index, node_index, dim), link_count)
+                                wheel.add((layer_index, node_index, dim), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_index, _delta)
