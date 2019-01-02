@@ -368,7 +368,7 @@ def save(_net_id,
 
     torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
 
-    with open(save_dir + '/' + name + '.txt') as plaintext:
+    with open(save_dir + '/' + name + '.txt', 'w+') as plaintext:
         cn.Net.Ecosystem[_net_id].print(_file = plaintext)
 
 def cull():
@@ -491,22 +491,6 @@ def run():
 
             for net in nets:
                 cn.Net.Ecosystem[net.ID] = net
-
-#            ecosystem = tm.Manager().dict()
-#            processes = []
-#
-#            # Dispatch
-#            for net in Net.Ecosystem.values():
-#                processes.append(context.Process(target=TrainFunction, args=(net, CurrentEpoch, ecosystem, DataDir)))
-#                processes[-1].start()
-#
-#            # Block until results are ready
-#            for process in processes:
-#                process.join()
-#
-#            for net_id, net in ecosystem.items():
-#                Net.Ecosystem[net_id] = net
-#            print("Ecosystem size:", len(Net.Ecosystem))
 
             evolve(stats, run, epoch)
 

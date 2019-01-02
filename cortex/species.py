@@ -5,8 +5,6 @@ import cortex.random as Rand
 import cortex.statistics as Stat
 from cortex.fitness import Fitness
 
-import cortex.network as cn
-
 class Species:
 
     # Static members
@@ -40,6 +38,8 @@ class Species:
                  _genome = None,
                  _other = None,
                  _isolated = False):
+
+        import cortex.network as cn
 
         self.ID = 0
 
@@ -126,6 +126,8 @@ class Species:
         if len(self.nets) == 0:
             return
 
+        import cortex.network as cn
+
         # Reset the champion
         self.champion = None
 
@@ -162,6 +164,8 @@ class Species:
         self.fitness.absolute = net_stats.max
 
     def evolve(self):
+
+        import cortex.network as cn
 
         # Populate the parent wheel.
         # Networks that have been selected for crossover

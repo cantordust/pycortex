@@ -26,10 +26,6 @@ class Net(tn.Module):
     class Init:
         Count = 8
         Layers = []
-        Function = tn.init.uniform_
-        Args = {'a': -0.01, 'b': 0.05}
-#        Function = tn.init.normal_
-#        Args = {}
 
     class Max:
         Count = 16
