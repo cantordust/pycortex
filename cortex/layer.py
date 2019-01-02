@@ -761,7 +761,7 @@ class Layer(tn.Module):
         for node_id in range(len(self.nodes)):
             self.nodes[node_id].requires_grad = self.is_conv
             if not self.nodes[node_id].requires_grad:
-                self.nodes[node_id] = tn.Parameter(self.nodes[node_id].clone().detach().requires_grad_(False))
+                self.nodes[node_id] = self.nodes[node_id].detach().requires_grad_(False)
 
     def extract_patch(self,
                       _node_idx,
