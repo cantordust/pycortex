@@ -20,19 +20,19 @@ To setup a dev version of the library:
 ```
 $> python3 -m venv PyCortex
 $> cd PyCortex && . ./bin/activate
-$> pip3 install -e .
+$> pip3 install --user -e .
 ```
 
 # Run unit tests
 
 ```
 $> cd unit_tests
-$> python <unit_test_script>
+$> python3 <unit_test_script>
 ```
 
 # Run the MNIST example
 
 ```
 $> cd experiments/MNIST
-$> sh mnist.sh
+$> python3 mnist.py
 ```
