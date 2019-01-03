@@ -792,7 +792,7 @@ class Layer(tn.Module):
         self.weight = self.weight.detach()
 
         for output_node in range(len(self.nodes)):
-            self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node].clone()
+            self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node]
 
     def forward(self,
                 _tensor):
