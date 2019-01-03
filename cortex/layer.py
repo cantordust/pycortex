@@ -789,7 +789,7 @@ class Layer(tn.Module):
 
     def overlay_kernels(self):
 
-        self.weight = self.weight.detach()
+        self.weight.detach_()
 
         for output_node in range(len(self.nodes)):
             self.weight[output_node][self.weight_slices[output_node]] = self.nodes[output_node]
@@ -811,6 +811,7 @@ class Layer(tn.Module):
                 _tensor = Layer.stretch(_tensor)
             _tensor = self.op(_tensor, self.weight, self.bias)
 
-        print('Parameters: {}'.format(len(self.parameters())))
+        if self.activation is not None:
+            _tensor = self.activation(_tensor)
 
-        return self.activation(_tensor)
+        return _tensor
