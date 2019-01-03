@@ -811,4 +811,6 @@ class Layer(tn.Module):
                 _tensor = Layer.stretch(_tensor)
             _tensor = self.op(_tensor, self.weight, self.bias)
 
+        print('Parameters: {}'.format(len(self.parameters())))
+
         return self.activation(_tensor)
