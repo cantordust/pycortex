@@ -90,11 +90,6 @@ class Net(tn.Module):
 
             else:
 
-                # Output layer
-                self.add_layer(_shape = Net.Output.Shape,
-                               _bias = cl.Layer.Bias,
-                               _layer_index = len(self.layers))
-
                 layer_defs = _species.genome if isinstance(_species, cs.Species) else Net.Init.Layers
 
                 if len(layer_defs) > 0:
@@ -104,6 +99,10 @@ class Net(tn.Module):
                                        _activation = layer_def.activation,
                                        _layer_index = layer_index)
 
+                # Output layer
+                self.add_layer(_shape = Net.Output.Shape,
+                              _bias = cl.Layer.Bias,
+                              _layer_index = len(self.layers))
 
         print(">>> Network", self.ID, "created")
 
@@ -154,9 +153,10 @@ class Net(tn.Module):
             shape = [0] * len(layer.get_output_shape())
             shape[0] = len(layer.nodes)
 
-            genome.append(cl.Layer.Def(_shape = shape,
+            genome.append(cl.Layer.Def(_shape = list(shape),
                                        _bias = layer.bias is not None,
-                                       _activation = layer.activation))
+                                       _activation = layer.activation,
+                                       _role = layer.role))
 
         return genome
 
@@ -495,12 +495,10 @@ class Net(tn.Module):
 
         # Sanity checks
         if (len(self.layers) == 0 or
-            _layer_index == len(self.layers) - 1 or
-            (_layer_index == 0 and
-            not self.layers[_layer_index].is_conv)):
+            _layer_index == len(self.layers) - 1):
                 return (False, _layer_index, node_indices)
 
-        print('[Net {}] >>> Adding {} node(s) to layer'.format(self.ID, _layer_index))
+        print('[Net {}] >>> Adding {} node(s) to layer {}'.format(self.ID, len(node_indices), _layer_index))
 
         # Add the nodes
         success = self.layers[_layer_index].add_nodes(_count, _max_radius)
@@ -602,15 +600,14 @@ class Net(tn.Module):
 
         # Sanity check for the layer index
         if (len(self.layers) == 0 or
-            _layer_index == len(self.layers) - 1 or
-            (_layer_index == 0 and
-            not self.layers[_layer_index].is_conv)):
+            _layer_index == len(self.layers) - 1):
                 return (False, _layer_index, _node_indices)
 
         # Sanity check for node indices.
         if len(_node_indices) > 0:
             for node_index in _node_indices:
-                if not(0 <= node_index < len(self.layers[_layer_index].nodes)):
+                if (node_index < 0 or
+                    node_index >= len(self.layers[_layer_index].nodes)):
                     return (False, _layer_index, _node_indices)
                 _count = -len(_node_indices)
 
@@ -1136,10 +1133,9 @@ class Net(tn.Module):
 
         #return
 
-        success = False
-
         # Non-structural mutation
         if element_type == 'kernel_size':
+
             success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
 
             print("\t>>>", "Growing" if complexify else "Shrinking", element_type)
@@ -1155,17 +1151,17 @@ class Net(tn.Module):
                 len(cs.Species.Populations[self.species_id].nets) > 1):
                 return False
 
+            print("\t>>>", "Adding" if complexify else "Erasing", element_type)
+
             if element_type == 'layer':
                 success, layer = self.add_layer() if complexify else self.erase_layer()
 
             elif element_type == 'node':
-                success, layer, node = self.add_nodes() if complexify else self.erase_nodes()
+                success, layer, nodes = self.add_nodes() if complexify else self.erase_nodes()
 
-            print("\t>>>", "Adding" if complexify else "Erasing", element_type)
-
-            if (success and           # If the mutation was successful
+            if (success and              # If the mutation was successful
                 cs.Species.Enabled and   # and speciation is enabled
-                self.species_id > 0): # and the network is not isolated
+                self.species_id > 0):    # and the network is not isolated
 
                 # Create a new species
                 new_species_id = cs.Species.find(_genome = self.get_genome())

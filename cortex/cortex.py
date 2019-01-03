@@ -289,9 +289,9 @@ def init():
             proto_net = cn.Net()
             proto_net.mutate()
 
-    print("Nets:", len(cn.Net.Ecosystem))
-    for net in cn.Net.Ecosystem.values():
-        net.print()
+#    print("Nets:", len(cn.Net.Ecosystem))
+#    for net in cn.Net.Ecosystem.values():
+#        net.print()
 
     print("Species:", len(cs.Species.Populations))
     for species in cs.Species.Populations.values():

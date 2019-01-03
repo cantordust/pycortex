@@ -87,7 +87,7 @@ class Species:
             other_genome = _other.genome
             #print("Comparing species", self.ID, "with species", _other.ID)
 
-        assert other_genome is not None, "Species comparison operation failed: comparing %r with %r" % (self, _other)
+        assert other_genome is not None, 'Species comparison operation failed: comparing {} with {}'.format(self, _other)
 
         if not Species.Enabled:
             # If speciation is disabled, any genome compares equal to any other genome
@@ -99,7 +99,6 @@ class Species:
             return False
 
         for layer_index in range(len(self.genome)):
-            #print("Comparing layer ", l)
             if not self.genome[layer_index].matches(other_genome[layer_index]):
                 return False
 
@@ -107,6 +106,9 @@ class Species:
 
     def print(self,
               _file = sys.stdout):
+
+        import cortex.layer as cl
+        import cortex.network as cn
 
         print("\n\n===============[ Species", self.ID, "]===============",
               "\nAbsolute fitness:", self.fitness.absolute,
@@ -117,8 +119,14 @@ class Species:
               file = _file)
 
         for layer_index, layer in enumerate(self.genome):
-            print("Layer", layer_index, ":", file = _file)
+            print('Layer {}:'.format(layer_index), file = _file)
             layer.print(_file = _file)
+
+        output_layer = cl.Layer.Def(_shape = list(cn.Net.Output.Shape),
+                                    _role = 'output')
+
+        print('Layer {}:'.format(len(self.genome)), file = _file)
+        output_layer.print(_file = _file)
 
     def calibrate(self,
                   _complexity_fitness_scale):

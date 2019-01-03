@@ -113,6 +113,7 @@ def main():
 
     cn.Net.Input.Shape = [1, 28, 28]
     cn.Net.Output.Shape = [10]
+    cn.Net.Init.Layers = [cl.Layer.Def([5, 0, 0])]
 
     # If necessary, run the train loader to download the data
     if ctx.Conf.DownloadData:

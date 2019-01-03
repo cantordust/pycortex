@@ -34,7 +34,7 @@ class Layer(tn.Module):
 
     Bias = True
     InitFunction = tn.init.uniform_
-    InitArgs = {'a': -0.01, 'b': 0.01}
+    InitArgs = {'a': -0.01, 'b': 0.05}
 
     ### Layer definition class
     class Def:
@@ -78,24 +78,29 @@ class Layer(tn.Module):
                     _other):
 
             if isinstance(_other, Layer.Def):
-                return (self.shape[0] == _other.shape[0] and # Node count
+#                print('Shape: {} | {}'.format(self.shape, _other.shape))
+#                print('Bias: {} | {}'.format(self.bias, _other.bias))
+#                print('Role: {} | {}'.format(self.role, _other.role))
+#                print('activation: {} | {}'.format(self.activation, _other.activation))
+
+                return (self.shape == _other.shape and # Node count
                         self.bias == _other.bias and
                         self.role == _other.role and
-                        (self.activation is None and
-                         _other.activation is None) or
-                         self.activation.__name__ == _other.activation.__name__)
+                        ((self.activation is None and
+                          _other.activation is None) or
+                          self.activation == _other.activation))
             return False
 
         def print(self,
                   _file = sys.stdout):
 
-            print("\n\t\tShape:", self.shape,
-                  "\n\t\tBias:", self.bias,
-                  "\n\t\tOp:", self.op,
-                  "\n\t\tRole:", self.role,
-                  "\n\t\tActivation:", self.activation.__name__,
-                  "\n\t\tConvolutional:", self.is_conv,
-                  "\n\t\tEmpty:", self.empty,
+            print("\n\tShape:", self.shape,
+                  "\n\tBias:", self.bias,
+                  "\n\tOp:", self.op,
+                  "\n\tRole:", self.role,
+                  "\n\tActivation:", self.activation.__name__,
+                  "\n\tConvolutional:", self.is_conv,
+                  "\n\tEmpty:", self.empty,
                   file = _file)
 
         ### /Def
@@ -440,6 +445,8 @@ class Layer(tn.Module):
         if self.is_conv:
             kernel_sizes = self.get_random_kernel_sizes(_count, _max_radius, _kernel_size)
 
+#        print('Original node count: {}'.format(len(self.nodes)))
+
         # Append the nodes
         for node in range(_count):
 
@@ -463,6 +470,8 @@ class Layer(tn.Module):
         # Nodes -> weights
         self.update_weights()
 
+#        print('New node count: {}'.format(len(self.nodes)))
+
         return True
 
     def erase_nodes(self,
@@ -476,6 +485,8 @@ class Layer(tn.Module):
         self.update_nodes()
 
         #print("Nodes to erase:", *_node_indices)
+
+#        print('Original node count: {}'.format(len(self.nodes)))
 
         # Erase the selected nodes
         nodes = tn.ParameterList()
@@ -492,6 +503,8 @@ class Layer(tn.Module):
             self.bias = tn.Parameter(torch.Tensor(bias))
 
         self.nodes = nodes
+
+#        print('New node count: {}'.format(len(self.nodes)))
 
         # Nodes -> weights
         self.update_weights()
