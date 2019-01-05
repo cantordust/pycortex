@@ -460,6 +460,8 @@ def run():
             'Accuracy': Stat.SMAStat('Accuracy')
             }
 
+    context = tm.get_context('spawn')
+
     shared_conf = tm.Manager().Namespace()
 
     shared_conf.data_dir = Conf.DataDir
@@ -485,7 +487,7 @@ def run():
 
             print("\t`-> Evaluating networks...")
 
-            with tm.Pool(processes = Conf.MaxWorkers) as pool:
+            with context.Pool(processes = Conf.MaxWorkers) as pool:
                 nets = pool.starmap(Conf.Evaluator, zip(cn.Net.Ecosystem.values(), [epoch] * len(cn.Net.Ecosystem), [shared_conf] * len(cn.Net.Ecosystem)))
                 pool.close()
                 pool.join()
