@@ -29,7 +29,7 @@ class Conf:
     Runs = 1
     Epochs = 50
 
-    TrainBatchSize = 16
+    TrainBatchSize = 4
     TestBatchSize = 1000
 
     DataDir = ''
@@ -250,22 +250,15 @@ def init():
         cs.Species.Init.Count = 1
         cs.Species.Max.Count = 1
 
-    # Generate species and nets
-
     # Population size (the number of networks per species).
-    net_quota = int(cn.Net.Init.Count)
+    net_quota = cn.Net.Init.Count // cs.Species.Init.Count
 
-    # If speciation is enabled, distribute the net quota
-    # evenly among the initial species.
+    # Initial proto-net.
+    # This is the first self-replicating prion to spring
+    # into existence in the digital primordial bouillon.
+    proto_net = cn.Net(_isolated = True)
+
     if cs.Species.Enabled:
-
-        net_quota = net_quota // cs.Species.Init.Count
-
-        # Initial proto-net.
-        # This is the first self-replicating prion to spring
-        # into existence in the digital primordial bouillon.
-        proto_net = cn.Net(_isolated = True)
-
         # Generate proto-species and proto-nets
         while True:
 
@@ -281,17 +274,23 @@ def init():
 
             proto_net = cn.Net(_species = proto_species, _isolated = True)
 
+
             while cs.Species.find(proto_net.get_genome()) != 0:
                 proto_net.mutate(_parameters = False)
 
     else:
-        for net in range(net_quota):
-            proto_net = cn.Net()
-            proto_net.mutate()
 
-#    print("Nets:", len(cn.Net.Ecosystem))
-#    for net in cn.Net.Ecosystem.values():
-#        net.print()
+        # Generate proto-species
+        proto_species = cs.Species(_genome = proto_net.get_genome())
+
+        # Generate proto-nets.
+        for n in range(net_quota):
+            proto_net = cn.Net(_species = proto_species)
+            proto_net.mutate(_parameters = False)
+
+    print("Nets:", len(cn.Net.Ecosystem))
+    for net in cn.Net.Ecosystem.values():
+        net.print()
 
     print("Species:", len(cs.Species.Populations))
     for species in cs.Species.Populations.values():

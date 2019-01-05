@@ -298,35 +298,6 @@ class Net(tn.Module):
                         new_layer_shape[0] = new_nodes
 #                        new_layer_shape[0] = 1
 
-                    # Compute the output shape of a hypothetical layer of this shape
-#                    new_output_shape = cl.Layer.compute_output_shape(new_layer_shape[0],
-#                                                                     self.get_input_shape(layer_index),
-#                                                                     [1] * (len(new_layer_shape) - 1))
-
-#                    print("New layer shape:", new_layer_shape)
-#                    print("Input shape:", self.get_input_shape(layer_index))
-#                    print("New output shape:", new_output_shape)
-#
-#                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
-
-                    # Links to add and remove
-#                    link_count = []
-
-#                    link_count.append(new_layer_shape[0] * Func.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
-
-#                    print("\t>>> Add:", link_count[-1])
-
-                    # Links to adjust
-#                    if layer_index < len(self.layers):
-#                        # Only compute the number of links to erase if
-#                        # the new layer is *not* going to be the output layer.
-#                        link_count.append(self.layers[layer_index].adjust_input_size(_input_shape = new_output_shape, _pretend = True))
-
-#                        print("\t>>> Adjust:", link_count[-1])
-
-#                    print("\t>>> Total:", sum(link_count))
-
-#                    wheel.add((layer_index, new_layer_shape), sum(link_count))
                     wheel.add((layer_index, new_layer_shape), 1)
 
             if wheel.is_empty():
@@ -401,25 +372,6 @@ class Net(tn.Module):
 
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
-
-                # Check if we can erase a layer at all.
-#                link_count = []
-
-                #print("Number of links affected by erasing layer", layer_index)
-
-                # Links to erase
-#                link_count.append(self.layers[layer_index].get_parameter_count())
-
-                #print("\t>>> Erase:", link_count[-1])
-
-                # Links to adjust
-#                link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(layer_index), _pretend = True))
-
-                #print("\t>>> Adjust:", link_count[-1])
-
-                #print("\t>>> Total:", sum(link_count))
-
-#                wheel.add((layer_index,), sum(link_count))
                 wheel.add((layer_index,), 1)
 
             if wheel.is_empty():
@@ -458,30 +410,6 @@ class Net(tn.Module):
 
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
-
-#                layer = self.layers[layer_index]
-#                output_shape = layer.get_output_shape()
-
-#                link_count = []
-
-                #print("Number of links affected by adding a node to layer", layer_index)
-
-                # Check how many links we would have to add
-#                link_count.append(layer.get_mean_parameter_count()) # * 1 node
-
-                #print("\t>>> Add:", link_count[-1])
-
-                # Adjust the input size of the next layer
-#                new_output_shape = list(output_shape)
-#                new_output_shape[0] += _count
-
-#                link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = new_output_shape, _pretend = True))
-
-                #print("\t>>> Adjust:", link_count[-1])
-
-                #print("\t>>> Total:", sum(link_count))
-
-#                wheel.add((layer_index,), sum(link_count))
                 wheel.add((layer_index,), 1)
 
             if wheel.is_empty():
@@ -539,35 +467,9 @@ class Net(tn.Module):
                 # Check if we can erase a node at all:
                 # Check how many links we would have to erase
 
-#                layer = self.layers[layer_index]
-
                 if len(self.layers[layer_index].nodes) > 1:
 
-#                    layer_shape = layer.get_output_shape()
-
                     for node_index in range(len(self.layers[layer_index].nodes)):
-
-#                        link_count = []
-
-                        #print("Number of links affected by erasing node", node_index, "from layer", layer_index)
-
-                        # Check how many links we would have to erase
-#                        link_count.append(layer.nodes[node_index].numel())
-
-                        #print("\t>>> Erase:", link_count[-1])
-
-                        # Add the number of links lost through adjusting
-                        # the size of the next layer
-#                        new_layer_shape = list(layer_shape)
-#                        new_layer_shape[0] -= _count
-
-#                        link_count.append(self.layers[layer_index + 1].adjust_input_size(_input_shape = new_layer_shape, _pretend = True))
-
-                        #print("\t>>> Adjust:", link_count[-1])
-
-                        #print("\t>>> Total:", sum(link_count))
-
-#                        wheel.add((layer_index, node_index), sum(link_count))
                         wheel.add((layer_index, node_index), 1)
 
             if wheel.is_empty():
@@ -650,15 +552,6 @@ class Net(tn.Module):
 
                         # Check how many links we would have to add or erase
                         for dim in range(len(layer.kernel_size)):
-
-                            #print("Number of links affected by growing dimension", dim, "of kernel", node_index, "in layer", layer_index)
-
-#                            link_count = 2 * layer.get_input_nodes() * math.pow(node.size(dim + 1), len(layer.kernel_size) - 1)
-
-                            #print("\t>>> Total:", link_count)
-
-                            # Check how many links we would have to add
-#                            wheel.add((layer_index, node_index, dim), link_count)
                             wheel.add((layer_index, node_index, dim), 1)
 
             if wheel.is_empty():
@@ -711,15 +604,6 @@ class Net(tn.Module):
                         for dim in range(len(layer.kernel_size)):
 
                             if node.size(dim + 1) > 1:
-
-                                #print("Number of links affected by shrinking dimension", dim, "of kernel", node_index, "in layer", layer_index)
-
-                                link_count = 2 * layer.get_input_nodes() * math.pow(node.size(dim + 1), len(layer.kernel_size) - 1)
-
-                                #print("\t>>> Total:", link_count)
-
-                                # Check how many links we would have to erase
-#                                wheel.add((layer_index, node_index, dim), link_count)
                                 wheel.add((layer_index, node_index, dim), 1)
 
             if wheel.is_empty():
