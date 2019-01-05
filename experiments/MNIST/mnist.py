@@ -22,11 +22,6 @@ def get_train_loader(_conf):
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(_conf.data_dir,
                        train=True,
-#                       download = _conf.data['download'],
-#                       transform = transforms.Compose([
-#                           transforms.ToTensor(),
-#                           transforms.Normalize((0.1307,), (0.3081,))
-#                       ])
                        transform = transforms.ToTensor()),
                        batch_size = _conf.train_batch_size,
                        shuffle = True,
@@ -39,10 +34,6 @@ def get_test_loader(_conf):
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST(_conf.data_dir,
                        train=False,
-#                       transform=transforms.Compose([
-#                           transforms.ToTensor(),
-#                           transforms.Normalize((0.1307,), (0.3081,))
-#                       ])
                        transform = transforms.ToTensor()),
                        batch_size = _conf.test_batch_size,
                        shuffle = True,
@@ -113,7 +104,7 @@ def main():
 
     cn.Net.Input.Shape = [1, 28, 28]
     cn.Net.Output.Shape = [10]
-    cn.Net.Init.Layers = [cl.Layer.Def([5, 0, 0])]
+    cn.Net.Init.Layers = []
 
     # If necessary, run the train loader to download the data
     if ctx.Conf.DownloadData:
