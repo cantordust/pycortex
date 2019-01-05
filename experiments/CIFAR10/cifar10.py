@@ -102,7 +102,7 @@ def main():
     # Parse command line arguments and set default parameters
     ctx.init_conf()
 
-    cn.Net.Input.Shape = [1, 32, 32]
+    cn.Net.Input.Shape = [3, 32, 32]
     cn.Net.Output.Shape = [10]
     cn.Net.Init.Layers = []
 
@@ -110,7 +110,7 @@ def main():
     if ctx.Conf.DownloadData:
         datasets.CIFAR10(ctx.Conf.DataDir,
                          download=True,
-                         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+                         transform=transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
 
     ctx.Conf.Evaluator = train
 
