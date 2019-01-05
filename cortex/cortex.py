@@ -432,8 +432,9 @@ def evolve(_stats,
             save(net.ID, _run, _epoch)
 
         Conf.Logger.add_scalar('Highest fitness', cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute, _epoch)
-        Conf.Logger.add_scalar('Networks', len(cn.Net.Ecosystem), _epoch)
-        Conf.Logger.add_scalar('Species', len(cs.Species.Populations), _epoch)
+        Conf.Logger.add_scalar('Parameter count for champion', cn.Net.Ecosystem[cn.Net.Champion].get_parameter_count(), _epoch)
+        Conf.Logger.add_scalar('Network count', len(cn.Net.Ecosystem), _epoch)
+        Conf.Logger.add_scalar('Species count', len(cs.Species.Populations), _epoch)
 
         if cn.Net.Champion is not None:
             save(cn.Net.Champion, _run, _epoch, 'champion')
@@ -459,8 +460,6 @@ def run():
             'Parameters': Stat.SMAStat('Parameters'),
             'Accuracy': Stat.SMAStat('Accuracy')
             }
-
-#    context = tm.get_context('spawn')
 
     shared_conf = tm.Manager().Namespace()
 
@@ -500,8 +499,9 @@ def run():
         for net_id in cn.Net.Ecosystem.keys():
             save(net_id, run, epoch)
 
-    with open(Conf.LogDir + '/config.txt', 'w') as cfg_file:
+    with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
         print_conf(_file = cfg_file)
 
-    for stat in stats.values():
-        stat.print()
+    for key, stat in stats.items():
+        with open(Conf.LogDir + '/' + str(key) + '_stat.txt', 'w+') as stat_file:
+            stat.print(_file = stat_file)

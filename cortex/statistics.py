@@ -20,7 +20,6 @@ class Stat:
 
     def reset(self):
         self.current_value = 0.0
-        self.sum = 0.0
         self.min = math.inf
         self.abs_min = math.inf
         self.max = -math.inf
@@ -32,7 +31,6 @@ class Stat:
                _new_val):
 
         self.current_value = _new_val
-        self.sum += _new_val
         if _new_val < self.min:
             self.min = _new_val
         if abs(_new_val) < self.abs_min:
@@ -66,7 +64,6 @@ class Stat:
 
         print("\n\n======[", self.title, "]======",
               "\nCurrent value: %r" % self.current_value,
-              "\nSum: %r" % self.sum,
               "\nMean: %r" % self.mean,
               "\nVariance: %r (SD: %r)" % (self.var, self.get_sd()),
               "\nMinimum: %r" % self.min,
