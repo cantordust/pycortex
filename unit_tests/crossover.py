@@ -8,9 +8,9 @@ def test_crossover():
 
     wheel = Rand.RouletteWheel()
     wheel.add('add_layer', 1)
-    wheel.add('erase_layer', 1)
+    wheel.add('remove_layer', 1)
     wheel.add('add_node', 1)
-    wheel.add('erase_node', 1)
+    wheel.add('remove_node', 1)
     wheel.add('grow_kernel', 1)
     wheel.add('shrink_kernel', 1)
 
@@ -31,11 +31,11 @@ def test_crossover():
             elif mutation == 'grow_kernel':
                 net.grow_kernel()
 
-            if mutation == 'erase_layer':
-                net.erase_layer()
+            if mutation == 'remove_layer':
+                net.remove_layer()
 
-            elif mutation == 'erase_node':
-                net.erase_nodes()
+            elif mutation == 'remove_node':
+                net.remove_nodes()
 
             elif mutation == 'shrink_kernel':
                 net.shrink_kernel()

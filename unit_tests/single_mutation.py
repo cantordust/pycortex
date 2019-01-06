@@ -9,12 +9,12 @@ def test_single_mutation(_mut = 'add_layer'):
     net.print('before_mutation.txt', True)
     if _mut == 'add_layer':
         success = net.add_layer()
-    elif _mut == 'erase_layer':
-        success = net.erase_layer()
+    elif _mut == 'remove_layer':
+        success = net.remove_layer()
     elif _mut == 'add_node':
         success = net.add_nodes()
-    elif _mut == 'erase_node':
-        success = net.erase_nodes()
+    elif _mut == 'remove_node':
+        success = net.remove_nodes()
     elif _mut == 'grow_kernel':
         success = net.grow_kernel()
     elif _mut == 'shrink_kernel':

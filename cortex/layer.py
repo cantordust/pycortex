@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy as dcp
 
 import torch
 import torch.nn as tn
@@ -41,6 +42,7 @@ class Layer(tn.Module):
 
         def __init__(self,
                      _shape, # [nodes, depth, height, width]
+                     _stride = [],
                      _bias = None,
                      _activation = None,
                      _role = None):
@@ -55,10 +57,17 @@ class Layer(tn.Module):
                     self.shape = [1]
 
                 else:
-                    self.shape = list(_shape)
+                    self.shape = dcp(_shape)
 
             else:
                 self.shape = [1]
+
+            if len(_stride) == 0:
+                self.stride = [0] * (len(self.shape) - 1)
+            else:
+                self.stride = dcp(_stride)
+
+            assert len(self.stride) == len(self.shape) - 1, 'Invalid stride {} for layer shape {}'.format(self.stride, self.shape)
 
             self.op = Layer.Ops[len(self.shape)]
 
@@ -78,12 +87,8 @@ class Layer(tn.Module):
                     _other):
 
             if isinstance(_other, Layer.Def):
-#                print('Shape: {} | {}'.format(self.shape, _other.shape))
-#                print('Bias: {} | {}'.format(self.bias, _other.bias))
-#                print('Role: {} | {}'.format(self.role, _other.role))
-#                print('activation: {} | {}'.format(self.activation, _other.activation))
-
                 return (self.shape == _other.shape and # Node count
+                        self.stride == _other.stride and
                         self.bias == _other.bias and
                         self.role == _other.role and
                         ((self.activation is None and
@@ -95,6 +100,7 @@ class Layer(tn.Module):
                   _file = sys.stdout):
 
             print("\n\tShape:", self.shape,
+                  "\n\tStride:", self.stride,
                   "\n\tBias:", self.bias,
                   "\n\tOp:", self.op,
                   "\n\tRole:", self.role,
@@ -143,7 +149,7 @@ class Layer(tn.Module):
         return output_shape
 
     @staticmethod
-    def init(_tensor):
+    def init_tensor(_tensor):
         if Layer.InitFunction is not None:
             Layer.InitFunction(_tensor, **Layer.InitArgs)
 
@@ -152,11 +158,11 @@ class Layer(tn.Module):
                  _input_shape,
                  _layer_index = None):
 
-        assert 1 <= len(_layer_def.shape) <= 4, "Invalid layer shape %r" % _layer_def.shape
-        assert 1 <= len(_input_shape) <= 4, "Invalid input shape %r" % _input_shape
-        assert len(_layer_def.shape) == 1 or len(_layer_def.shape) == len(_input_shape), "Invalid input shape %r for layer shape %r" % (_input_shape, _layer_def.shape)
-        assert _layer_def.shape[0] >= 0, "Invalid number of nodes (%r) provided for layer %r" % (_layer_def.shape[0], _layer_index)
-        assert _input_shape[0] > 0, "Invalid number of input nodes (%r) provided for layer %r" % (_input_shape[0], _layer_index)
+        assert 1 <= len(_layer_def.shape) <= 4, 'Invalid layer shape {}'.format(_layer_def.shape)
+        assert 1 <= len(_input_shape) <= 4, 'Invalid input shape {}'.format(_input_shape)
+        assert len(_layer_def.shape) == 1 or len(_layer_def.shape) == len(_input_shape), 'Invalid input shape {} for layer shape {}'.format(_input_shape, _layer_def.shape)
+        assert _layer_def.shape[0] >= 0, 'Invalid number of nodes ({}) provided for layer {}'.forma(_layer_def.shape[0], _layer_index)
+        assert _input_shape[0] > 0, 'Invalid number of input nodes ({}) provided for layer {}'.format(_input_shape[0], _layer_index)
 
         # Initialise the base class
         super(Layer, self).__init__()
@@ -181,10 +187,11 @@ class Layer(tn.Module):
         self.is_conv = _layer_def.is_conv
 
         # Common attributes
-        self.kernel_size = list(_layer_def.shape[1:]) if self.is_conv else []
-        assert (len(self.kernel_size) == 0 or len(self.kernel_size) == len(self.input_shape[1:])), "Invalid kernel size %r for input shape %r" % (self.kernel_size, _input_shape)
+        self.kernel_size = _layer_def.shape[1:] if self.is_conv else []
+        assert (len(self.kernel_size) == 0 or len(self.kernel_size) == len(self.input_shape[1:])), 'Invalid kernel size {} for input shape {}'.format(self.kernel_size, _input_shape)
 
-        self.stride = [1] * len(self.kernel_size) if self.is_conv else []
+        self.stride = self.get_random_stride(_layer_def.stride) if self.is_conv else []
+
         self.padding = [dim // 2 for dim in self.kernel_size] if self.is_conv else []
         self.dilation = [1] * len(self.kernel_size) if self.is_conv else []
 
@@ -360,7 +367,7 @@ class Layer(tn.Module):
                                           self.dilation)
 
     def get_parameter_count(self,
-                       _node_idx = None):
+                            _node_idx = None):
 
         nodes = [node for node in range(len(self.nodes))] if _node_idx is None else [_node_idx]
 
@@ -430,6 +437,48 @@ class Layer(tn.Module):
 
         return [wheel.spin() for k in range(_count)]
 
+    def get_random_stride(self,
+                          _stride): # Pre-determined kernel size. Dimensions with value 0 are populated with random values.
+
+        if not self.is_conv:
+            return []
+
+        wheel = Rand.RouletteWheel()
+
+        print('Input shape: {}'.format(self.input_shape))
+
+        strides = []
+        # Possible strides.
+        for dim, radius in enumerate(self.input_shape[1:]):
+
+            if (len(_stride) > 0 and
+                _stride[dim] > 0):
+                stride = [_stride[dim]]
+
+            else:
+                if radius <= 1:
+                    stride = [1]
+
+                else:
+                    stride = [s for s in range(1, radius // 2 + 1)]
+
+            if len(strides) == 0:
+                strides = [[s] for s in stride]
+
+            else:
+                new_strides = []
+
+                for old_stride in strides:
+                    for new_stride in stride:
+                        new_strides.append([*old_stride, new_stride])
+
+                strides = new_strides
+
+        for s in strides:
+            wheel.add(s, Func.exp_prod(s))
+
+        return wheel.spin()
+
     def add_nodes(self,
                   _count,
                   _max_radius = [],
@@ -458,12 +507,12 @@ class Layer(tn.Module):
                 self.nodes.append(tn.Parameter(torch.zeros(self.get_input_nodes() * self.get_multiplier())))
                 #print("(FC) New node with size", self.nodes[-1].size(), ", multiplier", self.get_multiplier())
 
-            Layer.init(self.nodes[-1])
+            Layer.init_tensor(self.nodes[-1])
 
         # Add bias nodes
         if self.bias is not None:
             bias = torch.zeros(_count)
-            Layer.init(bias)
+            Layer.init_tensor(bias)
 #                    print("resize() extra bias:", bias)
             self.bias = tn.Parameter(torch.cat((self.bias.clone().detach(), bias)))
 
@@ -474,8 +523,8 @@ class Layer(tn.Module):
 
         return True
 
-    def erase_nodes(self,
-                    _node_indices = []):
+    def remove_nodes(self,
+                     _node_indices = []):
 
         if (len(_node_indices) == 0 or
             len(_node_indices) >= len(self.nodes)):
@@ -484,11 +533,11 @@ class Layer(tn.Module):
         # Weights -> nodes
         self.update_nodes()
 
-        #print("Nodes to erase:", *_node_indices)
+        #print("Nodes to remove:", *_node_indices)
 
 #        print('Original node count: {}'.format(len(self.nodes)))
 
-        # Erase the selected nodes
+        # Remove the selected nodes
         nodes = tn.ParameterList()
         bias = []
 
@@ -525,7 +574,7 @@ class Layer(tn.Module):
         for dim, val in _delta.items():
             delta[dim] = val
 
-        old_size = list(self.nodes[_node_index].size()[1:])
+        old_size = list(self.nodes[_node_index].size())[1:]
         new_size = [old_size[dim] + 2 * delta[dim] for dim in range(len(old_size))]
 
     #    print(_layer.kernels)
@@ -563,8 +612,8 @@ class Layer(tn.Module):
 
         if init:
             # Initialise the new weights
-            Layer.init(self.nodes[_node_index][slices1])
-            Layer.init(self.nodes[_node_index][slices2])
+            Layer.init_tensor(self.nodes[_node_index][slices1])
+            Layer.init_tensor(self.nodes[_node_index][slices2])
 
         #print(">>> After resize:")
         #print(">>> \tkernel:", self.nodes[_node_index])
@@ -582,7 +631,7 @@ class Layer(tn.Module):
         if not _pretend:
             if _input_shape is not None:
                 # Store the new input shape
-                self.input_shape = list(_input_shape)
+                self.input_shape = dcp(_input_shape)
 
             # Update the layer kernel
             self.update_kernel()
@@ -592,7 +641,7 @@ class Layer(tn.Module):
 
         if _input_shape is None:
             # Adopt the existing input shape
-            _input_shape = list(self.input_shape)
+            _input_shape = dcp(self.input_shape)
 
         multiplier = self.get_multiplier(_input_shape)
         actual_input_nodes = self.get_input_nodes(_input_shape)
@@ -676,7 +725,7 @@ class Layer(tn.Module):
                     #print("Expanding node", output_node, "to have input size of", actual_input_nodes * multiplier)
 
                     padding = torch.zeros(int(actual_input_nodes * multiplier - self.nodes[output_node].size(0)), *list(self.nodes[output_node].size())[1:])
-                    Layer.init(padding)
+                    Layer.init_tensor(padding)
 
                     self.nodes[output_node] = tn.Parameter(torch.cat((self.nodes[output_node].clone().detach(), padding)))
 
@@ -718,7 +767,8 @@ class Layer(tn.Module):
         if (not self.is_conv and
             int(self.weight.size(0)) > 0):
             for node_index in range(len(self.nodes)):
-                self.nodes[node_index] = tn.Parameter(self.weight[node_index].clone().detach().requires_grad_(self.is_conv))
+                self.nodes[node_index] = tn.Parameter(self.weight[node_index].clone().detach().requires_grad_(False))
+                self.nodes[node_index].requires_grad = False
 
     def update_slices(self):
 
@@ -763,7 +813,6 @@ class Layer(tn.Module):
             # that manipulating non-convolutional nodes should be preceded
             # by a call to update_nodes() in order to update the
             # nodes from the current weights.
-#            self.weight = tn.Parameter(torch.stack(list(self.nodes)).clone().detach().requires_grad_(True))
             tensor_list = []
             for node in self.nodes:
                 tensor_list.append(node.clone().detach().requires_grad_(False))
@@ -786,10 +835,10 @@ class Layer(tn.Module):
         slices = [slice(0, self.weight.size(1))]
 
         if _size is None:
-            _size = list(self.nodes[_node_idx].size()[1:])
+            _size = list(self.nodes[_node_idx].size())[1:]
 
         for dim in range(len(_size)):
-            kernel_size = list(self.weight.size()[2:])
+            kernel_size = list(self.weight.size())[2:]
             diff = kernel_size[dim] - _size[dim]
 
             # Patch is smaller in this dimension, narrow down
@@ -816,7 +865,6 @@ class Layer(tn.Module):
 
         if self.is_conv:
             self.overlay_kernels()
-#            self.weight[self.weight_slices] = self.nodes
             _tensor = self.op(_tensor, self.weight, self.bias, self.stride, self.padding, self.dilation)
 
         else:

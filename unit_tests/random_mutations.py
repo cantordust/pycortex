@@ -49,13 +49,13 @@ def test_random_mutations():
             mutation = mutations[len(mutations) - mut - 1]
             success = False
             if mutation[0] == 'add_layer':
-                success, layer = net.erase_layer(mutation[1])
+                success, layer = net.remove_layer(mutation[1])
                 #if success:
-                    #print("Layer", layer, "erased")
+                    #print("Layer", layer, "removed")
             elif mutation[0] == 'add_node':
-                success, layer, node = net.erase_nodes(mutation[1], _node_indices = mutation[2])
+                success, layer, node = net.remove_nodes(mutation[1], _node_indices = mutation[2])
                 #if success:
-                    #print("Node", *nodes, "erased from layer", layer)
+                    #print("Node", *nodes, "removed from layer", layer)
             elif mutation[0] == 'grow_kernel':
                 success, layer, kernel, delta = net.shrink_kernel(mutation[1], mutation[2], mutation[3])
                 #if success:

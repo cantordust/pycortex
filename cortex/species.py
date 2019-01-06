@@ -1,5 +1,6 @@
 import math
 import sys
+from copy import deepcopy as dcp
 
 import cortex.random as Rand
 import cortex.statistics as Stat
@@ -64,11 +65,11 @@ class Species:
 
         if _other is None:
 #            print("Creating genome from initial layer definitions")
-            self.genome = list(cn.Net.Init.Layers) if _genome is None else list(_genome)
+            self.genome = dcp(cn.Net.Init.Layers) if _genome is None else dcp(_genome)
 
         else:
 #            print("Copying genome from species", _other.ID)
-            self.genome = list(_other.genome)
+            self.genome = dcp(_other.genome)
 
         print(">>> Species", self.ID, "created")
 
@@ -122,7 +123,7 @@ class Species:
             print('Layer {}:'.format(layer_index), file = _file)
             layer.print(_file = _file)
 
-        output_layer = cl.Layer.Def(_shape = list(cn.Net.Output.Shape),
+        output_layer = cl.Layer.Def(_shape = cn.Net.Output.Shape,
                                     _role = 'output')
 
         print('Layer {}:'.format(len(self.genome)), file = _file)
@@ -186,13 +187,19 @@ class Species:
         for net_id in list(self.nets):
             if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
                 Rand.chance(cn.Net.Ecosystem[net_id].fitness.relative)):
+
                 # Fitter networks have a better chance of mating
                 p2 = cn.Net.Ecosystem[parent_wheel.spin()]
                 if p2.ID != net_id:
+                    # Crossover
                     offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _p2 = p2, _species = self)
+
                 else:
+                    # Cloning
                     offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _species = self)
                     offspring.mutate(_structure = False)
+
+                # Increase the offspring count
                 Species.Offspring += 1
 
             else:

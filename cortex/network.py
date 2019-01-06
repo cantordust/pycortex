@@ -1,5 +1,6 @@
 import sys
 import math
+from copy import deepcopy as dcp
 
 import torch
 import torch.nn as tn
@@ -153,7 +154,8 @@ class Net(tn.Module):
             shape = [0] * len(layer.get_output_shape())
             shape[0] = len(layer.nodes)
 
-            genome.append(cl.Layer.Def(_shape = list(shape),
+            genome.append(cl.Layer.Def(_shape = shape,
+                                       _stride = [0] * len(layer.stride),
                                        _bias = layer.bias is not None,
                                        _activation = layer.activation,
                                        _role = layer.role))
@@ -176,7 +178,7 @@ class Net(tn.Module):
         """
 
         if _layer_index <= 0:
-            return list(Net.Input.Shape)
+            return Net.Input.Shape
 
         assert _layer_index <= len(self.layers), "(get_input_shape) Invalid layer index %r (network %r contains %r layer(s))" % (_layer_index, self.ID, len(self.layers))
 
@@ -208,36 +210,9 @@ class Net(tn.Module):
 
         return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
 
-    def get_structure_stats(self):
-
-        # Structural statistics
-        layer_stats = Stat.SMAStat(_title = "Layers per network")
-        node_stats = Stat.SMAStat(_title = "Nodes per layer")
-        link_stats = Stat.SMAStat(_title = "Links per node")
-        kernel_size_stats = Stat.SMAStat(_title = "Kernel sizes")
-        kernel_dims = 0
-
-        for net in Net.Ecosystem.values():
-            layer_stats.update(len(net.layers))
-
-        for layer in self.layers:
-            node_stats.update(layer.get_output_nodes())
-            for node_idx in range(len(layer.nodes)):
-                link_stats.update(layer.get_parameter_count(node_idx))
-                if layer.is_conv:
-                    kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
-                    if len(layer.kernel_size) > kernel_dims:
-                        kernel_dims = len(layer.kernel_size)
-
-        return {'layers': layer_stats,
-                'nodes': node_stats,
-                'links': link_stats,
-                'kernel_sizes': kernel_size_stats,
-                'kernel_dims': kernel_dims}
-
     def get_parameter_count(self):
 
-        parameters = sum(param.numel() for param in self.parameters() if param.requires_grad)
+        parameters = sum([param.numel() for param in self.parameters() if param.requires_grad])
 #        print("Net", self.ID, "parameter count:", parameters)
 
         return parameters
@@ -252,6 +227,7 @@ class Net(tn.Module):
 
     def add_layer(self,
                   _shape = [],
+                  _stride = [],
                   _bias = None,
                   _activation = None,
                   _layer_index = None,
@@ -260,14 +236,11 @@ class Net(tn.Module):
         if (_layer_index is None or
             len(_shape) == 0):
 
-#            if _stats is None:
-#                _stats = self.get_structure_stats()
-
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index in range(len(self.layers)):
 
-                # Check how many links we have to add and / or erase
+                # Check how many links we have to add and / or remove
                 # to insert a layer of each allowed shape
 
                 node_stat = Stat.SMAStat()
@@ -284,7 +257,7 @@ class Net(tn.Module):
                         new_nodes = Rand.uint(1, math.floor(node_stat.mean + 1))
 
                     input_shape = self.get_input_shape(layer_index)
-                    new_layer_shape = list(allowed_shape)
+                    new_layer_shape = dcp(allowed_shape)
 
                     # Set the number of output nodes
                     if _test:
@@ -317,7 +290,7 @@ class Net(tn.Module):
             return (False, _layer_index)
 
         # Create a layer definition if not provided
-        layer_def = cl.Layer.Def(_shape, _bias, _activation)
+        layer_def = cl.Layer.Def(_shape, _stride, _bias, _activation)
 
         input_shape = self.get_input_shape(_layer_index)
 
@@ -353,15 +326,15 @@ class Net(tn.Module):
 
             self.layers = new_ml
 
-        # Adjust the input size of the following layer
-        if _layer_index < len(self.layers) - 1:
-            self.layers[_layer_index + 1].adjust_input_size(_input_shape = new_layer.get_output_shape())
+        # Adjust the input size of the following layers
+        for layer_index in range(_layer_index + 1, len(self.layers)):
+            self.layers[layer_index].adjust_input_size(_input_shape = self.get_input_shape(layer_index))
 
         self.reindex()
 
         return (True, _layer_index)
 
-    def erase_layer(self,
+    def remove_layer(self,
                     _layer_index = None):
 
         if len(self.layers) < 2:
@@ -379,17 +352,18 @@ class Net(tn.Module):
 
             _layer_index = wheel.spin()[0]
 
-        # We cannot erase the output layer
+        # We cannot remove the output layer
         if _layer_index == len(self.layers) - 1:
             return (False, _layer_index)
 
-        # Adjust the input size of the following layer
-        self.layers[_layer_index + 1].adjust_input_size(_input_shape = self.get_input_shape(_layer_index))
-
-        print('[Net {}] >>> Erasing {} layer at position {}'.format(self.ID, self.layers[_layer_index].role, _layer_index))
+        print('[Net {}] >>> Removing {} layer at position {}'.format(self.ID, self.layers[_layer_index].role, _layer_index))
 
         # Remove the layer
         del self.layers[_layer_index]
+
+        # Adjust the input size of the following layers
+        for layer_index in range(_layer_index, len(self.layers)):
+            self.layers[layer_index].adjust_input_size(_input_shape = self.get_input_shape(layer_index))
 
         self.reindex()
 
@@ -404,9 +378,6 @@ class Net(tn.Module):
             return (False, _layer_index, set())
 
         if _layer_index is None:
-
-#            if _stats is None:
-#                _stats = self.get_structure_stats()
 
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
@@ -438,7 +409,7 @@ class Net(tn.Module):
 
         return (success, _layer_index, node_indices)
 
-    def erase_nodes(self,
+    def remove_nodes(self,
                     _layer_index = None,
                     _count = 1,
                     _node_indices = set()):
@@ -464,9 +435,8 @@ class Net(tn.Module):
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index in range(len(self.layers) - 1):
-                # Check if we can erase a node at all:
-                # Check how many links we would have to erase
 
+                # Check if we can remove a node at all
                 if len(self.layers[layer_index].nodes) > 1:
 
                     for node_index in range(len(self.layers[layer_index].nodes)):
@@ -513,10 +483,10 @@ class Net(tn.Module):
                     return (False, _layer_index, _node_indices)
                 _count = -len(_node_indices)
 
-        print('[Net {}] >>> Erasing node(s) {} from layer {}'.format(self.ID, *list(_node_indices), _layer_index))
+        print('[Net {}] >>> Removing node(s) {} from layer {}'.format(self.ID, *_node_indices, _layer_index))
 
-        # Erase the nodes
-        success = self.layers[_layer_index].erase_nodes(sorted(list(_node_indices)))
+        # Remove the nodes
+        success = self.layers[_layer_index].remove_nodes(sorted(list(_node_indices)))
 
         # On success, adjust the input size of the next layer if there is one
         if (success and
@@ -538,9 +508,6 @@ class Net(tn.Module):
             _node_index is None or
             len(_delta) == 0):
 
-#            if _stats is None:
-#                _stats = self.get_structure_stats()
-
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index, layer in enumerate(self.layers):
@@ -550,7 +517,7 @@ class Net(tn.Module):
 
                     for node_index, node in enumerate(layer.nodes):
 
-                        # Check how many links we would have to add or erase
+                        # Check how many links we would have to add or remove
                         for dim in range(len(layer.kernel_size)):
                             wheel.add((layer_index, node_index, dim), 1)
 
@@ -572,7 +539,7 @@ class Net(tn.Module):
         for dim in _delta.keys():
             _delta[dim] = abs(_delta[dim])
 
-        print('[Net {}] >>> Growing dimension {} of node {} in layer {} by {}'.format(self.ID, *list(_delta.keys()), _node_index, _layer_index, *list(_delta.values()) ))
+        print('[Net {}] >>> Growing dimension {} of node {} in layer {} by {}'.format(self.ID, *_delta.keys(), _node_index, _layer_index, *_delta.values() ))
 
         # Grow the kernel
         success = self.layers[_layer_index].resize_kernel(_node_index, _delta)
@@ -600,7 +567,7 @@ class Net(tn.Module):
 
                     for node_index, node in enumerate(layer.nodes):
 
-                        # Check how many links we would have to add or erase
+                        # Check how many links we would have to add or remove
                         for dim in range(len(layer.kernel_size)):
 
                             if node.size(dim + 1) > 1:
@@ -621,145 +588,104 @@ class Net(tn.Module):
                 _delta = {dim: -1}
 
         # Ensure all deltas are negative
-        delta = {}
         for dim in _delta.keys():
-            delta[dim] = -abs(_delta[dim])
+            _delta[dim] = -abs(_delta[dim])
 
-        print('[Net {}] >>> Shrinking dimension(s) {} of kernel {} in layer {} by {}'.format(self.ID, *list(delta.keys()), _node_index, _layer_index, abs(*list(delta.values())) ))
+        print('[Net {}] >>> Shrinking dimension(s) {} of kernel {} in layer {} by {}'.format(self.ID, *_delta.keys(), _node_index, _layer_index, abs(*_delta.values()) ))
 
         # Shrink the kernel
-        success = self.layers[_layer_index].resize_kernel(_node_index, delta)
+        success = self.layers[_layer_index].resize_kernel(_node_index, _delta)
 
-        return (success, _layer_index, _node_index, delta)
+        return (success, _layer_index, _node_index, _delta)
 
-#    def grow_stride(self,
-#                    _layer_index = None,
-#                    _delta = {}):
+    def grow_stride(self,
+                    _layer_index = None,
+                    _delta = {}):
 
-#        if _layer_index is None:
+        if _layer_index is None:
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
-#            if _stats is None:
-#                _stats = self.get_structure_stats()
+            for layer_index, layer in enumerate(self.layers):
 
-#            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+                if not layer.is_conv:
+                    break
 
-#            for layer_index in range(len(self.layers)):
+                for dim in range(len(layer.stride)):
+                    if layer.stride[dim] < self.get_input_shape(layer_index)[dim + 1] // 2:
+                        wheel.add((layer_index, dim), 1)
 
-#                # Check how many links we have to add and / or erase
-#                # to insert a layer of each allowed shape
-#                new_nodes = Rand.uint(1, math.floor(_stats['nodes'].mean + 1))
-##                new_nodes = math.floor(_stats['nodes'].mean)
-#                for shape in self.get_allowed_layer_shapes(layer_index):
+            if wheel.is_empty():
+                return (False, _layer_index, _delta)
 
-#                    input_shape = self.get_input_shape(layer_index)
-#                    new_layer_shape = list(shape)
+            layer_index, dim = wheel.spin()
 
-#                    # Set the number of output nodes
-#                    if _test:
-#                        new_layer_shape = [0] * len(self.get_input_shape(layer_index))
-#                        new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
+            if _layer_index is None:
+                _layer_index = layer_index
 
-#                    elif new_layer_shape[0] == 0:
-#                        new_layer_shape[0] = new_nodes
-##                        new_layer_shape[0] = 1
+            if len(_delta) == 0:
+                _delta = {dim: 1}
 
-#                    # Compute the output shape of a hypothetical layer of this shape
-#                    new_output_shape = cl.Layer.compute_output_shape(new_layer_shape[0],
-#                                                                     self.get_input_shape(layer_index),
-#                                                                     [1] * (len(new_layer_shape) - 1))
+        # Ensure all deltas are positive
+        for dim in _delta.keys():
+            _delta[dim] = abs(_delta[dim])
 
-##                    print("New layer shape:", new_layer_shape)
-##                    print("Input shape:", self.get_input_shape(layer_index))
-##                    print("New output shape:", new_output_shape)
-##
-##                    print("Number of links affected by adding layer with shape", new_layer_shape, "at index", layer_index)
+        print('[Net {}] >>> Growing dimension {} of stride in layer {} by {}'.format(self.ID, *_delta.keys(), _layer_index, *_delta.values() ))
 
-#                    # Links to add and remove
-#                    link_count = []
+        # Grow the stride
+        for dim in _delta.keys():
+            self.layers[_layer_index].stride[dim] += _delta[dim]
 
-#                    link_count.append(new_layer_shape[0] * Func.prod(input_shape[0:len(input_shape) - len(new_output_shape) + 1]))
+        # Adjust the input size of the following layers
+        for layer_index in range(_layer_index + 1, len(self.layers)):
+            self.layers[layer_index].adjust_input_size(_input_shape = self.get_input_shape(layer_index))
 
-##                    print("\t>>> Add:", link_count[-1])
+        return (True, _layer_index, _delta)
 
-#                    # Links to adjust
-#                    if layer_index < len(self.layers):
-#                        # Only compute the number of links to erase if
-#                        # the new layer is *not* going to be the output layer.
-#                        link_count.append(self.layers[layer_index].adjust_input_size(_input_shape = new_output_shape, _pretend = True))
+    def shrink_stride(self,
+                      _layer_index = None,
+                      _delta = {}):
 
-##                        print("\t>>> Adjust:", link_count[-1])
+        if _layer_index is None:
+          wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
-##                    print("\t>>> Total:", sum(link_count))
+          for layer_index, layer in enumerate(self.layers):
 
-##                    wheel.add((layer_index, new_layer_shape), sum(link_count))
-#                    wheel.add((layer_index, new_layer_shape), 1)
+              # Check how many links we have to add and / or remove
+              # to insert a layer of each allowed shape
+              if not layer.is_conv:
+                  break
 
-#            if wheel.is_empty():
-#                return (False, _layer_index)
+              for dim in range(len(layer.stride)):
+                  if layer.stride[dim] > 1:
+                      wheel.add((layer_index, dim), 1)
 
-#            layer_index, shape = wheel.spin()
+          if wheel.is_empty():
+              return (False, _layer_index, _delta)
 
-#            if _layer_index is None:
-#                _layer_index = layer_index
+          layer_index, dim = wheel.spin()
 
-#            if len(_shape) == 0:
-#                _shape = shape
+          if _layer_index is None:
+              _layer_index = layer_index
 
-#        # Sanity check for the layer index
-#        if _layer_index > len(self.layers):
-#            #print("Invalid layer index", _layer_index)
-#            return (False, _layer_index)
+          if len(_delta) == 0:
+              _delta = {dim: -1}
 
-#        # Create a layer definition if not provided
-#        layer_def = cl.Layer.Def(_shape, _bias, _activation)
+        # Ensure all deltas are negative
+        for dim in _delta.keys():
+            _delta[dim] = -abs(_delta[dim])
 
-#        input_shape = self.get_input_shape(_layer_index)
+        print('[Net {}] >>> Shrinking dimension {} of stride in layer {} by {}'.format(self.ID, *_delta.keys(), _layer_index, abs(*_delta.values()) ))
 
-#        # Ensure that the layer roles are contiguous.
-#        # This can be done with a simple comparison of the input and output shapes.
-#        if (len(input_shape) < len(layer_def.shape) or                              # Attempting to add a conv layer above an FC one
-#            (_layer_index < len(self.layers) and
-#             len(layer_def.shape) < len(self.get_output_shape(_layer_index)))):     # Attempting to add an FC layer below a conv one
+        # Shrink the stride
+        for dim in _delta.keys():
+            # Delta is negative, so + means shrink
+            self.layers[_layer_index].stride[dim] += _delta[dim]
 
-#            print("[Net", self.ID, "]>>> Invalid layer size: Cannot add layer of shape %r at position %r" % (layer_def.shape, _layer_index))
+        # Adjust the input size of the following layers
+        for layer_index in range(_layer_index + 1, len(self.layers)):
+            self.layers[layer_index].adjust_input_size(_input_shape = self.get_input_shape(layer_index))
 
-#            return (False, _layer_index)
-
-#        # Create the new layer
-#        new_layer = cl.Layer(_layer_def = layer_def,
-#                             _input_shape = input_shape,
-#                             _layer_index = _layer_index)
-
-#        print("[Net", self.ID, "]>>> Adding new", new_layer.role , "layer with shape", layer_def.shape, "at position", _layer_index)
-
-#        # Rearrange the module stack if necessary
-#        if _layer_index == len(self.layers):
-#            self.layers.append(new_layer)
-
-#        else:
-#            new_ml = tn.ModuleList()
-
-#            for index in range(len(self.layers)):
-#                if index == _layer_index:
-#                    new_ml.append(new_layer)
-
-#                new_ml.append(self.layers[index])
-
-#            self.layers = new_ml
-
-#        # Adjust the input size of the following layer
-#        if _layer_index < len(self.layers) - 1:
-#            self.layers[_layer_index + 1].adjust_input_size(_input_shape = new_layer.get_output_shape())
-
-#        self.reindex()
-
-#        return (True, _layer_index)
-
-#    def shrink_stride(self,
-#                      _layer_index = None,
-#                      _delta = {}):
-
-#        pass
+        return (True, _layer_index, _delta)
 
     def forward(self,
                 _tensor):
@@ -798,8 +724,8 @@ class Net(tn.Module):
             layer.update_nodes()
 
         # Basic sanity check.
-        assert len(_p1.layers) > 0, "!!! Error: Parent %r is empty." % _p1.ID
-        assert len(_p2.layers) > 0, "!!! Error: Parent %r is empty." % _p2.ID
+        assert len(_p1.layers) > 0, '!!! Error: Parent %r is empty.'.format(_p1.ID)
+        assert len(_p2.layers) > 0, '!!! Error: Parent %r is empty.'.format(_p2.ID)
 
         # First, create reference chromosomes.
         # Roulette wheel for selecting chromosomes
@@ -900,6 +826,7 @@ class Net(tn.Module):
 
             # Create a new empty layer
             self.add_layer(_shape = shape,
+                           _stride = wheel.spin().stride,
                            _bias = wheel.spin().bias is not None,
                            _layer_index = layer_index,
                            _activation = wheel.spin().activation)
@@ -916,7 +843,8 @@ class Net(tn.Module):
 
                 # Pick a node (gene) from a random layer (chromosome)
                 rnd_layer = wheel.spin()
-                self.layers[-1].nodes.append(tn.Parameter(rnd_layer.nodes[node_index].clone().detach().requires_grad_(rnd_layer.is_conv)))
+                self.layers[-1].nodes.append(tn.Parameter(rnd_layer.nodes[node_index].clone().detach().requires_grad_(False)))
+                self.layers[-1].nodes[-1].requires_grad = self.layers[-1].is_conv
 
                 if rnd_layer.bias is not None:
                     bias_weights.append(rnd_layer.bias[node_index].item())
@@ -948,32 +876,105 @@ class Net(tn.Module):
             layer.update_nodes()
 
             self.add_layer(_shape = [0, *layer.kernel_size],
+                           _stride = layer.stride,
                            _bias = layer.bias is not None,
                            _layer_index = layer_index,
                            _activation = layer.activation)
 
             # Clone the nodes
             for node_index, node in enumerate(layer.nodes):
-                self.layers[-1].nodes.append(tn.Parameter(node.clone().detach().requires_grad_(self.layers[-1].is_conv)))
+                self.layers[-1].nodes.append(tn.Parameter(node.clone().detach().requires_grad_(False)))
+                self.layers[-1].nodes[-1].requires_grad = self.layers[-1].is_conv
 
             # Clone the bias
             if layer.bias is not None:
-                self.layers[-1].bias = tn.Parameter(layer.bias.clone().detach().requires_grad_(True))
+                self.layers[-1].bias = tn.Parameter(layer.bias.clone().detach().requires_grad_(False))
 
             self.layers[-1].update_weights()
 
         self.species_id = _parent.species_id
+
+    def get_mutation_probabilities(self):
+
+#        # Structural statistics
+#        layer_stats = Stat.SMAStat(_title = 'Layers per network')
+#        node_stats = Stat.SMAStat(_title = 'Nodes per layer')
+#        link_stats = Stat.SMAStat(_title = 'Links per node')
+#        stride_stats = Stat.SMAStat(_title = 'Stride')
+#        kernel_size_stats = Stat.SMAStat(_title = 'Kernel sizes')
+#        kernel_dim_stats = Stat.SMAStat(_title = 'Kernel dimensions')
+
+#        for net in Net.Ecosystem.values():
+#            layer_stats.update(len(net.layers))
+
+#        for layer_index, layer in enumerate(self.layers):
+#            node_stats.update(layer.get_output_nodes())
+
+#            for node_idx, node in enumerate(layer.nodes):
+#                link_stats.update(layer.get_parameter_count(node_idx))
+
+#                if layer.is_conv:
+
+#                    # Kernel size
+#                    kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
+#                    if len(layer.kernel_size) > kernel_dims:
+#                        kernel_dim_stats.update(len(layer.kernel_size))
+
+#                    # Stride
+#                    stride_stats.update(cl.Layer.compute_output_shape(layer.get_output_nodes(),
+#                                                                      _input_shape,
+#                                                                      self.kernel_size,
+#                                                                      self.stride,
+#                                                                      self.padding,
+#                                                                      self.dilation)))
+
+#        # Adding or removing a layer involves severing existing links and adding new ones.
+#        # For this computation, we assume that the new layer will contain
+#        # anywhere between 1 and the mean number of nodes (hence the 0.5).
+#        # The SD is a correction term for the average number of nodes
+#        # in the following layer whose links would need to be adjusted.
+#        probabilities['layer'] = 0.5 * (node_stats.mean + 1) + node_stats.get_sd()) * link_stats.mean
+
+#        # Adding or removing a node involves adding or removing new links.
+#        probabilities['node'] = link_stats.mean
+
+#        # Changing the stride of a layer involves resizing the input of all subsequent layers
+#        if stride_stats.count > 0:
+#            probabilities['stride'] =
+
+#        # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
+#        # This is multiplied by the average number of input nodes.
+#        if kernel_dim_stats.count > 0:
+#            probabilities['kernel_size'] = 2 * node_stats.mean * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
+
+        probabilities = {}
+
+        parameter_count = self.get_parameter_count()
+
+        layer_count = len(self.layers)
+        probabilities['layer'] = parameter_count / layer_count
+
+        node_count = sum([len(layer.nodes) for layer in self.layers])
+        probabilities['node'] = parameter_count / node_count
+
+        conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
+        if conv_layer_count > 0:
+            probabilities['stride'] = parameter_count / conv_layer_count
+
+        kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
+        if kernel_count > 0:
+            probabilities['kernel'] = parameter_count / kernel_count
+
+        return probabilities
 
     def mutate(self,
                _structure = True,
                _parameters = True):
 
         # Statistics about the structure of this network
-        stats = self.get_structure_stats()
+        probabilities = self.get_mutation_probabilities()
 
-#        print("\n>>> Network statistics:")
-#        for stat in stats.values():
-#            stat.print()
+#        print('>>> Mutation probabilities:\n{}'.format(probabilities))
 
         # Complexity can be increased or decreased
         # based on the current complexity of the
@@ -984,45 +985,46 @@ class Net(tn.Module):
         # The complexity can be increased or decreased
         # with probability proportional to the number
         # of parameters that the mutation will affect.
-        wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+        wheel = Rand.RouletteWheel()
 
         if _structure:
-            # Adding or erasing a layer involves severing existing links and adding new ones.
-            # For this computation, we assume that the new layer will contain
-            # anywhere between 1 and the mean number of nodes (hence the 0.5).
-            # The SD is a correction term for the average number of nodes
-            # in the following layer whose links would need to be adjusted.
-            wheel.add('layer', (0.5 * (stats['nodes'].mean + 1) + stats['nodes'].get_sd()) * stats['links'].mean)
-#            wheel.add('layer', stats['nodes'].mean * stats['links'].mean)
+
+            wheel.add('layer', probabilities['layer'])
 
             if len(self.layers) > 1:
-                # Adding or erasing a node involves adding or erasing new links.
-                wheel.add('node', stats['links'].mean)
+                wheel.add('node', probabilities['node'])
 
         if _parameters:
-            # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
-            # This is multiplied by the average number of input nodes.
-            if stats['kernel_dims'] > 0:
-                wheel.add('kernel_size', 2 * stats['nodes'].mean * math.pow(stats['kernel_sizes'].mean, stats['kernel_dims'] - 1))
+
+            if 'stride' in probabilities:
+                wheel.add('stride', probabilities['stride'])
+
+            if 'kernel' in probabilities:
+                wheel.add('kernel', probabilities['kernel'])
 
         if wheel.is_empty():
             return False
 
         element_type = wheel.spin()
 
-#        print("Mutating network", self.ID)
-#
-#        for elem_index in range(len(wheel.elements)):
-#            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
+        print("Mutating network", self.ID)
+
+        for elem_index in range(len(wheel.elements)):
+            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
 
         #return
 
         # Non-structural mutation
-        if element_type == 'kernel_size':
+        if (element_type == 'kernel' or
+            element_type == 'stride'):
 
-            success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
+            print('\t>>> {} {}'.format('Growing' if complexify else 'Shrinking', element_type))
 
-            print("\t>>>", "Growing" if complexify else "Shrinking", element_type)
+            if element_type == 'kernel':
+                success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
+
+            if element_type == 'stride':
+                success, layer, delta = self.grow_stride() if complexify else self.shrink_stride()
 
         # Structural mutation
         else:
@@ -1035,13 +1037,13 @@ class Net(tn.Module):
                 len(cs.Species.Populations[self.species_id].nets) > 1):
                 return False
 
-            print("\t>>>", "Adding" if complexify else "Erasing", element_type)
+            print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element_type))
 
             if element_type == 'layer':
-                success, layer = self.add_layer() if complexify else self.erase_layer()
+                success, layer = self.add_layer() if complexify else self.remove_layer()
 
             elif element_type == 'node':
-                success, layer, nodes = self.add_nodes() if complexify else self.erase_nodes()
+                success, layer, nodes = self.add_nodes() if complexify else self.remove_nodes()
 
             if (success and              # If the mutation was successful
                 cs.Species.Enabled and   # and speciation is enabled

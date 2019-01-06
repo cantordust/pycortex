@@ -29,7 +29,7 @@ class Conf:
     Runs = 1
     Epochs = 50
 
-    TrainBatchSize = 4
+    TrainBatchSize = 64
     TestBatchSize = 1000
 
     DataDir = ''
@@ -394,12 +394,12 @@ def cull():
         net_id = net_wheel.spin()
 
         if net_id is not None:
-            print("Erasing network", net_id, "from species", cn.Net.Ecosystem[net_id].species_id)
+            print("Removing network", net_id, "from species", cn.Net.Ecosystem[net_id].species_id)
 
-            # Erase the network from the species.
+            # Remove the network from the species.
             cs.Species.Populations[species_id].nets.remove(net_id)
 
-            # Erase the network from the ecosystem.
+            # Remove the network from the ecosystem.
             del cn.Net.Ecosystem[net_id]
 
         if len(cs.Species.Populations[species_id].nets) == 0:
@@ -441,7 +441,7 @@ def evolve(_stats,
         _stats['Parameters'].update(cn.Net.Ecosystem[cn.Net.Champion].get_parameter_count())
         _stats['Accuracy'].update(cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute)
 
-        if _epoch < Conf.Epochs - 1:
+        if _epoch < Conf.Epochs:
             # Evolve networks in all species.
             print("\t`-> Evolving networks...")
             for species_id in list(cs.Species.Populations.keys()):

@@ -61,7 +61,7 @@ def test(_net, _conf):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\n[Net {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\n[Net {} | Test] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         _net.ID, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
@@ -86,7 +86,7 @@ def train(_net, _epoch, _conf):
         progress = batch_idx / len(train_loader)
 
         if (batch_idx + 1) % _conf.log_interval == 0:
-            print('[Net {}] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('[Net {} | Train] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, _net.fitness.loss_stat.current_value))
 

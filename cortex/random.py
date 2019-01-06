@@ -2,6 +2,7 @@ import numpy as np
 import random
 random.seed()
 from enum import Enum
+from copy import deepcopy as dcp
 
 import cortex.functions as Func
 
@@ -60,13 +61,15 @@ def elem(_container):
 def key(_container):
     if not isinstance(_container, dict) or len(_container) == 0:
         return None
-    return random.choice(list(_container.keys()))
+#    return random.choice(list(_container.keys()))
+    return random.choice(_container.keys())
 
 # Returns a random value from an associative container.
 def val(_container):
     if not isinstance(_container, dict) or len(_container) == 0:
         return None
-    return random.choice(list(_container.values()))
+#    return random.choice(list(_container.values()))
+    return random.choice(_container.values())
 
 class WeightType(Enum):
     Raw = 'Raw'

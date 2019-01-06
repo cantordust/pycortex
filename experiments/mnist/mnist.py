@@ -61,7 +61,7 @@ def test(_net, _conf):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\n[Net {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\n[Net {} | Test] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         _net.ID, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
@@ -71,7 +71,7 @@ def train(_net, _epoch, _conf):
 
     _net = _net.to(_conf.device)
     _net.train()
-    optimiser = _conf.optimiser(_net.parameters())
+    optimiser = _conf.optimiser(_net.parameters(), lr = 1 / _epoch)
 
     with loader_lock:
         train_loader = get_train_loader(_conf)
@@ -86,7 +86,7 @@ def train(_net, _epoch, _conf):
         progress = batch_idx / len(train_loader)
 
         if (batch_idx + 1) % _conf.log_interval == 0:
-            print('[Net {}] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('[Net {} | Train] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, _net.fitness.loss_stat.current_value))
 
@@ -104,7 +104,7 @@ def main():
 
     cn.Net.Input.Shape = [1, 28, 28]
     cn.Net.Output.Shape = [10]
-    cn.Net.Init.Layers = []
+    cn.Net.Init.Layers = [cl.Layer.Def([5,0,0])]
 
     # If necessary, run the train loader to download the data
     if ctx.Conf.DownloadData:
