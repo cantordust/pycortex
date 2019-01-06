@@ -71,7 +71,7 @@ def train(_net, _epoch, _conf):
 
     _net = _net.to(_conf.device)
     _net.train()
-    optimiser = _conf.optimiser(_net.parameters(), lr = 1 / _epoch)
+    optimiser = _conf.optimiser(_net.parameters())
 
     with loader_lock:
         train_loader = get_train_loader(_conf)
