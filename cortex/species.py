@@ -163,8 +163,8 @@ class Species:
         for net_id in self.nets:
             # Compute the relative fitness
             net = cn.Net.Ecosystem[net_id]
-            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
-#            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
+#            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
+            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
             print("Network", net_id, "fitness:",
                   "\t\tAbsolute:", cn.Net.Ecosystem[net_id].fitness.absolute,
@@ -180,8 +180,9 @@ class Species:
         # Networks that have been selected for crossover
         # will pick a partner at random by spinning the wheel.
         parent_wheel = Rand.RouletteWheel()
-        for net_id in list(self.nets):
-            parent_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
+        for net_id in self.nets:
+            if cn.Net.Ecosystem[net_id].age > 0:
+                parent_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
 
         # Iterate over the networks and check if we should perform crossover or mutation
         for net_id in list(self.nets):
@@ -202,5 +203,6 @@ class Species:
                 # Increase the offspring count
                 Species.Offspring += 1
 
-            else:
+            elif (net_id != self.champion and
+                  Rand.chance(1.0 - cn.Net.Ecosystem[net_id].fitness.relative)):
                 cn.Net.Ecosystem[net_id].mutate()

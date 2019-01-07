@@ -1007,10 +1007,10 @@ class Net(tn.Module):
 
         element_type = wheel.spin()
 
-        print("Mutating network", self.ID)
+#        print("Mutating network", self.ID)
 
-        for elem_index in range(len(wheel.elements)):
-            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
+#        for elem_index in range(len(wheel.elements)):
+#            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
 
         #return
 
@@ -1018,13 +1018,17 @@ class Net(tn.Module):
         if (element_type == 'kernel' or
             element_type == 'stride'):
 
-            print('\t>>> {} {}'.format('Growing' if complexify else 'Shrinking', element_type))
-
             if element_type == 'kernel':
+
+                print('\t>>> {} {}'.format('Growing' if complexify else 'Shrinking', element_type))
                 success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
 
             if element_type == 'stride':
-                success, layer, delta = self.grow_stride() if complexify else self.shrink_stride()
+                # Growing the stride actually reduces the number of parameters
+
+                print('\t>>> {} {}'.format('Shrinking' if complexify else 'Growing', element_type))
+
+                success, layer, delta = self.shrink_stride() if complexify else self.grow_stride()
 
         # Structural mutation
         else:

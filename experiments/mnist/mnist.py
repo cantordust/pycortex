@@ -41,7 +41,7 @@ def get_test_loader(_conf):
 
     return test_loader
 
-def test(_net, _conf):
+def test(_net, _conf, _epoch):
 
     _net.eval()
     test_loss = 0
@@ -61,8 +61,8 @@ def test(_net, _conf):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\n[Net {} | Test] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        _net.ID, test_loss, correct, len(test_loader.dataset),
+    print('\t[Net {} | Test | Epoch {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+        _net.ID, _epoch, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
     return accuracy
@@ -71,13 +71,13 @@ def train(_net, _epoch, _conf):
 
     _net = _net.to(_conf.device)
     _net.train()
-    optimiser = _conf.optimiser(_net.parameters())
+    optimiser = _conf.optimiser(_net.parameters(), lr = 1.0 - _net.fitness.relative)
 
     with loader_lock:
         train_loader = get_train_loader(_conf)
 
     _net.fitness.loss_stat.reset()
-    train_portion = 1.0 - _net.fitness.relative
+    train_portion = (1.0 - _net.fitness.relative)
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(_conf.device), target.to(_conf.device)
@@ -86,14 +86,15 @@ def train(_net, _epoch, _conf):
         progress = batch_idx / len(train_loader)
 
         if (batch_idx + 1) % _conf.log_interval == 0:
-            print('[Net {} | Train] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('[Net {} | Train | Epoch {}] [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, _net.fitness.loss_stat.current_value))
 
         if progress >= train_portion:
+#        if ctx.Rand.chance(progress / _epoch):
             break
 
-    _net.fitness.absolute = test(_net, _conf)
+    _net.fitness.absolute = test(_net, _conf, _epoch)
 
     return _net
 
@@ -104,7 +105,7 @@ def main():
 
     cn.Net.Input.Shape = [1, 28, 28]
     cn.Net.Output.Shape = [10]
-    cn.Net.Init.Layers = [cl.Layer.Def([5,0,0])]
+    cn.Net.Init.Layers = []
 
     # If necessary, run the train loader to download the data
     if ctx.Conf.DownloadData:

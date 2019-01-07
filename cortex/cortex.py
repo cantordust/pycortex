@@ -7,7 +7,6 @@ from datetime import datetime
 import torch
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
-import torch.nn as tn
 import torch.nn.functional as tnf
 import torch.multiprocessing as tm
 tm.set_sharing_strategy('file_system')
@@ -274,7 +273,6 @@ def init():
 
             proto_net = cn.Net(_species = proto_species, _isolated = True)
 
-
             while cs.Species.find(proto_net.get_genome()) != 0:
                 proto_net.mutate(_parameters = False)
 
@@ -375,26 +373,34 @@ def save(_net_id,
 
 def cull():
 
+    wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+    for net_id, net in cn.Net.Ecosystem.items():
+        net = cn.Net.Ecosystem[net_id]
+        if (net.age > 0 and
+            net_id != cn.Net.Champion):
+            wheel.add(net_id, net.fitness.relative)
+
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 
-        # Get a random species ID
-        species_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-        for species in cs.Species.Populations.values():
-            species_wheel.add(species.ID, species.fitness.relative)
+#        # Get a random species ID
+#        species_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+#        for species in cs.Species.Populations.values():
+#            species_wheel.add(species.ID, species.fitness.relative)
 
-        species_id = species_wheel.spin()
+#        species_id = species_wheel.spin()
 
-        # Get a random network ID
-        net_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-        for net_id in cs.Species.Populations[species_id].nets:
-            net = cn.Net.Ecosystem[net_id]
-            if net.age > 0:
-                net_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
+#        # Get a random network ID
+#        net_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+#        for net_id in cs.Species.Populations[species_id].nets:
+#            net = cn.Net.Ecosystem[net_id]
+#            if net.age > 0:
+#                net_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
 
-        net_id = net_wheel.spin()
+        net_id = wheel.pop()
+        species_id = cn.Net.Ecosystem[net_id].species_id
 
         if net_id is not None:
-            print("Removing network", net_id, "from species", cn.Net.Ecosystem[net_id].species_id)
+            print('Removing network {} from species {}'.format(net_id, species_id))
 
             # Remove the network from the species.
             cs.Species.Populations[species_id].nets.remove(net_id)
