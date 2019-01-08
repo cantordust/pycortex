@@ -91,7 +91,7 @@ def train(_net, _epoch, _conf):
                 100. * progress, _net.fitness.loss_stat.current_value))
 
 #        if progress >= train_portion:
-        if ctx.Rand.chance(progress / _epoch):
+        if ctx.Rand.chance(progress / (_epoch * (_net.age + 1)) ):
             break
 
     _net.fitness.absolute = test(_net, _conf, _epoch)

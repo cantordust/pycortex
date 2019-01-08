@@ -99,7 +99,7 @@ class Layer(tn.Module):
         def print(self,
                   _file = sys.stdout):
 
-            print("\n\tShape:", self.shape,
+            print("\tShape:", self.shape,
                   "\n\tStride:", self.stride,
                   "\n\tBias:", self.bias,
                   "\n\tOp:", self.op,

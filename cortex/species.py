@@ -120,13 +120,13 @@ class Species:
               file = _file)
 
         for layer_index, layer in enumerate(self.genome):
-            print('Layer {}:'.format(layer_index), file = _file)
+            print('\nLayer {}:'.format(layer_index), file = _file)
             layer.print(_file = _file)
 
         output_layer = cl.Layer.Def(_shape = cn.Net.Output.Shape,
                                     _role = 'output')
 
-        print('Layer {}:'.format(len(self.genome)), file = _file)
+        print('\nLayer {}:'.format(len(self.genome)), file = _file)
         output_layer.print(_file = _file)
 
     def calibrate(self,

@@ -386,7 +386,7 @@ def cull():
     # Networks from species that haven't made much progress for a while
     # are more likely to be selected for culling.
     for species_id, species in cs.Species.Populations.items():
-        species_wheel.add(species_id, species.fitness.stat.get_sd())
+        species_wheel.add(species_id, species.fitness.relative * species.fitness.stat.get_sd())
 
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 
@@ -466,7 +466,7 @@ def evolve(_stats,
             wheel = Rand.RouletteWheel()
 
             for species_id, species in cs.Species.Populations.items():
-                wheel.add(species_id, species.fitness.stat.get_sd())
+                wheel.add(species_id, species.fitness.relative * species.fitness.stat.get_sd())
 
             while not wheel.is_empty():
                 cs.Species.Populations[wheel.pop()].evolve()
