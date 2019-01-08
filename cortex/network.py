@@ -155,7 +155,8 @@ class Net(tn.Module):
             shape[0] = len(layer.nodes)
 
             genome.append(cl.Layer.Def(_shape = shape,
-                                       _stride = [0] * len(layer.stride),
+#                                       _stride = [0] * len(layer.stride),
+                                       _stride = layer.stride,
                                        _bias = layer.bias is not None,
                                        _activation = layer.activation,
                                        _role = layer.role))
@@ -893,8 +894,12 @@ class Net(tn.Module):
             self.layers[-1].update_weights()
 
         self.species_id = _parent.species_id
+        if self.species_id != 0:
+            cs.Species.Populations[self.species_id].nets.add(self.ID)
 
     def get_mutation_probabilities(self):
+
+        probabilities = {}
 
 #        # Structural statistics
 #        layer_stats = Stat.SMAStat(_title = 'Layers per network')
@@ -917,37 +922,33 @@ class Net(tn.Module):
 
 #                    # Kernel size
 #                    kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
-#                    if len(layer.kernel_size) > kernel_dims:
+#                    if len(layer.kernel_size) > kernel_dim_stats.mean:
 #                        kernel_dim_stats.update(len(layer.kernel_size))
 
 #                    # Stride
-#                    stride_stats.update(cl.Layer.compute_output_shape(layer.get_output_nodes(),
-#                                                                      _input_shape,
-#                                                                      self.kernel_size,
-#                                                                      self.stride,
-#                                                                      self.padding,
-#                                                                      self.dilation)))
+#                    stride_stats.update(Func.prod(layer.get_output_shape()))
 
 #        # Adding or removing a layer involves severing existing links and adding new ones.
 #        # For this computation, we assume that the new layer will contain
 #        # anywhere between 1 and the mean number of nodes (hence the 0.5).
 #        # The SD is a correction term for the average number of nodes
 #        # in the following layer whose links would need to be adjusted.
-#        probabilities['layer'] = 0.5 * (node_stats.mean + 1) + node_stats.get_sd()) * link_stats.mean
+#        probabilities['layer'] = 0.5 * ((node_stats.mean + 1) + node_stats.get_sd()) * link_stats.mean
 
 #        # Adding or removing a node involves adding or removing new links.
 #        probabilities['node'] = link_stats.mean
 
 #        # Changing the stride of a layer involves resizing the input of all subsequent layers
-#        if stride_stats.count > 0:
-#            probabilities['stride'] =
+
+#        conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
+#        if conv_layer_count > 0:
+#            probabilities['stride'] = 0.5 * stride_stats.mean * link_stats.mean
 
 #        # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
 #        # This is multiplied by the average number of input nodes.
-#        if kernel_dim_stats.count > 0:
-#            probabilities['kernel_size'] = 2 * node_stats.mean * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
-
-        probabilities = {}
+#        kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
+#        if kernel_count > 0:
+#            probabilities['kernel'] = 2 * node_stats.mean * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
 
         parameter_count = self.get_parameter_count()
 
@@ -985,7 +986,7 @@ class Net(tn.Module):
         # The complexity can be increased or decreased
         # with probability proportional to the number
         # of parameters that the mutation will affect.
-        wheel = Rand.RouletteWheel()
+        wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
         if _structure:
 
@@ -994,10 +995,10 @@ class Net(tn.Module):
             if len(self.layers) > 1:
                 wheel.add('node', probabilities['node'])
 
-        if _parameters:
-
             if 'stride' in probabilities:
                 wheel.add('stride', probabilities['stride'])
+
+        if _parameters:
 
             if 'kernel' in probabilities:
                 wheel.add('kernel', probabilities['kernel'])
@@ -1005,30 +1006,20 @@ class Net(tn.Module):
         if wheel.is_empty():
             return False
 
-        element_type = wheel.spin()
+        element = wheel.spin()
 
-#        print("Mutating network", self.ID)
+        print("Mutating network", self.ID)
 
-#        for elem_index in range(len(wheel.elements)):
-#            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
+        for elem_index in range(len(wheel.elements)):
+            print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
 
         #return
 
         # Non-structural mutation
-        if (element_type == 'kernel' or
-            element_type == 'stride'):
+        if element == 'kernel':
 
-            if element_type == 'kernel':
-
-                print('\t>>> {} {}'.format('Growing' if complexify else 'Shrinking', element_type))
-                success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
-
-            if element_type == 'stride':
-                # Growing the stride actually reduces the number of parameters
-
-                print('\t>>> {} {}'.format('Shrinking' if complexify else 'Growing', element_type))
-
-                success, layer, delta = self.shrink_stride() if complexify else self.grow_stride()
+            print('\t>>> {} {}'.format('Growing' if complexify else 'Shrinking', element))
+            success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
 
         # Structural mutation
         else:
@@ -1041,17 +1032,25 @@ class Net(tn.Module):
                 len(cs.Species.Populations[self.species_id].nets) > 1):
                 return False
 
-            print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element_type))
+            if element == 'layer':
 
-            if element_type == 'layer':
+                print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element))
                 success, layer = self.add_layer() if complexify else self.remove_layer()
 
-            elif element_type == 'node':
+            elif element == 'node':
+
+                print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element))
                 success, layer, nodes = self.add_nodes() if complexify else self.remove_nodes()
 
+            elif element == 'stride':
+
+                # Growing the stride actually reduces the number of parameters
+                print('\t>>> {} {}'.format('Shrinking' if complexify else 'Growing', element))
+                success, layer, delta = self.shrink_stride() if complexify else self.grow_stride()
+
             if (success and              # If the mutation was successful
-                cs.Species.Enabled and   # and speciation is enabled
-                self.species_id > 0):    # and the network is not isolated
+                cs.Species.Enabled and   # ...and speciation is enabled
+                self.species_id > 0):    # ...and the network is not isolated
 
                 # Create a new species
                 new_species_id = cs.Species.find(_genome = self.get_genome())
@@ -1061,9 +1060,11 @@ class Net(tn.Module):
                     new_species = cs.Species.Populations[new_species_id]
 
                 # Add the network to the new species
+                print('\t>>> Adding net {} to species {}'.format(self.ID, new_species.ID))
                 new_species.nets.add(self.ID)
 
                 # Remove the network from the current species
+                print('\t>>> Removing net {} from species {}'.format(self.ID, self.species_id))
                 cs.Species.Populations[self.species_id].nets.remove(self.ID)
 
                 # Remove the species from the ecosystem if it has gone extinct

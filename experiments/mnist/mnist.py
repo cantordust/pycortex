@@ -77,7 +77,7 @@ def train(_net, _epoch, _conf):
         train_loader = get_train_loader(_conf)
 
     _net.fitness.loss_stat.reset()
-    train_portion = (1.0 - _net.fitness.relative)
+    train_portion = 1.0 - _net.fitness.relative
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(_conf.device), target.to(_conf.device)
@@ -90,11 +90,12 @@ def train(_net, _epoch, _conf):
                 _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, _net.fitness.loss_stat.current_value))
 
-        if progress >= train_portion:
-#        if ctx.Rand.chance(progress / _epoch):
+#        if progress >= train_portion:
+        if ctx.Rand.chance(progress / _epoch):
             break
 
     _net.fitness.absolute = test(_net, _conf, _epoch)
+    _net.fitness.stat.update(_net.fitness.absolute)
 
     return _net
 

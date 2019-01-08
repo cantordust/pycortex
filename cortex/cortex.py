@@ -373,12 +373,16 @@ def save(_net_id,
 
 def cull():
 
+    champions = [species.champion for species in cs.Species.Populations.values()]
+
     wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
     for net_id, net in cn.Net.Ecosystem.items():
         net = cn.Net.Ecosystem[net_id]
         if (net.age > 0 and
-            net_id != cn.Net.Champion):
-            wheel.add(net_id, net.fitness.relative)
+            net_id not in champions):
+            # Networks whose fitness hasn't changed much for a while
+            # are more likely to be eliminated.
+            wheel.add(net_id, net.fitness.relative / net.age)
 
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 
@@ -397,9 +401,11 @@ def cull():
 #                net_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
 
         net_id = wheel.pop()
-        species_id = cn.Net.Ecosystem[net_id].species_id
 
         if net_id is not None:
+
+            species_id = cn.Net.Ecosystem[net_id].species_id
+
             print('Removing network {} from species {}'.format(net_id, species_id))
 
             # Remove the network from the species.
@@ -450,8 +456,14 @@ def evolve(_stats,
         if _epoch < Conf.Epochs:
             # Evolve networks in all species.
             print("\t`-> Evolving networks...")
-            for species_id in list(cs.Species.Populations.keys()):
-                cs.Species.Populations[species_id].evolve()
+
+            wheel = Rand.RouletteWheel()
+
+            for species_id, species in cs.Species.Populations.items():
+                wheel.add(species_id, species.fitness.relative)
+
+            while not wheel.is_empty():
+                cs.Species.Populations[wheel.pop()].evolve()
 
             # Eliminate unfit networks and empty species.
             print("\t`-> Culling...")

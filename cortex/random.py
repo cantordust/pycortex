@@ -125,16 +125,33 @@ class RouletteWheel:
         element = self.elements[index]
 
         # Delete the element and the corresponding weight
-        del self.elements[index]
-        for weight_type in self.weights.keys():
-            del self.weights[weight_type][index]
+        self.remove(_index = index)
 
         return element
+
+    def remove(self,
+               _element = None,
+               _index = None):
+
+        if (_index is None and
+            _element is not None):
+            _index = 0
+            while _index < len(self.elements):
+                if self.elements[_index] == _element:
+                    break
+                _index += 1
+
+        if (_index is not None and
+            _index < len(self.elements)):
+            # Delete the element and the corresponding weight
+            del self.elements[_index]
+            for weight_type in self.weights.keys():
+                del self.weights[weight_type][_index]
 
     def replace(self,
                 _new_elements = []):
         assert isinstance(_new_elements, list) and len(self.elements) == len(_new_elements), "Invalid element list %r" % _new_elements
-        self.elements = list(_new_elements)
+        self.elements = _new_elements
 
     def lock(self):
         if self.locked_elem is None:

@@ -155,8 +155,7 @@ class Species:
 
             net_stats.update(absolute_fitness)
 
-#        print("Networks for species", self.ID, "sorted in order of descending fitness:", sorted_nets)
-        print("champion for species", self.ID, ":", self.champion)
+        print('>>> Champion for species {}: {}'.format(self.ID, self.champion))
 
         # Compute the relative fitness of the networks
         # belonging to this species
@@ -171,6 +170,7 @@ class Species:
                   "\t\tRelative:", cn.Net.Ecosystem[net_id].fitness.relative)
 
         self.fitness.absolute = net_stats.mean
+        self.fitness.stat.update(self.fitness.absolute)
 
     def evolve(self):
 
@@ -179,30 +179,44 @@ class Species:
         # Populate the parent wheel.
         # Networks that have been selected for crossover
         # will pick a partner at random by spinning the wheel.
-        parent_wheel = Rand.RouletteWheel()
+        parent1_wheel = Rand.RouletteWheel()
+        parent2_wheel = Rand.RouletteWheel()
         for net_id in self.nets:
             if cn.Net.Ecosystem[net_id].age > 0:
-                parent_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
+                parent1_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
+                parent2_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
 
         # Iterate over the networks and check if we should perform crossover or mutation
-        for net_id in list(self.nets):
-            if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
-                Rand.chance(cn.Net.Ecosystem[net_id].fitness.relative)):
+        while not parent1_wheel.is_empty():
+
+            # Choose one parent
+            p1 = parent1_wheel.pop()
+
+            if Rand.chance(cn.Net.Ecosystem[net_id].fitness.relative / (Species.Offspring + 1)):
 
                 # Fitter networks have a better chance of mating
-                p2 = cn.Net.Ecosystem[parent_wheel.spin()]
-                if p2.ID != net_id:
+                p2 = parent2_wheel.spin()
+
+                if p1 != p2:
                     # Crossover
-                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _p2 = p2, _species = self)
+                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[p1], _p2 = cn.Net.Ecosystem[p2])
 
                 else:
-                    # Cloning
-                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[net_id], _species = self)
+                    # Clone
+                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[p1])
                     offspring.mutate(_structure = False)
 
                 # Increase the offspring count
                 Species.Offspring += 1
 
-            elif (net_id != self.champion and
+            elif (p1 != self.champion and
                   Rand.chance(1.0 - cn.Net.Ecosystem[net_id].fitness.relative)):
+
                 cn.Net.Ecosystem[net_id].mutate()
+
+                if cn.Net.Ecosystem[net_id].species_id != self.ID:
+                    # The network has moved to another species.
+                    # Remove it from the other wheel.
+                    parent2_wheel.remove(p1)
+
+

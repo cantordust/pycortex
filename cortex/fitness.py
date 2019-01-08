@@ -10,4 +10,8 @@ class Fitness:
         self.relative = 0.0
 
         # Running statistics about the absolute accuracy
+        self.stat = Stat.EMAStat()
+
+        # Running statistics about the loss
         self.loss_stat = Stat.EMAStat()
+

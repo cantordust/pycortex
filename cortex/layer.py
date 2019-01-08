@@ -445,8 +445,6 @@ class Layer(tn.Module):
 
         wheel = Rand.RouletteWheel()
 
-        print('Input shape: {}'.format(self.input_shape))
-
         strides = []
         # Possible strides.
         for dim, radius in enumerate(self.input_shape[1:]):

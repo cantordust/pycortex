@@ -44,16 +44,18 @@ class Stat:
                    _val = None,
                    _func = Func.Type.Logistic):
 
-        val = self.current_value if _val is None else _val
+        if _val is None:
+            _val = self.current_value
+
         denom = 1.0
         if self.var > 0.0:
             denom = self.get_sd()
-        elif val != 0.0:
-            denom = abs(val)
+        elif _val != 0.0:
+            denom = abs(_val)
         elif self.mean != 0.0:
             denom = abs(self.mean)
 
-        return Func.fmap[_func]((val - self.mean) / denom)
+        return Func.fmap[_func]((_val - self.mean) / denom)
 
     def get_inv_offset(self,
                        _val = None):
