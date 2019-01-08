@@ -400,7 +400,7 @@ def cull():
         # Get a random network ID
 
         wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-        for net_id, net in cn.Net.Ecosystem.items():
+        for net_id in cs.Species.Populations[species_id].nets:
             net = cn.Net.Ecosystem[net_id]
             if (net.age > 0 and
                 net_id not in champions):
