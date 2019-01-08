@@ -257,6 +257,12 @@ def init():
     # into existence in the digital primordial bouillon.
     proto_net = cn.Net(_isolated = True)
 
+    probabilities = {
+                'layer': 1,
+                'node': 1,
+                'stride': 1
+                }
+
     if cs.Species.Enabled:
         # Generate proto-species and proto-nets
         while True:
@@ -274,7 +280,7 @@ def init():
             proto_net = cn.Net(_species = proto_species, _isolated = True)
 
             while cs.Species.find(proto_net.get_genome()) != 0:
-                proto_net.mutate(_parameters = False)
+                proto_net.mutate(_parameters = False, _probabilities = probabilities)
 
     else:
 
@@ -375,14 +381,12 @@ def cull():
 
     champions = [species.champion for species in cs.Species.Populations.values()]
 
-    wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-    for net_id, net in cn.Net.Ecosystem.items():
-        net = cn.Net.Ecosystem[net_id]
-        if (net.age > 0 and
-            net_id not in champions):
-            # Networks whose fitness hasn't changed much for a while
-            # are more likely to be eliminated.
-            wheel.add(net_id, net.fitness.relative / net.age)
+    species_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+
+    # Networks from species that haven't made much progress for a while
+    # are more likely to be selected for culling.
+    for species_id, species in cs.Species.Populations.items():
+        species_wheel.add(species_id, species.fitness.stat.get_sd())
 
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 
@@ -391,20 +395,22 @@ def cull():
 #        for species in cs.Species.Populations.values():
 #            species_wheel.add(species.ID, species.fitness.relative)
 
-#        species_id = species_wheel.spin()
+        species_id = species_wheel.spin()
 
-#        # Get a random network ID
-#        net_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-#        for net_id in cs.Species.Populations[species_id].nets:
-#            net = cn.Net.Ecosystem[net_id]
-#            if net.age > 0:
-#                net_wheel.add(net_id, cn.Net.Ecosystem[net_id].fitness.relative)
+        # Get a random network ID
 
-        net_id = wheel.pop()
+        wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+        for net_id, net in cn.Net.Ecosystem.items():
+            net = cn.Net.Ecosystem[net_id]
+            if (net.age > 0 and
+                net_id not in champions):
+                # Networks whose fitness is low or hasn't changed much for a while
+                # are more likely to be eliminated.
+                wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_sd() / net.age)
+
+        net_id = wheel.spin()
 
         if net_id is not None:
-
-            species_id = cn.Net.Ecosystem[net_id].species_id
 
             print('Removing network {} from species {}'.format(net_id, species_id))
 
@@ -460,7 +466,7 @@ def evolve(_stats,
             wheel = Rand.RouletteWheel()
 
             for species_id, species in cs.Species.Populations.items():
-                wheel.add(species_id, species.fitness.relative)
+                wheel.add(species_id, species.fitness.stat.get_sd())
 
             while not wheel.is_empty():
                 cs.Species.Populations[wheel.pop()].evolve()

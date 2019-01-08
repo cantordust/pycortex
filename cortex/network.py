@@ -970,10 +970,11 @@ class Net(tn.Module):
 
     def mutate(self,
                _structure = True,
-               _parameters = True):
+               _parameters = True,
+               _probabilities = None):
 
         # Statistics about the structure of this network
-        probabilities = self.get_mutation_probabilities()
+        probabilities = self.get_mutation_probabilities() if _probabilities is None else _probabilities
 
 #        print('>>> Mutation probabilities:\n{}'.format(probabilities))
 
