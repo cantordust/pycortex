@@ -212,7 +212,14 @@ class Species:
             elif (p1 != self.champion and
                   Rand.chance(1.0 - cn.Net.Ecosystem[net_id].fitness.relative)):
 
-                cn.Net.Ecosystem[net_id].mutate()
+                probabilities = {
+                                'layer': 1,
+                                'node': 1,
+                                'stride': 1,
+                                'kernel': 1
+                                }
+
+                cn.Net.Ecosystem[net_id].mutate(_probabilities = probabilities)
 
                 if cn.Net.Ecosystem[net_id].species_id != self.ID:
                     # The network has moved to another species.
