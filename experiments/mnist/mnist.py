@@ -7,15 +7,12 @@ Created on Thu Oct 11 14:52:44 2018
 @license: MIT ((https://opensource.org/licence/MIT)
 """
 
-import torch.multiprocessing as tm
 import torch
 from torchvision import datasets, transforms
 
 import cortex.cortex as ctx
 import cortex.network as cn
 import cortex.layer as cl
-
-loader_lock = tm.Lock()
 
 def get_train_loader(_conf):
 
@@ -41,14 +38,13 @@ def get_test_loader(_conf):
 
     return test_loader
 
-def test(_net, _conf, _epoch):
+def test(_conf, _net):
 
     _net.eval()
     test_loss = 0
     correct = 0
 
-    with loader_lock:
-        test_loader = get_test_loader(_conf)
+    test_loader = get_test_loader(_conf)
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -62,19 +58,18 @@ def test(_net, _conf, _epoch):
 
     accuracy = 100. * correct / len(test_loader.dataset)
     print('\t[Net {} | Test | Epoch {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
-        _net.ID, _epoch, test_loss, correct, len(test_loader.dataset),
+        _net.ID, _conf.epoch, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
     return accuracy
 
-def train(_net, _epoch, _conf):
+def train(_conf, _net):
 
     _net = _net.to(_conf.device)
     _net.train()
     optimiser = _conf.optimiser(_net.parameters(), lr = 1.0 - _net.fitness.relative)
 
-    with loader_lock:
-        train_loader = get_train_loader(_conf)
+    train_loader = get_train_loader(_conf)
 
     _net.fitness.loss_stat.reset()
     train_portion = 1.0 - _net.fitness.relative
@@ -87,14 +82,14 @@ def train(_net, _epoch, _conf):
 
         if (batch_idx + 1) % _conf.log_interval == 0:
             print('[Net {} | Train | Epoch {}] [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
+                _net.ID, _conf.epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, _net.fitness.loss_stat.current_value))
 
 #        if progress >= train_portion:
-        if ctx.Rand.chance(progress / (_epoch * (_net.age + 1)) ):
+        if ctx.Rand.chance(progress / _conf.epoch):
             break
 
-    _net.fitness.absolute = test(_net, _conf, _epoch)
+    _net.fitness.absolute = test(_conf, _net)
     _net.fitness.stat.update(_net.fitness.absolute)
 
     return _net

@@ -3,13 +3,15 @@ import os
 import sys
 import math
 from datetime import datetime
+from enum import IntEnum
+from copy import deepcopy as dcp
+
+from mpi4py import  MPI
 
 import torch
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
 
 import torch.nn.functional as tnf
-import torch.multiprocessing as tm
-tm.set_sharing_strategy('file_system')
 
 from tensorboardX import SummaryWriter
 
@@ -22,6 +24,13 @@ import cortex.layer as cl
 import cortex.species as cs
 
 ################[ Global variables ]################
+
+class Tags(IntEnum):
+    Ready = 0
+    Start = 2
+    Done = 3
+    Exit = 4
+    Error = 5
 
 class Conf:
     ExperimentName = 'Experiment'
@@ -56,6 +65,25 @@ class Conf:
     UnitTestMode = False
 
     Evaluator = None
+
+    def __init__(self):
+        self.train_batch_size = Conf.TrainBatchSize
+        self.test_batch_size = Conf.TestBatchSize
+
+        self.data_dir = Conf.DataDir
+        self.data_load_args = Conf.DataLoadArgs
+
+        self.device = Conf.Device
+
+        self.log_interval = Conf.LogInterval
+
+        self.optimiser = Conf.Optimiser
+        self.loss_function = Conf.LossFunction
+
+        self.output_function = Conf.OutputFunction
+        self.output_function_args = Conf.OutputFunctionArgs
+
+        self.evaluator = Conf.Evaluator
 
 def init_conf():
 
@@ -379,38 +407,23 @@ def save(_net_id,
 
 def cull():
 
-    champions = [species.champion for species in cs.Species.Populations.values()]
+    wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
-    species_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-
-    # Networks from species that haven't made much progress for a while
-    # are more likely to be selected for culling.
-    for species_id, species in cs.Species.Populations.items():
-        species_wheel.add(species_id, species.fitness.relative * species.fitness.stat.get_sd())
+    for net_id, net in cn.Net.Ecosystem.items():
+        if (net.age > 0 and
+            net_id != cn.Net.Champion):
+            # Networks whose fitness is low or hasn't changed much for a while
+            # are more likely to be eliminated.
+            wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_offset() / net.age)
 
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 
-#        # Get a random species ID
-#        species_wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-#        for species in cs.Species.Populations.values():
-#            species_wheel.add(species.ID, species.fitness.relative)
-
-        species_id = species_wheel.spin()
-
         # Get a random network ID
-
-        wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
-        for net_id in cs.Species.Populations[species_id].nets:
-            net = cn.Net.Ecosystem[net_id]
-            if (net.age > 0 and
-                net_id not in champions):
-                # Networks whose fitness is low or hasn't changed much for a while
-                # are more likely to be eliminated.
-                wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_sd() / net.age)
-
-        net_id = wheel.spin()
+        net_id = wheel.pop()
 
         if net_id is not None:
+
+            species_id = cn.Net.Ecosystem[net_id].species_id
 
             print('Removing network {} from species {}'.format(net_id, species_id))
 
@@ -475,58 +488,137 @@ def evolve(_stats,
             print("\t`-> Culling...")
             cull()
 
+def eval(_net,
+         _epoch,
+         _conf):
+    pass
+
 def run():
 
-    assert Conf.Evaluator is not None, "Please assign a function for training networks."
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    status = MPI.Status()
 
-    stats = {
-            'Parameters': Stat.SMAStat('Parameters'),
-            'Accuracy': Stat.SMAStat('Accuracy')
-            }
+    if rank == 0:
+        # Master process
 
-    context = tm.get_context('spawn')
+        assert Conf.Evaluator is not None, "Please assign a function for training networks."
 
-    shared_conf = tm.Manager().Namespace()
+        # Experiment statistics
+        stats = {
+                'Parameters': Stat.SMAStat('Parameters'),
+                'Accuracy': Stat.SMAStat('Accuracy')
+                }
 
-    shared_conf.data_dir = Conf.DataDir
-    shared_conf.data_load_args = Conf.DataLoadArgs
-    shared_conf.train_batch_size = Conf.TrainBatchSize
-    shared_conf.test_batch_size = Conf.TestBatchSize
-    shared_conf.device = Conf.Device
-    shared_conf.loss_function = Conf.LossFunction
-    shared_conf.output_function = Conf.OutputFunction
-    shared_conf.output_function_args = Conf.OutputFunctionArgs
-    shared_conf.optimiser = Conf.Optimiser
-    shared_conf.log_interval = Conf.LogInterval
+        # Wait for all workers to return a Ready signal
+        workers_alive = 0
+        while workers_alive < size - 1:
+            while not comm.Iprobe(source=MPI.ANY_SOURCE):
+                pass
 
-    for run in range(1, Conf.Runs + 1):
+            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            source = status.Get_source()
+            tag = status.Get_tag()
 
-        init()
+            if tag == Tags.Ready:
+                print('Worker {} ready'.format(source))
+                workers_alive += 1
 
-        print("===============[ Run", run, "]===============")
+        # List of free workers
+        free_workers = []
+        for worker in range(1,size):
+            free_workers.append(worker)
 
-        for epoch in range(1, Conf.Epochs + 1):
+        # Worker management subroutine
+        def manage_workers(free_workers):
 
-            print("======[ Epoch", epoch, "]======")
+            while not comm.iprobe(source=MPI.ANY_SOURCE):
+                pass
 
-            print("\t`-> Evaluating networks...")
+            net = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            source = status.Get_source()
+            tag = status.Get_tag()
 
-            with context.Pool(processes = Conf.MaxWorkers) as pool:
-                nets = pool.starmap(Conf.Evaluator, zip(cn.Net.Ecosystem.values(), [epoch] * len(cn.Net.Ecosystem), [shared_conf] * len(cn.Net.Ecosystem)))
-                pool.close()
-                pool.join()
-
-            for net in nets:
+            if tag == Tags.Done:
                 cn.Net.Ecosystem[net.ID] = net
+                free_workers.append(source)
 
-            evolve(stats, run, epoch)
+        # Run the task
+        for run in range(1, Conf.Runs + 1):
 
-        for net_id in cn.Net.Ecosystem.keys():
-            save(net_id, run, epoch)
+            print("===============[ Run", run, "]===============")
 
-    with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
-        print_conf(_file = cfg_file)
+            # Fresh configuration
+            conf = Conf()
 
-    for key, stat in stats.items():
-        with open(Conf.LogDir + '/' + str(key) + '_stat.txt', 'w+') as stat_file:
-            stat.print(_file = stat_file)
+            # Initialise the ecosystem
+            init()
+
+            for epoch in range(1, Conf.Epochs + 1):
+
+                print("======[ Epoch", epoch, "]======")
+
+                conf.epoch = epoch
+
+                print("\t`-> Evaluating networks...")
+
+                # Dispatch the networks for evaluation
+
+                net_ids = dcp(list(cn.Net.Ecosystem.keys()))
+
+                while len(net_ids) > 0:
+
+                    # Wait for a free worker
+                    while len(free_workers) == 0:
+                        manage_workers(free_workers)
+
+                    worker = free_workers.pop()
+                    net_id = net_ids.pop()
+                    package = (cn.Net.Ecosystem[net_id], conf)
+                    comm.send(package, dest = worker, tag=Tags.Start)
+
+                # Wait for the last workers to finish
+                while len(free_workers) < size - 1:
+                    manage_workers(free_workers)
+
+                evolve(stats, run, epoch)
+
+            for net_id in cn.Net.Ecosystem.keys():
+                save(net_id, run, epoch)
+
+        with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
+            print_conf(_file = cfg_file)
+
+        for key, stat in stats.items():
+            with open(Conf.LogDir + '/' + str(key) + '_stat.txt', 'w+') as stat_file:
+                stat.print(_file = stat_file)
+
+        for worker in range(1, size):
+            comm.send(None, dest = worker, tag=Tags.Exit)
+
+    else:
+
+        comm.send(None, dest=0, tag=Tags.Ready)
+
+        while True:
+
+            while not comm.iprobe(source=0):
+                pass
+
+            package = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
+            tag = status.Get_tag()
+
+            if tag == Tags.Start:
+
+                net, conf = package[0], package[1]
+                conf.evaluator(conf, net)
+
+                comm.send(net, dest=0, tag = Tags.Done)
+
+            elif (tag == Tags.Error or
+                  tag == Tags.Exit):
+                break
+
+        comm.send(None, dest=0, tag=Tags.Exit)
+        print('Worker {} exiting...'.format(rank))

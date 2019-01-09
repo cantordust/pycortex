@@ -540,7 +540,7 @@ class Net(tn.Module):
         for dim in _delta.keys():
             _delta[dim] = abs(_delta[dim])
 
-        print('[Net {}] >>> Growing dimension {} of node {} in layer {} by {}'.format(self.ID, *_delta.keys(), _node_index, _layer_index, *_delta.values() ))
+        print('[Net {}] >>> Growing dimension {} of kernel {} in layer {} by {}'.format(self.ID, *_delta.keys(), _node_index, _layer_index, *_delta.values() ))
 
         # Grow the kernel
         success = self.layers[_layer_index].resize_kernel(_node_index, _delta)
@@ -959,19 +959,22 @@ class Net(tn.Module):
         probabilities['node'] = parameter_count / node_count
 
         conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
+        conv_layer_parameter_count = sum([layer.get_parameter_count() for layer in self.layers if layer.is_conv])
+
         if conv_layer_count > 0:
-            probabilities['stride'] = parameter_count / conv_layer_count
+            probabilities['stride'] = conv_layer_parameter_count / conv_layer_count
 
         kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
         if kernel_count > 0:
-            probabilities['kernel'] = parameter_count / kernel_count
+            probabilities['kernel'] = conv_layer_parameter_count / kernel_count
 
         return probabilities
 
     def mutate(self,
                _structure = True,
                _parameters = True,
-               _probabilities = None):
+               _probabilities = None,
+               _complexify = None):
 
         # Statistics about the structure of this network
         probabilities = self.get_mutation_probabilities() if _probabilities is None else _probabilities
@@ -982,7 +985,7 @@ class Net(tn.Module):
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
-        complexify = Rand.chance(1.0 - self.get_complexity())
+        complexify = Rand.chance(1.0 - self.get_complexity()) if _complexify is None else _complexify
 
         # The complexity can be increased or decreased
         # with probability proportional to the number
@@ -1070,6 +1073,7 @@ class Net(tn.Module):
 
                 # Remove the species from the ecosystem if it has gone extinct
                 if len(cs.Species.Populations[self.species_id].nets) == 0:
+                    print('\t>>> Removing extinct species {}'.format(self.species_id))
                     del cs.Species.Populations[self.species_id]
 
                 # Store the species ID in this network
