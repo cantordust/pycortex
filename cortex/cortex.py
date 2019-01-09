@@ -72,6 +72,7 @@ class Conf:
 
         self.data_dir = Conf.DataDir
         self.data_load_args = Conf.DataLoadArgs
+        self.download_data = Conf.DownloadData
 
         self.device = Conf.Device
 
@@ -488,10 +489,8 @@ def evolve(_stats,
             print("\t`-> Culling...")
             cull()
 
-def eval(_net,
-         _epoch,
-         _conf):
-    pass
+def get_rank():
+    return MPI.COMM_WORLD.Get_rank()
 
 def run():
 

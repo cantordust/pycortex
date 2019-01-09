@@ -96,23 +96,25 @@ def train(_conf, _net):
 
 def main():
 
-    # Parse command line arguments and set default parameters
-    ctx.init_conf()
+    if ctx.get_rank() == 0:
 
-    cn.Net.Input.Shape = [1, 28, 28]
-    cn.Net.Output.Shape = [10]
-    cn.Net.Init.Layers = []
+        # This is the master process.
+        # Parse command line arguments and set default parameters
+        ctx.init_conf()
 
-    # If necessary, run the train loader to download the data
-    if ctx.Conf.DownloadData:
-        datasets.MNIST(ctx.Conf.DataDir,
-                       download=True,
-                       transform=transforms.Normalize((0.1307,), (0.3081,)))
+        # Set the initial parameters
+        cn.Net.Input.Shape = [1, 28, 28]
+        cn.Net.Output.Shape = [10]
+        cn.Net.Init.Layers = []
 
-    ctx.Conf.Evaluator = train
+        # If necessary, run the train loader to download the data
+        if ctx.Conf.DownloadData:
+            datasets.MNIST(ctx.Conf.DataDir,
+                           download=True,
+                           transform=transforms.Normalize((0.1307,), (0.3081,)))
 
-    # Print the current configuration
-    ctx.print_conf()
+        # Assign the train function
+        ctx.Conf.Evaluator = train
 
     # Run Cortex
 #    ctx.init()
