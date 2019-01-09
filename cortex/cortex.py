@@ -463,6 +463,7 @@ def evolve(_stats,
             save(net.ID, _run, _epoch)
 
         Conf.Logger.add_scalar('Highest fitness', cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute, _epoch)
+        Conf.Logger.add_scalar('Average fitness', sum([net.fitness.absolute for net in cn.Net.Ecosystem.values()]) / len(cn.Net.Ecosystem), _epoch)
         Conf.Logger.add_scalar('Parameter count for champion', cn.Net.Ecosystem[cn.Net.Champion].get_parameter_count(), _epoch)
         Conf.Logger.add_scalar('Network count', len(cn.Net.Ecosystem), _epoch)
         Conf.Logger.add_scalar('Species count', len(cs.Species.Populations), _epoch)
@@ -486,8 +487,9 @@ def evolve(_stats,
                 cs.Species.Populations[wheel.pop()].evolve()
 
             # Eliminate unfit networks and empty species.
-            print("\t`-> Culling...")
-            cull()
+            if len(cn.Net.Ecosystem) > cn.Net.Max.Count:
+                print("\t`-> Culling...")
+                cull()
 
 def get_rank():
     return MPI.COMM_WORLD.Get_rank()
@@ -590,6 +592,7 @@ def run():
             print_conf(_file = cfg_file)
 
         for key, stat in stats.items():
+            stat.print()
             with open(Conf.LogDir + '/' + str(key) + '_stat.txt', 'w+') as stat_file:
                 stat.print(_file = stat_file)
 
