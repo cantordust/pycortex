@@ -415,7 +415,7 @@ def cull():
             net_id != cn.Net.Champion):
             # Networks whose fitness is low or hasn't changed much for a while
             # are more likely to be eliminated.
-            wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_offset() / net.age)
+            wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_sd() / net.age)
 
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 

@@ -212,7 +212,6 @@ class Species:
             elif (p1 != self.champion and
                   Rand.chance(1.0 - cn.Net.Ecosystem[net_id].fitness.relative)):
 
-
                 cn.Net.Ecosystem[net_id].mutate()
 
                 if cn.Net.Ecosystem[net_id].species_id != self.ID:
