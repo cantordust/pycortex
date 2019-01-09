@@ -192,7 +192,7 @@ class Species:
             # Choose one parent
             p1 = parent1_wheel.pop()
 
-            if Rand.chance(cn.Net.Ecosystem[net_id].fitness.relative / (Species.Offspring + 1)):
+            if Rand.chance(cn.Net.Ecosystem[p1].fitness.relative / (Species.Offspring + 1)):
 
                 # Fitter networks have a better chance of mating
                 p2 = parent2_wheel.spin()
@@ -210,7 +210,7 @@ class Species:
                 Species.Offspring += 1
 
             elif (p1 != self.champion and
-                  Rand.chance(1.0 - cn.Net.Ecosystem[net_id].fitness.relative)):
+                  Rand.chance(1.0 - cn.Net.Ecosystem[p1].fitness.relative)):
 
                 probabilities = {
                                 'layer': 1,
@@ -219,9 +219,9 @@ class Species:
                                 'kernel': 1
                                 }
 
-                cn.Net.Ecosystem[net_id].mutate(_probabilities = probabilities)
+                cn.Net.Ecosystem[p1].mutate(_probabilities = probabilities)
 
-                if cn.Net.Ecosystem[net_id].species_id != self.ID:
+                if cn.Net.Ecosystem[p1].species_id != self.ID:
                     # The network has moved to another species.
                     # Remove it from the other wheel.
                     parent2_wheel.remove(p1)
