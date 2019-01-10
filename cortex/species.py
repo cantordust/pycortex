@@ -210,10 +210,16 @@ class Species:
                 # Increase the offspring count
                 Species.Offspring += 1
 
-            elif (p1 != self.champion and
-                  Rand.chance(1.0 - cn.Net.Ecosystem[p1].fitness.relative)):
+            elif p1 != self.champion:
 
-                cn.Net.Ecosystem[p1].mutate()
+                probabilities = {
+                                'layer': 1,
+                                'node': 1,
+                                'stride': 1,
+                                'kernel': 1
+                                }
+
+                cn.Net.Ecosystem[p1].mutate(_probabilities = probabilities)
 
                 if cn.Net.Ecosystem[p1].species_id != self.ID:
                     # The network has moved to another species.

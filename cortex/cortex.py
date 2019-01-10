@@ -517,7 +517,7 @@ def evolve(_stats,
             wheel = Rand.RouletteWheel()
 
             for species_id, species in cs.Species.Populations.items():
-                wheel.add(species_id, species.fitness.relative)
+                wheel.add(species_id, species.fitness.relative * species.fitness.stat.get_sd())
 
             while not wheel.is_empty():
                 cs.Species.Populations[wheel.pop()].evolve()
