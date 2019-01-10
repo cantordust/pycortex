@@ -80,7 +80,7 @@ def train(_conf, _net):
         progress = batch_idx / len(train_loader)
 
         # Skip this training batch with probability proportional to the fitness and the progress
-        if ctx.Rand.chance(net.relative_fitness * progress):
+        if ctx.Rand.chance(net.fitness.relative * progress):
             continue
 
         data, target = data.to(_conf.device), target.to(_conf.device)
