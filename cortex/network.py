@@ -154,12 +154,11 @@ class Net(tn.Module):
             shape = [0] * len(layer.get_output_shape())
             shape[0] = len(layer.nodes)
 
-            genome.append(cl.Layer.Def(_shape = shape,
-#                                       _stride = [0] * len(layer.stride),
-                                       _stride = layer.stride,
+            genome.append(cl.Layer.Def(_shape = dcp(shape),
+                                       _stride = dcp(layer.stride),
                                        _bias = layer.bias is not None,
                                        _activation = layer.activation,
-                                       _role = layer.role))
+                                       _role = dcp(layer.role)))
 
         return genome
 
@@ -534,7 +533,7 @@ class Net(tn.Module):
                 _node_index = node_index
 
             if len(_delta) == 0:
-                _delta = {dim: 1}
+                _delta[dim] = 1
 
         # Ensure all deltas are positive
         for dim in _delta.keys():
@@ -586,7 +585,7 @@ class Net(tn.Module):
                 _node_index = node_index
 
             if len(_delta) == 0:
-                _delta = {dim: -1}
+                _delta[dim] = -1
 
         # Ensure all deltas are negative
         for dim in _delta.keys():
@@ -603,7 +602,9 @@ class Net(tn.Module):
                     _layer_index = None,
                     _delta = {}):
 
-        if _layer_index is None:
+        if (_layer_index is None or
+            len(_delta) == 0):
+
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index, layer in enumerate(self.layers):
@@ -624,7 +625,7 @@ class Net(tn.Module):
                 _layer_index = layer_index
 
             if len(_delta) == 0:
-                _delta = {dim: 1}
+                _delta[dim] = 1
 
         # Ensure all deltas are positive
         for dim in _delta.keys():
@@ -646,10 +647,12 @@ class Net(tn.Module):
                       _layer_index = None,
                       _delta = {}):
 
-        if _layer_index is None:
-          wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+        if (_layer_index is None or
+            len(_delta) == 0):
 
-          for layer_index, layer in enumerate(self.layers):
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+
+            for layer_index, layer in enumerate(self.layers):
 
               # Check how many links we have to add and / or remove
               # to insert a layer of each allowed shape
@@ -660,16 +663,16 @@ class Net(tn.Module):
                   if layer.stride[dim] > 1:
                       wheel.add((layer_index, dim), 1)
 
-          if wheel.is_empty():
-              return (False, _layer_index, _delta)
+            if wheel.is_empty():
+                return (False, _layer_index, _delta)
 
-          layer_index, dim = wheel.spin()
+            layer_index, dim = wheel.spin()
 
-          if _layer_index is None:
-              _layer_index = layer_index
+            if _layer_index is None:
+                _layer_index = layer_index
 
-          if len(_delta) == 0:
-              _delta = {dim: -1}
+            if len(_delta) == 0:
+                _delta[dim] = -1
 
         # Ensure all deltas are negative
         for dim in _delta.keys():
@@ -1021,64 +1024,67 @@ class Net(tn.Module):
 
         #return
 
+        # Do not allow structural mutations if we have reached the limit
+        # on the species count and this network's species has more than one member
+        if (element != 'kernel' and
+            cs.Species.Enabled and
+            cs.Species.Max.Count > 0 and
+            len(cs.Species.Populations) == cs.Species.Max.Count and
+            len(cs.Species.Populations[self.species_id].nets) > 1):
+            return False
+
         # Non-structural mutation
         if element == 'kernel':
 
             print('\t>>> {} {}'.format('Growing' if complexify else 'Shrinking', element))
-            success, layer, node, delta = self.grow_kernel() if complexify else self.shrink_kernel()
+            result = self.grow_kernel() if complexify else self.shrink_kernel()
 
-        # Structural mutation
-        else:
+        elif element == 'layer':
 
-            # Do not allow structural mutations if we have reached the limit
-            # on the species count and this network's species has more than one member
-            if (cs.Species.Enabled and
-                cs.Species.Max.Count > 0 and
-                len(cs.Species.Populations) == cs.Species.Max.Count and
-                len(cs.Species.Populations[self.species_id].nets) > 1):
-                return False
+            print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element))
+            result = self.add_layer() if complexify else self.remove_layer()
 
-            if element == 'layer':
+        elif element == 'node':
 
-                print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element))
-                success, layer = self.add_layer() if complexify else self.remove_layer()
+            print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element))
+            result = self.add_nodes() if complexify else self.remove_nodes()
 
-            elif element == 'node':
+        elif element == 'stride':
 
-                print('\t>>> {} {}'.format('Adding' if complexify else 'Removing', element))
-                success, layer, nodes = self.add_nodes() if complexify else self.remove_nodes()
+            # Growing the stride actually reduces the number of parameters
+            print('\t>>> {} {}'.format('Shrinking' if complexify else 'Growing', element))
+            result = self.shrink_stride() if complexify else self.grow_stride()
 
-            elif element == 'stride':
+        success = result[0]
 
-                # Growing the stride actually reduces the number of parameters
-                print('\t>>> {} {}'.format('Shrinking' if complexify else 'Growing', element))
-                success, layer, delta = self.shrink_stride() if complexify else self.grow_stride()
+        if not success:
+            print('[Net {}]\t Failed!')
 
-            if (success and              # If the mutation was successful
-                cs.Species.Enabled and   # ...and speciation is enabled
-                self.species_id > 0):    # ...and the network is not isolated
+        if (success and              # If the mutation was successful
+            cs.Species.Enabled and   # ...and speciation is enabled
+            self.species_id > 0):    # ...and the network is not isolated
 
-                # Create a new species
-                new_species_id = cs.Species.find(_genome = self.get_genome())
-                if new_species_id == 0:
-                    new_species = cs.Species(_genome = self.get_genome())
-                else:
-                    new_species = cs.Species.Populations[new_species_id]
+            # Create a new species
+            new_species_id = cs.Species.find(_genome = self.get_genome())
+            if new_species_id == 0:
+                new_species = cs.Species(_genome = self.get_genome())
+            else:
+                new_species = cs.Species.Populations[new_species_id]
 
-                # Add the network to the new species
-                print('\t>>> Adding net {} to species {}'.format(self.ID, new_species.ID))
-                new_species.nets.add(self.ID)
+            # Remove the network from the current species
+            print('\t>>> Removing net {} from species {}'.format(self.ID, self.species_id))
+            cs.Species.Populations[self.species_id].nets.remove(self.ID)
 
-                # Remove the network from the current species
-                print('\t>>> Removing net {} from species {}'.format(self.ID, self.species_id))
-                cs.Species.Populations[self.species_id].nets.remove(self.ID)
+            # Add the network to the new species
+            print('\t>>> Adding net {} to species {}'.format(self.ID, new_species.ID))
+            new_species.nets.add(self.ID)
 
-                # Remove the species from the ecosystem if it has gone extinct
-                if len(cs.Species.Populations[self.species_id].nets) == 0:
-                    print('\t>>> Removing extinct species {}'.format(self.species_id))
-                    del cs.Species.Populations[self.species_id]
+            # Remove the species from the ecosystem if it has gone extinct
+            if len(cs.Species.Populations[self.species_id].nets) == 0:
+                print('\t>>> Removing extinct species {}'.format(self.species_id))
+                del cs.Species.Populations[self.species_id]
 
-                # Store the species ID in this network
-                self.species_id = new_species.ID
+            # Store the species ID in this network
+            self.species_id = new_species.ID
 
         return success

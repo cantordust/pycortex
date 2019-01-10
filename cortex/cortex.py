@@ -40,7 +40,7 @@ class Conf:
     Runs = 1
     Epochs = 50
 
-    TrainBatchSize = 64
+    TrainBatchSize = 4
     TestBatchSize = 1000
 
     DataDir = ''
@@ -313,7 +313,8 @@ def init():
     probabilities = {
                 'layer': 1,
                 'node': 1,
-                'stride': 1
+                'stride': 1,
+                'kernel': 1
                 }
 
     if cs.Species.Enabled:
@@ -333,7 +334,7 @@ def init():
             proto_net = cn.Net(_species = proto_species, _isolated = True)
 
             while cs.Species.find(proto_net.get_genome()) != 0:
-                proto_net.mutate(_parameters = False, _probabilities = probabilities)
+                proto_net.mutate(_probabilities = probabilities, _complexify = True)
 
     else:
 
@@ -634,7 +635,7 @@ def run():
                 while len(free_workers) < len(Conf.Workers):
                     manage_workers(free_workers)
 
-                if len(free_workers) > 0:
+                if len(Conf.Workers) > 0:
                     try:
                         evolve(stats, run, epoch)
 

@@ -190,7 +190,7 @@ class Layer(tn.Module):
         self.kernel_size = _layer_def.shape[1:] if self.is_conv else []
         assert (len(self.kernel_size) == 0 or len(self.kernel_size) == len(self.input_shape[1:])), 'Invalid kernel size {} for input shape {}'.format(self.kernel_size, _input_shape)
 
-        self.stride = self.get_random_stride(_layer_def.stride) if self.is_conv else []
+        self.stride = dcp(self.get_random_stride(_layer_def.stride)) if self.is_conv else []
 
         self.padding = [dim // 2 for dim in self.kernel_size] if self.is_conv else []
         self.dilation = [1] * len(self.kernel_size) if self.is_conv else []
@@ -451,7 +451,7 @@ class Layer(tn.Module):
 
             if (len(_stride) > 0 and
                 _stride[dim] > 0):
-                stride = [_stride[dim]]
+                stride = [dcp(_stride[dim])]
 
             else:
                 if radius <= 1:
