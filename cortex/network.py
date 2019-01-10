@@ -96,14 +96,15 @@ class Net(tn.Module):
                 if len(layer_defs) > 0:
                     for layer_index, layer_def in enumerate(layer_defs):
                         self.add_layer(_shape = layer_def.shape,
+                                       _stride = layer_def.stride,
                                        _bias = layer_def.bias,
                                        _activation = layer_def.activation,
                                        _layer_index = layer_index)
 
                 # Output layer
                 self.add_layer(_shape = Net.Output.Shape,
-                              _bias = cl.Layer.Bias,
-                              _layer_index = len(self.layers))
+                               _bias = cl.Layer.Bias,
+                               _layer_index = len(self.layers))
 
         print(">>> Network", self.ID, "created")
 
@@ -148,17 +149,18 @@ class Net(tn.Module):
 
     def get_genome(self):
 
+        print('Network {} genome:'.format(self.ID))
         genome = []
         for layer_index in range(len(self.layers) - 1):
             layer = self.layers[layer_index]
             shape = [0] * len(layer.get_output_shape())
             shape[0] = len(layer.nodes)
 
-            genome.append(cl.Layer.Def(_shape = dcp(shape),
-                                       _stride = dcp(layer.stride),
+            genome.append(cl.Layer.Def(_shape = shape,
+                                       _stride = layer.stride,
                                        _bias = layer.bias is not None,
                                        _activation = layer.activation,
-                                       _role = dcp(layer.role)))
+                                       _role = layer.role))
 
         return genome
 
@@ -990,7 +992,7 @@ class Net(tn.Module):
         # of the whole population.
         complexification_chance = (0.5 + self.get_complexity()) / 2
         complexify = Rand.chance(complexification_chance) if _complexify is None else _complexify
-        print('[Net {}] >>> Complexification chance: {}'.format(complexification_chance))
+        print('[Net {}] >>> Complexification chance: {}'.format(self.ID, complexification_chance))
 
         # The complexity can be increased or decreased
         # with probability proportional to the number

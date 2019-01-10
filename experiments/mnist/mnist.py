@@ -120,9 +120,10 @@ def main():
         # Assign the train function
         ctx.Conf.Evaluator = train
 
-    # Run Cortex
-#    ctx.init()
-    ctx.run()
+#        ctx.init()
+
+# Run Cortex
+#    ctx.run()
 
 if __name__ == '__main__':
     main()

@@ -432,6 +432,7 @@ class Layer(tn.Module):
             # Dummy zero-dimensional kernel
             wheel.add([], 1)
 
+#        print('Random kernel elements\n')
 #        for idx in range(len(wheel.elements)):
 #            print(wheel.elements[idx], "\t", wheel.weights[Rand.WeightType.Raw][idx], "\t", wheel.weights[Rand.WeightType.Inverse][idx])
 
@@ -474,6 +475,10 @@ class Layer(tn.Module):
 
         for s in strides:
             wheel.add(s, Func.exp_prod(s))
+
+#        print('Random stride elements\n')
+#        for idx in range(len(wheel.elements)):
+#            print(wheel.elements[idx], "\t", wheel.weights[Rand.WeightType.Raw][idx], "\t", wheel.weights[Rand.WeightType.Inverse][idx])
 
         return wheel.spin()
 
