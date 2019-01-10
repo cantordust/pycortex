@@ -40,7 +40,7 @@ class Conf:
     Runs = 1
     Epochs = 50
 
-    TrainBatchSize = 4
+    TrainBatchSize = 128
     TestBatchSize = 1000
 
     DataDir = ''
