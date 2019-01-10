@@ -16,7 +16,7 @@ from torchvision import datasets, transforms
 
 def get_train_loader(_conf):
 
-    print('Data dir: {}'.format(_conf.data_dir))
+#    print('Data dir: {}'.format(_conf.data_dir))
 
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(_conf.data_dir,
@@ -77,9 +77,8 @@ def train(_conf, _net):
 
     for batch_idx, (data, target) in enumerate(train_loader):
 
-        # Skip training with probability proportional to the fitness and
-        # inversely proportional to the epoch
-        if ctx.Rand.chance(_net.fitness.relative / _conf.epoch):
+        # Skip training batch with probability proportional to the fitness
+        if ctx.Rand.chance(_net.fitness.relative):
             continue
 
         data, target = data.to(_conf.device), target.to(_conf.device)
