@@ -7,12 +7,12 @@ Created on Thu Oct 11 14:52:44 2018
 @license: MIT ((https://opensource.org/licence/MIT)
 """
 
-import torch
-from torchvision import datasets, transforms
-
 import cortex.cortex as ctx
 import cortex.network as cn
 import cortex.layer as cl
+
+import torch
+from torchvision import datasets, transforms
 
 def get_train_loader(_conf):
 

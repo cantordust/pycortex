@@ -2,6 +2,8 @@ import argparse
 import os
 import sys
 import math
+import time
+
 from datetime import datetime
 from enum import IntEnum
 from copy import deepcopy as dcp
@@ -10,6 +12,7 @@ from mpi4py import  MPI
 
 import torch
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
+torch.multiprocessing.set_start_method('spawn')
 
 import torch.nn.functional as tnf
 
@@ -27,10 +30,9 @@ import cortex.species as cs
 
 class Tags(IntEnum):
     Ready = 0
-    Start = 2
-    Done = 3
-    Exit = 4
-    Error = 5
+    Start = 1
+    Done = 2
+    Exit = 3
 
 class Conf:
     ExperimentName = 'Experiment'
@@ -66,6 +68,9 @@ class Conf:
 
     Evaluator = None
 
+    Workers = []
+    Tag = Tags.Start
+
     def __init__(self):
         self.train_batch_size = Conf.TrainBatchSize
         self.test_batch_size = Conf.TestBatchSize
@@ -86,7 +91,13 @@ class Conf:
 
         self.evaluator = Conf.Evaluator
 
+def get_rank():
+    return MPI.COMM_WORLD.Get_rank()
+
 def init_conf():
+
+    if get_rank() != 0:
+        return
 
     # Training settings
     parser = argparse.ArgumentParser(description='PyCortex argument parser')
@@ -179,6 +190,9 @@ def init_conf():
 
 def print_conf(_file = sys.stdout):
 
+    if get_rank() != 0:
+        return
+
     print("\n========================[ PyCortex configuration ]========================\n",
           "\nExperiment name:", Conf.ExperimentName,
           "\nRuns:", Conf.Runs,
@@ -257,6 +271,10 @@ def pause():
     return key
 
 def init():
+
+    if get_rank() != 0:
+        return
+
     """
     Initialise the ecosystem and generate initial species if speciation is enabled.
     """
@@ -335,6 +353,9 @@ def init():
 
 def calibrate():
 
+    if get_rank() != 0:
+        return
+
     # Remove extinct species.
     extinct = [species.ID for species in cs.Species.Populations.values() if len(species.nets) == 0]
 
@@ -392,6 +413,9 @@ def save(_net_id,
          _epoch,
          _name = None):
 
+    if get_rank() != 0:
+         return
+
     save_dir = Conf.LogDir + '/run_' + str(_run) + '/epoch_' + str(_epoch)
 
     os.makedirs(save_dir, exist_ok = True)
@@ -407,6 +431,9 @@ def save(_net_id,
         cn.Net.Ecosystem[_net_id].print(_file = plaintext)
 
 def cull():
+
+    if get_rank() != 0:
+        return
 
     wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
@@ -440,6 +467,9 @@ def cull():
 def evolve(_stats,
            _run,
            _epoch):
+
+    if get_rank() != 0:
+       return
 
     print("======[ Evolving ecosystem ]======")
 
@@ -481,7 +511,7 @@ def evolve(_stats,
             wheel = Rand.RouletteWheel()
 
             for species_id, species in cs.Species.Populations.items():
-                wheel.add(species_id, species.fitness.relative * species.fitness.stat.get_sd())
+                wheel.add(species_id, species.fitness.relative)
 
             while not wheel.is_empty():
                 cs.Species.Populations[wheel.pop()].evolve()
@@ -491,9 +521,6 @@ def evolve(_stats,
                 print("\t`-> Culling...")
                 cull()
 
-def get_rank():
-    return MPI.COMM_WORLD.Get_rank()
-
 def run():
 
     comm = MPI.COMM_WORLD
@@ -502,9 +529,33 @@ def run():
     status = MPI.Status()
 
     if rank == 0:
+
         # Master process
 
         assert Conf.Evaluator is not None, "Please assign a function for training networks."
+
+        # Wait for all workers to return a Ready signal
+
+        while len(Conf.Workers) < size - 1:
+            while not comm.iprobe(source=MPI.ANY_SOURCE):
+                pass
+
+            comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            source = status.Get_source()
+            tag = status.Get_tag()
+
+            if tag == Tags.Ready:
+                print('Worker {} ready'.format(source))
+                Conf.Workers.append(source)
+
+            elif tag == Tags.Exit:
+                Conf.Tag = Tags.Exit
+                break
+
+        # List of free workers
+        free_workers = []
+        for worker in Conf.Workers:
+            free_workers.append(worker)
 
         # Experiment statistics
         stats = {
@@ -512,30 +563,11 @@ def run():
                 'Accuracy': Stat.SMAStat('Accuracy')
                 }
 
-        # Wait for all workers to return a Ready signal
-        workers_alive = 0
-        while workers_alive < size - 1:
-            while not comm.Iprobe(source=MPI.ANY_SOURCE):
-                pass
-
-            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
-            source = status.Get_source()
-            tag = status.Get_tag()
-
-            if tag == Tags.Ready:
-                print('Worker {} ready'.format(source))
-                workers_alive += 1
-
-        # List of free workers
-        free_workers = []
-        for worker in range(1,size):
-            free_workers.append(worker)
-
         # Worker management subroutine
         def manage_workers(free_workers):
 
             while not comm.iprobe(source=MPI.ANY_SOURCE):
-                pass
+                time.sleep(0.1)
 
             net = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
             source = status.Get_source()
@@ -545,8 +577,15 @@ def run():
                 cn.Net.Ecosystem[net.ID] = net
                 free_workers.append(source)
 
+            elif tag == Tags.Exit:
+                Conf.Tag = Tags.Exit
+                Conf.Workers.remove(source)
+
         # Run the task
         for run in range(1, Conf.Runs + 1):
+
+            if len(Conf.Workers) == 0:
+                break
 
             print("===============[ Run", run, "]===============")
 
@@ -558,6 +597,9 @@ def run():
 
             for epoch in range(1, Conf.Epochs + 1):
 
+                if len(Conf.Workers) == 0:
+                    break
+
                 print("======[ Epoch", epoch, "]======")
 
                 conf.epoch = epoch
@@ -568,22 +610,26 @@ def run():
 
                 net_ids = dcp(list(cn.Net.Ecosystem.keys()))
 
-                while len(net_ids) > 0:
+                while (len(Conf.Workers) > 0 and
+                       len(net_ids) > 0):
 
                     # Wait for a free worker
-                    while len(free_workers) == 0:
+                    while (len(Conf.Workers) > 0 and
+                           len(free_workers) == 0):
                         manage_workers(free_workers)
 
-                    worker = free_workers.pop()
-                    net_id = net_ids.pop()
-                    package = (cn.Net.Ecosystem[net_id], conf)
-                    comm.send(package, dest = worker, tag=Tags.Start)
+                    if len(free_workers) > 0:
+                        worker = free_workers.pop()
+                        net_id = net_ids.pop()
+                        package = (cn.Net.Ecosystem[net_id], conf)
+                        comm.send(package, dest = worker, tag=Conf.Tag)
 
                 # Wait for the last workers to finish
-                while len(free_workers) < size - 1:
+                while len(free_workers) < len(Conf.Workers):
                     manage_workers(free_workers)
 
-                evolve(stats, run, epoch)
+                if len(free_workers) > 0:
+                    evolve(stats, run, epoch)
 
             for net_id in cn.Net.Ecosystem.keys():
                 save(net_id, run, epoch)
@@ -596,7 +642,7 @@ def run():
             with open(Conf.LogDir + '/' + str(key) + '_stat.txt', 'w+') as stat_file:
                 stat.print(_file = stat_file)
 
-        for worker in range(1, size):
+        for worker in Conf.Workers:
             comm.send(None, dest = worker, tag=Tags.Exit)
 
     else:
@@ -606,7 +652,7 @@ def run():
         while True:
 
             while not comm.iprobe(source=0):
-                pass
+                time.sleep(0.1)
 
             package = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
             tag = status.Get_tag()
@@ -614,13 +660,19 @@ def run():
             if tag == Tags.Start:
 
                 net, conf = package[0], package[1]
-                conf.evaluator(conf, net)
 
-                comm.send(net, dest=0, tag = Tags.Done)
+                try:
 
-            elif (tag == Tags.Error or
-                  tag == Tags.Exit):
+                    conf.evaluator(conf, net)
+                    comm.send(net, dest=0, tag = Tags.Done)
+
+                except:
+                    print('Caught exception in worker {}!'.format(rank))
+                    break
+
+            elif tag == Tags.Exit:
                 break
 
         comm.send(None, dest=0, tag=Tags.Exit)
-        print('Worker {} exiting...'.format(rank))
+
+    print('Worker {} exiting...'.format(rank))
