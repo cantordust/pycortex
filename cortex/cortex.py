@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import traceback
 import math
 import time
 
@@ -93,6 +94,11 @@ class Conf:
 
 def get_rank():
     return MPI.COMM_WORLD.Get_rank()
+
+def dump_exception():
+    print("-"*60)
+    traceback.print_exc()
+    print("-"*60)
 
 def init_conf():
 
@@ -629,7 +635,13 @@ def run():
                     manage_workers(free_workers)
 
                 if len(free_workers) > 0:
-                    evolve(stats, run, epoch)
+                    try:
+                        evolve(stats, run, epoch)
+
+                    except:
+                        print('Caught exception in main process')
+                        Conf.Tag = Tags.Exit
+                        dump_exception()
 
             for net_id in cn.Net.Ecosystem.keys():
                 save(net_id, run, epoch)
@@ -666,8 +678,9 @@ def run():
                     conf.evaluator(conf, net)
                     comm.send(net, dest=0, tag = Tags.Done)
 
-                except:
-                    print('Caught exception in worker {}!'.format(rank))
+                except Exception:
+                    print('Caught exception in worker {}'.format(rank))
+                    dump_exception()
                     break
 
             elif tag == Tags.Exit:
