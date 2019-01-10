@@ -16,6 +16,8 @@ from torchvision import datasets, transforms
 
 def get_train_loader(_conf):
 
+    print('Data dir: {}'.format(_conf.data_dir))
+
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(_conf.data_dir,
                        train=True,
