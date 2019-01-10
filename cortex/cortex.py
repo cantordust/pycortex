@@ -487,8 +487,8 @@ def evolve(_stats,
     cs.Species.Offspring = 0
 
     if not Conf.UnitTestMode:
-        for net in cn.Net.Ecosystem.values():
 
+        #        for net in cn.Net.Ecosystem.values():
 #            Conf.Logger.add_scalars('Stats for network ' + str(net.ID), {
 #                                    'Absolute fitness': net.fitness.absolute,
 #                                    'Relative fitness': net.fitness.relative,
@@ -496,10 +496,10 @@ def evolve(_stats,
 #                                    'Parameters': net.get_parameter_count()
 #                                    },
 #                        _epoch)
-            save(net.ID, _run, _epoch)
+#            save(net.ID, _run, _epoch)
 
         Conf.Logger.add_scalar('Highest fitness', cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute, _epoch)
-        Conf.Logger.add_scalar('Average fitness', sum([net.fitness.absolute for net in cn.Net.Ecosystem.values()]) / len(cn.Net.Ecosystem), _epoch)
+        Conf.Logger.add_scalar('Average fitness', _stats['Accuracy'].mean, _epoch)
         Conf.Logger.add_scalar('Parameter count for champion', cn.Net.Ecosystem[cn.Net.Champion].get_parameter_count(), _epoch)
         Conf.Logger.add_scalar('Network count', len(cn.Net.Ecosystem), _epoch)
         Conf.Logger.add_scalar('Species count', len(cs.Species.Populations), _epoch)
@@ -643,8 +643,8 @@ def run():
                         Conf.Tag = Tags.Exit
                         dump_exception()
 
-            for net_id in cn.Net.Ecosystem.keys():
-                save(net_id, run, epoch)
+#            for net_id in cn.Net.Ecosystem.keys():
+#                save(net_id, run, epoch)
 
         with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
             print_conf(_file = cfg_file)
