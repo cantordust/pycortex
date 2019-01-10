@@ -192,8 +192,8 @@ class Species:
             # Choose one parent
             p1 = parent1_wheel.pop()
 
-            if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
-                Rand.chance(cn.Net.Ecosystem[p1].fitness.relative / (Species.Offspring + 1))):
+            if (Species.Offspring < len(cn.Net.Ecosystem) and
+                Rand.chance(cn.Net.Ecosystem[p1].fitness.relative)):
 
                 # Fitter networks have a better chance of mating
                 p2 = parent2_wheel.spin()

@@ -985,7 +985,7 @@ class Net(tn.Module):
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
-        complexify = Rand.chance(1.0 - self.get_complexity()) if _complexify is None else _complexify
+        complexify = Rand.chance((0.5 + self.get_complexity()) / 2) if _complexify is None else _complexify
 
         # The complexity can be increased or decreased
         # with probability proportional to the number
