@@ -6,6 +6,7 @@ For now, the library supports the following operations:
 
 - Add / erase layers (convolutional or fully connected)
 - Add / erase nodes (or kernels in convolutional layers)
+- Grow or shrink strides
 - Grow or shrink kernels
 - Crossover / cloning deep NNs
 
@@ -24,6 +25,7 @@ $> pip3 install --user -e .
 ```
 
 # Run unit tests
+Note: Some unit tests are not working at the moment due to significant changes in the backend. This note will be removed when they get fixed.
 
 ```
 $> cd unit_tests

@@ -600,7 +600,13 @@ def run():
             conf = Conf()
 
             # Initialise the ecosystem
-            init()
+            try:
+                init()
+
+            except:
+                print('Caught exception in init()')
+                Conf.Tag = Tags.Exit
+                dump_exception()
 
             for epoch in range(1, Conf.Epochs + 1):
 
@@ -640,7 +646,7 @@ def run():
                         evolve(stats, run, epoch)
 
                     except:
-                        print('Caught exception in main process')
+                        print('Caught exception in evolve()')
                         Conf.Tag = Tags.Exit
                         dump_exception()
 

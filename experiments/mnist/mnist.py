@@ -67,36 +67,35 @@ def test(_conf, _net):
 
 def train(_conf, _net):
 
-    _net = _net.to(_conf.device)
-    _net.train()
-    optimiser = _conf.optimiser(_net.parameters(), lr = 1.0 - _net.fitness.relative)
+    net = _net.to(_conf.device)
+    net.train()
+    optimiser = _conf.optimiser(net.parameters(), lr = 1.0 - net.fitness.relative)
 
     train_loader = get_train_loader(_conf)
 
-    _net.fitness.loss_stat.reset()
+    net.fitness.loss_stat.reset()
 
     for batch_idx, (data, target) in enumerate(train_loader):
 
         progress = batch_idx / len(train_loader)
 
-        # Skip this training batch with probability proportional to the fitness and
-        # inversely proportional to the epoch
-        if ctx.Rand.chance(progress / _conf.epoch):
+        # Skip this training batch with probability proportional to the fitness and the progress
+        if ctx.Rand.chance(net.relative_fitness * progress):
             continue
 
         data, target = data.to(_conf.device), target.to(_conf.device)
 
-        _net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
         if (batch_idx + 1) % _conf.log_interval == 0:
             print('[Net {} | Train | Epoch {}] [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                _net.ID, _conf.epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * progress, _net.fitness.loss_stat.current_value))
+                net.ID, _conf.epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * progress, net.fitness.loss_stat.current_value))
 
-    _net.fitness.absolute = test(_conf, _net)
-    _net.fitness.stat.update(_net.fitness.absolute)
+    net.fitness.absolute = test(_conf, net)
+    net.fitness.stat.update(net.fitness.absolute)
 
-    return _net
+    return net
 
 def main():
 
@@ -123,7 +122,7 @@ def main():
 #        ctx.init()
 
 # Run Cortex
-#    ctx.run()
+    ctx.run()
 
 if __name__ == '__main__':
     main()
