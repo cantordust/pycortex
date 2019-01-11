@@ -569,30 +569,31 @@ class Layer(tn.Module):
 
         # Sanity checks
         if (not self.is_conv or
-            not (_node_index >= 0 and _node_index < len(self.nodes)) or
-            len(_delta) != 1):
+            not (_node_index >= 0 and _node_index < len(self.nodes))):
             return False
+
+        old_size = list(self.nodes[_node_index].size())[1:]
+        new_size = dcp(old_size)
 
         delta = [0] * len(self.kernel_size)
         for dim, val in _delta.items():
             delta[dim] = val
-
-        old_size = list(self.nodes[_node_index].size())[1:]
-        new_size = [old_size[dim] + 2 * delta[dim] for dim in range(len(old_size))]
+            new_size[dim] += val
 
     #    print(_layer.kernels)
     #    print(_layer.weight[_node_index])
 
         # Apply padding to the kernel and initialise the
         # new weights if the padding is positive.
-        padding = [0] * 2 * len(new_size)
+        padding = [0] * 2 * len(old_size)
         init = False
         slices1 = [slice(None, None)] # Front, top or left
         slices2 = [slice(None, None)] # Back, bottom or right
 
         for dim in range(len(delta)):
-            padding[2 * (len(new_size) - dim - 1) : 2 * (len(new_size) - dim)] = [delta[dim], delta[dim]]
+            padding[2 * (len(old_size) - dim - 1) : 2 * (len(old_size) - dim)] = [delta[dim], delta[dim]]
             if delta[dim] > 0:
+                # Initialise the new weights only if the padding is greater than 0
                 init = True
                 slices1.append(slice(0, delta[dim]))
                 slices2.append(slice(-delta[dim], None))

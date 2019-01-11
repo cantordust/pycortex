@@ -521,7 +521,8 @@ class Net(tn.Module):
 
                         # Check how many links we would have to add or remove
                         for dim in range(len(layer.kernel_size)):
-                            wheel.add((layer_index, node_index, dim), 1)
+                            if list(node.size())[dim + 1] < self.get_input_shape(layer_index)[dim + 1] // 2:
+                                wheel.add((layer_index, node_index, dim), 1)
 
             if wheel.is_empty():
                 return (False, _layer_index, _node_index, _delta)
@@ -572,7 +573,7 @@ class Net(tn.Module):
                         # Check how many links we would have to add or remove
                         for dim in range(len(layer.kernel_size)):
 
-                            if node.size(dim + 1) > 1:
+                            if list(node.size())[dim + 1] > 1:
                                 wheel.add((layer_index, node_index, dim), 1)
 
             if wheel.is_empty():
@@ -1020,7 +1021,7 @@ class Net(tn.Module):
 
         element = wheel.spin()
 
-        print("Mutating network", self.ID)
+        print('[Net {}] Mutating...'.format(self.ID))
 
         for elem_index in range(len(wheel.elements)):
             print(wheel.elements[elem_index], "|\t", wheel.weights[Rand.WeightType.Raw][elem_index], "|\t", wheel.weights[Rand.WeightType.Inverse][elem_index])
