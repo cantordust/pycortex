@@ -141,8 +141,7 @@ class Net(tn.Module):
     Relative: {self.fitness.relative}
 >>> Age: {self.age}
 >>> Species: {self.species_id}
->>> Total parameters: {self.get_parameter_count()}
-'''
+>>> Total parameters: {self.get_parameter_count()}'''
 
         if _layers:
             for layer in self.layers:
@@ -1065,8 +1064,8 @@ class Net(tn.Module):
 
         result.element = wheel.spin()
 
-        for elem_index in range(len(wheel.elements)):
-            print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:10.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:10.5f}')
+#        for elem_index in range(len(wheel.elements)):
+#            print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:10.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:10.5f}')
 
         #return
 

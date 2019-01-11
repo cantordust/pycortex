@@ -206,14 +206,12 @@ def print_conf(_file = sys.stdout):
 >>> Epochs: Conf.Epochs
 >>> Init. networks: cn.Net.Init.Count
 >>> Max. networks: cn.Net.Max.Count
->>> Speciation: {"enabled" if cs.Species.Enabled else "disabled"}
-'''
+>>> Speciation: {"enabled" if cs.Species.Enabled else "disabled"}'''
 
     if cs.Species.Enabled:
         str += f'''
-Init. species: {cs.Species.Init.Count}
-Max. species: {cs.Species.Max.Count}
-'''
+    Init. species: {cs.Species.Init.Count}
+    Max. species: {cs.Species.Max.Count}'''
 
     str += f'''
 >>> Learning rate: {Conf.LearningRate}
@@ -222,26 +220,22 @@ Max. species: {cs.Species.Max.Count}
 >>> Input shape: {cn.Net.Input.Shape}
 >>> Output shape: {cn.Net.Output.Shape}
 >>> Layer bias: {cl.Layer.Bias}
->>> Layer activations:
-'''
+>>> Layer activations:'''
 
     for key, val in cl.Layer.Activations.items():
         str += f'''
-    {key}: {val.__name__}
-'''
+    {key}: {val.__name__}'''
 
     for layer_index, layer_def in enumerate(cn.Net.Init.Layers):
         str += layer_def.as_str()
 
     str += f'''
 >>> Init. function: {cl.Layer.InitFunction.__name__}
->>> Init. arguments:
-'''
+>>> Init. arguments:'''
 
     for key, val in cl.Layer.InitArgs.items():
         str += f'''
-    {key}: {val}
-'''
+    {key}: {val}'''
 
     str += f'''
 >>> Max. nets: {cn.Net.Max.Count}
@@ -249,15 +243,13 @@ Max. species: {cs.Species.Max.Count}
 >>> Learning rate: {Conf.LearningRate}
 >>> Momentum: {Conf.Momentum}
 >>> Device: {Conf.Device}
->>> Max. workers: {Conf.MaxWorkers}
-'''
+>>> Max. workers: {Conf.MaxWorkers}'''
 
 
     str += '>>> Data loader arguments:'
     for key, val in Conf.DataLoadArgs.items():
         str += f'''
-    {key}: {val}
-'''
+    {key}: {val}'''
 
     str += f'''
 >>> Data directory: {Conf.DataDir}
@@ -267,8 +259,7 @@ Max. species: {cs.Species.Max.Count}
 >>> Log directory: {Conf.LogDir}
 >>> Log interval: {Conf.LogInterval}
 >>> Unit test mode: {Conf.UnitTestMode}
-=====================[ End of PyCortex configuration ]====================
-'''
+=====================[ End of PyCortex configuration ]===================='''
 
     print(str, file = _file)
 

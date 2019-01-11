@@ -337,18 +337,15 @@ class Layer(tn.Module):
     Kernel size: {self.kernel_size}
     Stride: {self.stride}
     Padding: {self.padding}
-    Dilation: {self.dilation}
-'''
+    Dilation: {self.dilation}'''
 
         if _parameters:
             str += f'''
->>> Learnable parameters:
-'''
+>>> Learnable parameters:'''
             for idx, param in enumerate(self.parameters()):
                 str += f'''
 >>> Parameter {idx}:
-    {param}
-'''
+    {param}'''
 
         return str
 
