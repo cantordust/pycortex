@@ -59,7 +59,7 @@ def test(_conf, _net):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\t[Net {} | Test | Epoch {}] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+    print('\t[Net {}] (Test) Epoch {} Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
         _net.ID, _conf.epoch, test_loss, correct, len(test_loader.dataset),
         accuracy))
 
@@ -88,7 +88,7 @@ def train(_conf, _net):
         net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
         if (batch_idx + 1) % _conf.log_interval == 0:
-            print('[Net {} | Train | Epoch {}] [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('[Net {}] (Train) Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 net.ID, _conf.epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * progress, net.fitness.loss_stat.current_value))
 
@@ -119,9 +119,11 @@ def main():
         # Assign the train function
         ctx.Conf.Evaluator = train
 
+        ctx.print_conf()
+
 #        ctx.init()
 
-# Run Cortex
+    # Run Cortex
     ctx.run()
 
 if __name__ == '__main__':

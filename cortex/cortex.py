@@ -199,76 +199,78 @@ def print_conf(_file = sys.stdout):
     if get_rank() != 0:
         return
 
-    print("\n========================[ PyCortex configuration ]========================\n",
-          "\nExperiment name:", Conf.ExperimentName,
-          "\nRuns:", Conf.Runs,
-          "\nEpochs:", Conf.Epochs,
-          "\nInit. networks:", cn.Net.Init.Count,
-          "\nMax. networks:", cn.Net.Max.Count,
-          "\nSpeciation:", 'enabled' if cs.Species.Enabled else 'disabled',
-          file = _file)
+    str = f'''
+========================[ PyCortex configuration ]========================
+>>> Experiment name: {Conf.ExperimentName}
+>>> Runs: {Conf.Runs}
+>>> Epochs: Conf.Epochs
+>>> Init. networks: cn.Net.Init.Count
+>>> Max. networks: cn.Net.Max.Count
+>>> Speciation: {"enabled" if cs.Species.Enabled else "disabled"}
+'''
 
     if cs.Species.Enabled:
-        print("\tInit. species:", cs.Species.Init.Count,
-              "\n\tMax. species:", cs.Species.Max.Count,
-              file = _file)
+        str += f'''
+Init. species: {cs.Species.Init.Count}
+Max. species: {cs.Species.Max.Count}
+'''
 
-    print("\nLearning rate:", Conf.LearningRate,
-          "\nMomentum:", Conf.Momentum,
-          "\nCUDA:", 'enabled' if Conf.UseCuda else 'disabled',
-          "\nInput shape:", cn.Net.Input.Shape,
-          "\nOutput shape:", cn.Net.Output.Shape,
-          "\nLayer bias:", cl.Layer.Bias,
-          "\nLayer activations:",
-          "\nLayers:",
-          file = _file)
+    str += f'''
+>>> Learning rate: {Conf.LearningRate}
+>>> Momentum: {Conf.Momentum}
+>>> CUDA: {"enabled" if Conf.UseCuda else "disabled"}
+>>> Input shape: {cn.Net.Input.Shape}
+>>> Output shape: {cn.Net.Output.Shape}
+>>> Layer bias: {cl.Layer.Bias}
+>>> Layer activations:
+'''
 
     for key, val in cl.Layer.Activations.items():
-        print('\t', key, ':', val.__name__)
+        str += f'''
+    {key}: {val.__name__}
+'''
 
     for layer_index, layer_def in enumerate(cn.Net.Init.Layers):
-        print("\tLayer %r:" % layer_index, file = _file)
-        layer_def.print(_file = _file)
+        str += layer_def.as_str()
 
-    print("\nInit. function:", cl.Layer.InitFunction.__name__,
-          "\nInit. arguments:",
-          file = _file)
+    str += f'''
+>>> Init. function: {cl.Layer.InitFunction.__name__}
+>>> Init. arguments:
+'''
 
     for key, val in cl.Layer.InitArgs.items():
-        print("\t", key, ":", val, file = _file)
+        str += f'''
+    {key}: {val}
+'''
 
-    print("\nMax. nets:", cn.Net.Max.Count,
-          "\nMax. net age:", cn.Net.Max.Age,
-          "\nSpeciation:", "enabled" if cs.Species.Enabled else "disabled",
-          file = _file)
+    str += f'''
+>>> Max. nets: {cn.Net.Max.Count}
+>>> Max. net age: {cn.Net.Max.Age}
+>>> Learning rate: {Conf.LearningRate}
+>>> Momentum: {Conf.Momentum}
+>>> Device: {Conf.Device}
+>>> Max. workers: {Conf.MaxWorkers}
+'''
 
-    if cs.Species.Enabled:
-        print("Init. species:", cs.Species.Init.Count,
-              "\nMax. species:", cs.Species.Max.Count,
-              file = _file)
 
-    print("\nLearning rate:", Conf.LearningRate,
-          "\nMomentum:", Conf.Momentum,
-          "\nDevice:", Conf.Device,
-          "\nMax. workers:", Conf.MaxWorkers,
-          file = _file)
-
-    print("\nData loader arguments:\n", file = _file)
+    str += '>>> Data loader arguments:'
     for key, val in Conf.DataLoadArgs.items():
-        print("\t", key, ":", val, file = _file)
+        str += f'''
+    {key}: {val}
+'''
 
-    print("Data directory:", Conf.DataDir,
-          "\nDownload:", Conf.DownloadData,
-          file = _file)
+    str += f'''
+>>> Data directory: {Conf.DataDir}
+>>> Download: {Conf.DownloadData}
+>>> Optimiser: {Conf.Optimiser.__name__}
+>>> Loss function: {Conf.LossFunction.__name__}
+>>> Log directory: {Conf.LogDir}
+>>> Log interval: {Conf.LogInterval}
+>>> Unit test mode: {Conf.UnitTestMode}
+=====================[ End of PyCortex configuration ]====================
+'''
 
-    print("Optimiser:", Conf.Optimiser.__name__,
-          "\nLoss function:", Conf.LossFunction.__name__,
-          "\nLog directory:", Conf.LogDir,
-          "\nLog interval:", Conf.LogInterval,
-          "\nUnit test mode:", Conf.UnitTestMode,
-          file = _file)
-
-    print("\n=====================[ End of PyCortex configuration ]====================\n", file = _file)
+    print(str, file = _file)
 
 def pause():
     key = input("Continue (Y/n)? ")
@@ -346,11 +348,11 @@ def init():
             proto_net = cn.Net(_species = proto_species)
             proto_net.mutate(_parameters = False)
 
-    print("Nets:", len(cn.Net.Ecosystem))
+    print(f'Network count: {len(cn.Net.Ecosystem)}')
     for net in cn.Net.Ecosystem.values():
-        net.print()
+        print(net.as_str())
 
-    print("Species:", len(cs.Species.Populations))
+    print(f'Species count: {len(cs.Species.Populations)}')
     for species in cs.Species.Populations.values():
         species.print()
 
@@ -435,7 +437,7 @@ def save(_net_id,
     torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
 
     with open(save_dir + '/' + name + '.txt', 'w+') as plaintext:
-        cn.Net.Ecosystem[_net_id].print(_file = plaintext)
+        print(cn.Net.Ecosystem[_net_id].as_str(), file = plaintext)
 
 def cull():
 

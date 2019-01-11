@@ -8,7 +8,7 @@ def test_extract_subkernel(_layer_shape = [1,9,9],
 
     layer = ctx.cl.Layer(ctx.cl.Layer.Def(_layer_shape), _input_shape)
 
-    layer.print()
+    print(layer.as_str())
 
     sub = layer.extract_patch(_node_index, _patch_size)
 

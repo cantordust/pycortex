@@ -1,5 +1,6 @@
 import cortex.utest as utest
 import cortex.cortex as ctx
+from copy import deepcopy as dcp
 
 def test_overlay_kernels():
 
@@ -7,21 +8,21 @@ def test_overlay_kernels():
     ctx.cn.Net.Init.Layers = [ctx.cl.Layer.Def([5, 0, 0])]
 
     layer = ctx.cl.Layer(ctx.cn.Net.Init.Layers[0], ctx.cn.Net.Input.Shape)
-    print("================[ Initial layer ]================")
-    layer.print()
-    print("Weight tensor:\n", layer.weight)
+    print('================[ Initial layer ]================')
+    print(layer.as_str())
+    print(f'Weight tensor: {layer.weight}')
 
     layer.overlay_kernels()
-    print("================[ After overlaying kernels ]================")
-    layer.print()
-    print("Weight tensor:\n", layer.weight)
+    print('================[ After overlaying kernels ]================')
+    print(layer.as_str())
+    print(f'Weight tensor: {layer.weight}')
 
 
     wheel = ctx.Rand.RouletteWheel()
     wheel.add(1, 1)
     wheel.add(-1, 1)
 
-    print("================[ Resizing kernels ]================")
+    print('================[ Resizing kernels ]================')
 
     attempts = 5
     successes = 0
@@ -31,18 +32,22 @@ def test_overlay_kernels():
         dim = ctx.Rand.uint(0,2)
         diff = wheel.spin()
 
-        print("================[ Resizing kernel ]================")
-        print('\n>>> Resizing dimension {} of kernel {} by {}'.format(dim, node, diff ))
+        print('================[ Resizing kernel ]================')
+        print(f'\n>>> Resizing dimension {dim} of kernel {node} by {diff}')
 
-        if (diff < 0 and
-            list(layer.nodes[node].size())[dim + 1] < abs(diff) + 1):
-            print('\tFailed: dimension too small')
-            continue
+        node = dcp(layer.nodes[node])
 
-        print('Before:\n{}'.format(layer.nodes[node]))
-        layer.resize_kernel(node, {dim: diff})
-        print('After:\n{}'.format(layer.nodes[node]))
-        successes += 1
+        mut = layer.resize_kernel(node, dim, diff)
+
+        if mut.success:
+            print(f'''
+                    Before:
+                    {node}
+                    After:
+                    {layer.nodes[node]}
+                    ''')
+
+            successes += 1
 
 if __name__ == '__main__':
     utest.run(test_overlay_kernels)
