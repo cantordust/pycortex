@@ -155,19 +155,19 @@ class Species:
 
             net_stats.update(absolute_fitness)
 
-        print('>>> Champion for species {}: {}'.format(self.ID, self.champion))
+        print(f'>>> Champion for species {self.ID}: {self.champion} (fitness: {cn.Net.Ecosystem[self.champion].fitness.absolute})')
 
         # Compute the relative fitness of the networks
         # belonging to this species
         for net_id in self.nets:
             # Compute the relative fitness
             net = cn.Net.Ecosystem[net_id]
-            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
-#            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
+#            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
+            net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
-            print("Network", net_id, "fitness:",
-                  "\t\tAbsolute:", cn.Net.Ecosystem[net_id].fitness.absolute,
-                  "\t\tRelative:", cn.Net.Ecosystem[net_id].fitness.relative)
+#            print("Network", net_id, "fitness:",
+#                  "\t\tAbsolute:", cn.Net.Ecosystem[net_id].fitness.absolute,
+#                  "\t\tRelative:", cn.Net.Ecosystem[net_id].fitness.relative)
 
         self.fitness.absolute = net_stats.mean
         self.fitness.stat.update(self.fitness.absolute)
@@ -192,11 +192,13 @@ class Species:
             # Choose one parent
             p1 = parent1_wheel.pop()
 
-            if (Species.Offspring < len(cn.Net.Ecosystem) and
-                Rand.chance(cn.Net.Ecosystem[p1].fitness.relative)):
+            # Choose a partner
+            p2 = parent2_wheel.spin()
 
-                # Fitter networks have a better chance of mating
-                p2 = parent2_wheel.spin()
+            # Fitter networks have a better chance of mating.
+            # Take the average of the two parents' relative fitness values
+            if (Species.Offspring < len(cn.Net.Ecosystem) and
+                Rand.chance(0.5 * (cn.Net.Ecosystem[p1].fitness.relative + cn.Net.Ecosystem[p2].fitness.relative) / (Species.Offspring + 1))):
 
                 if p1 != p2:
                     # Crossover

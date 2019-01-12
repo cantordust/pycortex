@@ -257,14 +257,13 @@ class Net(tn.Module):
 
             wheel = Rand.RouletteWheel()
 
+            node_stat = Stat.SMAStat()
+            for layer in self.layers:
+                node_stat.update(len(layer.nodes))
+
+            # Check how many links we have to add and / or remove
+            # to insert a layer of each allowed shape
             for layer_index in range(len(self.layers)):
-
-                # Check how many links we have to add and / or remove
-                # to insert a layer of each allowed shape
-
-                node_stat = Stat.SMAStat()
-                for layer in self.layers:
-                    node_stat.update(len(layer.nodes))
 
 #                new_nodes = math.floor(_stats['nodes'].mean)
                 for allowed_shape in self.get_allowed_layer_shapes(layer_index):
@@ -306,7 +305,7 @@ class Net(tn.Module):
 
         # Sanity check for the layer index
         if mut.layer > len(self.layers):
-            #print("Invalid layer index", _layer)
+            #print("Invalid layer index", _index)
             mut.msg = f'Invalid layer index ({mut.layer}): must be <= {len(self.layers)}'
             return mut
 
@@ -354,7 +353,7 @@ class Net(tn.Module):
         self.reindex()
 
         mut.success = True
-        mut.msg = f'Added layer {new_layer.as_str()}'
+        mut.msg = f'Added {new_layer.role} layer at position {mut.layer}'
 
         return mut
 
@@ -387,7 +386,8 @@ class Net(tn.Module):
             mut.msg = 'Attempted to remove the output layer'
             return mut
 
-        mut.msg = f'Removed layer:\n{self.layers[mut.layer].as_str()}'
+#        mut.msg = f'Removed layer:\n{self.layers[mut.layer].as_str()}'
+        mut.msg = f'Removed {self.layers[mut.layer].role} layer in position {mut.layer}'
 
         # Remove the layer
         del self.layers[mut.layer]
@@ -409,7 +409,7 @@ class Net(tn.Module):
 
         mut =  Mutation()
 
-        mut.layer = _layer
+        mut.layer = _layer # Layer index
         mut.count = _count
         mut.nodes = set()
 
@@ -460,7 +460,7 @@ class Net(tn.Module):
 
         mut =  Mutation()
 
-        mut.layer = _layer
+        mut.layer = _layer # Layer index
         mut.count = _count
         mut.nodes = set()
 
@@ -557,7 +557,7 @@ class Net(tn.Module):
 
         mut =  Mutation()
 
-        mut.layer = _layer
+        mut.layer = _layer # Layer index
         mut.node = _node
         mut.dim = _dim
         mut.diff = _diff
@@ -652,7 +652,7 @@ class Net(tn.Module):
 
         mut =  Mutation()
 
-        mut.layer = _layer
+        mut.layer = _layer # Layer index
         mut.dim = _dim
         mut.diff = _diff
 
@@ -941,76 +941,89 @@ class Net(tn.Module):
 
 #        assert self.matches(_parent), 'Error cloning network {}'.format(_parent.ID)
 
-    def get_mutation_probabilities(self):
+    def get_mutation_probabilities(self,
+                                   _complexify):
 
         probabilities = {}
 
-#        # Structural statistics
-#        layer_stats = Stat.SMAStat(_title = 'Layers per network')
-#        node_stats = Stat.SMAStat(_title = 'Nodes per layer')
-#        link_stats = Stat.SMAStat(_title = 'Links per node')
-#        stride_stats = Stat.SMAStat(_title = 'Stride')
-#        kernel_size_stats = Stat.SMAStat(_title = 'Kernel sizes')
-#        kernel_dim_stats = Stat.SMAStat(_title = 'Kernel dimensions')
+        # Structural statistics
 
-#        for net in Net.Ecosystem.values():
-#            layer_stats.update(len(net.layers))
+        # Nodes per layer
+        node_stats = Stat.SMAStat(_title = 'Nodes per layer')
 
-#        for layer_index, layer in enumerate(self.layers):
-#            node_stats.update(layer.get_output_nodes())
+        # Links per node
+        link_stats = Stat.SMAStat(_title = 'Links per node')
 
-#            for node_idx, node in enumerate(layer.nodes):
-#                link_stats.update(layer.get_parameter_count(node_idx))
+        # Layer stride
+        # Updated only for conv layers
+        stride_stats = Stat.SMAStat(_title = 'Stride')
 
-#                if layer.is_conv:
+        # Kernel size
+        # Updated only for conv layers
+        kernel_size_stats = Stat.SMAStat(_title = 'Kernel sizes')
 
-#                    # Kernel size
-#                    kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
-#                    if len(layer.kernel_size) > kernel_dim_stats.mean:
-#                        kernel_dim_stats.update(len(layer.kernel_size))
+        # Kernel dimensions (e.g., 2 for a 2D conv).
+        # Updated only for conv layers
+        kernel_dim_stats = Stat.SMAStat(_title = 'Kernel dimensions')
 
-#                    # Stride
-#                    stride_stats.update(Func.prod(layer.get_output_shape()))
+        for layer_index, layer in enumerate(self.layers):
+            node_stats.update(layer.get_output_nodes())
 
-#        # Adding or removing a layer involves severing existing links and adding new ones.
-#        # For this computation, we assume that the new layer will contain
-#        # anywhere between 1 and the mean number of nodes (hence the 0.5).
-#        # The SD is a correction term for the average number of nodes
-#        # in the following layer whose links would need to be adjusted.
-#        probabilities['layer'] = 0.5 * ((node_stats.mean + 1) + node_stats.get_sd()) * link_stats.mean
+            for node_idx, node in enumerate(layer.nodes):
+                link_stats.update(layer.get_parameter_count(node_idx))
 
-#        # Adding or removing a node involves adding or removing new links.
-#        probabilities['node'] = link_stats.mean
+                if layer.is_conv:
 
-#        # Changing the stride of a layer involves resizing the input of all subsequent layers
+                    # Kernel size
+                    kernel_size_stats.update(math.pow(Func.prod(layer.kernel_size), 1 / len(layer.kernel_size)))
+                    if len(layer.kernel_size) > kernel_dim_stats.mean:
+                        kernel_dim_stats.update(len(layer.kernel_size))
 
-#        conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
-#        if conv_layer_count > 0:
-#            probabilities['stride'] = 0.5 * stride_stats.mean * link_stats.mean
+                    # Stride
+                    stride_stats.update(Func.prod(layer.get_output_shape()))
 
-#        # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
-#        # This is multiplied by the average number of input nodes.
-#        kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
-#        if kernel_count > 0:
-#            probabilities['kernel'] = 2 * node_stats.mean * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
+        # Adding or removing a layer involves severing existing links and adding new ones.
+        # For this computation, we assume that the new layer will contain
+        # anywhere between 1 and the mean number of nodes (hence the 0.5).
+        # The SD is a correction term for the average number of nodes
+        # in the following layer whose links would need to be adjusted.
+        if _complexify:
+            probabilities['layer'] = link_stats.mean * (0.5 * (node_stats.mean + 1) + node_stats.get_sd())
+        else:
+            probabilities['layer'] = link_stats.mean * (node_stats.mean + node_stats.get_sd())
 
-        parameter_count = self.get_parameter_count()
+        # Adding or removing a node involves adding or removing new links.
+        probabilities['node'] = link_stats.mean
 
-        layer_count = len(self.layers)
-        probabilities['layer'] = parameter_count / layer_count
-
-        node_count = sum([len(layer.nodes) for layer in self.layers])
-        probabilities['node'] = parameter_count / node_count
+        # Changing the stride of a layer involves resizing the input of all subsequent layers
 
         conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
-        conv_layer_parameter_count = sum([layer.get_parameter_count() for layer in self.layers if layer.is_conv])
-
         if conv_layer_count > 0:
-            probabilities['stride'] = conv_layer_parameter_count / conv_layer_count
+            probabilities['stride'] = 0.5 * stride_stats.mean * link_stats.mean
 
+        # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
+        # This is multiplied by the average number of input nodes.
         kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
         if kernel_count > 0:
-            probabilities['kernel'] = conv_layer_parameter_count / kernel_count
+            probabilities['kernel'] = 2 * node_stats.mean * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
+
+#        parameter_count = self.get_parameter_count()
+
+#        layer_count = len(self.layers)
+#        probabilities['layer'] = parameter_count / layer_count
+
+#        node_count = sum([len(layer.nodes) for layer in self.layers])
+#        probabilities['node'] = parameter_count / node_count
+
+#        conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
+#        conv_layer_parameter_count = sum([layer.get_parameter_count() for layer in self.layers if layer.is_conv])
+
+#        if conv_layer_count > 0:
+#            probabilities['stride'] = conv_layer_parameter_count / conv_layer_count
+
+#        kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
+#        if kernel_count > 0:
+#            probabilities['kernel'] = conv_layer_parameter_count / kernel_count
 
         return probabilities
 
@@ -1020,17 +1033,17 @@ class Net(tn.Module):
                _probabilities = None,
                _complexify = None):
 
-        # Statistics about the structure of this network
-        probabilities = self.get_mutation_probabilities() if _probabilities is None else _probabilities
-
-#        print('>>> Mutation probabilities:\n{}'.format(probabilities))
-
         # Complexity can be increased or decreased
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
 #        complexification_chance = (0.5 + self.get_relative_complexity()) / 2
         complexify = Rand.chance(0.5) if _complexify is None else _complexify
+
+        # Statistics about the structure of this network
+        probabilities = self.get_mutation_probabilities(complexify) if _probabilities is None else _probabilities
+
+#        print('>>> Mutation probabilities:\n{}'.format(probabilities))
 
         # The complexity can be increased or decreased
         # with probability proportional to the number
@@ -1062,8 +1075,8 @@ class Net(tn.Module):
 
         result.element = wheel.spin()
 
-#        for elem_index in range(len(wheel.elements)):
-#            print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:10.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:10.5f}')
+        for elem_index in range(len(wheel.elements)):
+            print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
 
         #return
 

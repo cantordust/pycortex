@@ -59,9 +59,9 @@ def test(_conf, _net):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\t[Net {}] (Test) Epoch {} Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
-        _net.ID, _conf.epoch, test_loss, correct, len(test_loader.dataset),
-        accuracy))
+    print(f'[Net {_net.ID}] Test | Run {_conf.run} | ' +
+          f'Epoch {_conf.epoch} Average loss: {test_loss:.4f}, ' +
+          f'Accuracy: {correct}/{len(test_loader.dataset)} ({accuracy:.2f}%)')
 
     return accuracy
 
@@ -75,23 +75,27 @@ def train(_conf, _net):
 
     net.fitness.loss_stat.reset()
 
+    examples = 0
     for batch_idx, (data, target) in enumerate(train_loader):
 
-        progress = batch_idx / len(train_loader)
+#        progress = batch_idx * len(data) / len(train_loader.dataset)
 
-        # Skip this training batch with probability proportional to the fitness and the progress
-        if ctx.Rand.chance(net.fitness.relative * progress):
+        # Skip this training batch with probability determined by the network fitness and the epoch
+        if ctx.Rand.chance(1.0 - net.fitness.relative):
             continue
+
+        examples += len(data)
 
         data, target = data.to(_conf.device), target.to(_conf.device)
 
         net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
-        if (batch_idx + 1) % _conf.log_interval == 0:
-            print('[Net {}] (Train) Epoch {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                net.ID, _conf.epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * progress, net.fitness.loss_stat.current_value))
+#        if (batch_idx + 1) % _conf.log_interval == 0:
+#            print(f'[Net {net.ID}] Train | Run {_conf.run} | ' +
+#                  f'Epoch {_conf.epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} ' +
+#                  f'({100. * progress:.0f}%)] Loss: {net.fitness.loss_stat.current_value:.6f}')
 
+    print(f'[Net {net.ID}] Test | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(train_loader.dataset):.2f} % of the dataset')
     net.fitness.absolute = test(_conf, net)
     net.fitness.stat.update(net.fitness.absolute)
 

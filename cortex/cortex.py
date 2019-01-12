@@ -388,7 +388,7 @@ def calibrate():
         # This means that for identical absolute fitness, an individual with
         # lower complexity would have a higher relative fitness.
         complexity_fitness_scale[net_id] = complexity_stat.get_inv_offset(complexity_fitness_scale[net_id])
-        print("Network", net_id, "fitness scale:", complexity_fitness_scale[net_id])
+#        print("Network", net_id, "fitness scale:", complexity_fitness_scale[net_id])
 
     for species in cs.Species.Populations.values():
 
@@ -406,7 +406,9 @@ def calibrate():
     for species in cs.Species.Populations.values():
         # Compute the relative species fitness
         species.fitness.relative = species_stat.get_offset(species.fitness.absolute)
-        species.print()
+#        species.print()
+
+    print(f'>>> Global champion: {cn.Net.Champion} (fitness: {cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute})')
 
 def save(_net_id,
          _run,
@@ -444,6 +446,8 @@ def cull():
             # are more likely to be eliminated.
             wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_sd() / net.age)
 
+    removed_nets = []
+    removed_species = []
     while len(cn.Net.Ecosystem) > cn.Net.Max.Count:
 
         # Get a random network ID
@@ -453,7 +457,8 @@ def cull():
 
             species_id = cn.Net.Ecosystem[net_id].species_id
 
-            print('Removing network {} from species {}'.format(net_id, species_id))
+#            print('Removing network {} from species {}'.format(net_id, species_id))
+            removed_nets.append(net_id)
 
             # Remove the network from the species.
             cs.Species.Populations[species_id].nets.remove(net_id)
@@ -462,7 +467,11 @@ def cull():
             del cn.Net.Ecosystem[net_id]
 
         if len(cs.Species.Populations[species_id].nets) == 0:
+            removed_species.append(species_id)
             del cs.Species.Populations[species_id]
+
+    print('Removed nets: {}'.format(removed_nets))
+    print('Removed species: {}'.format(removed_species))
 
 def evolve(_stats,
            _run,
@@ -591,6 +600,8 @@ def run():
 
             # Fresh configuration
             conf = Conf()
+
+            conf.run = run
 
             # Initialise the ecosystem
             try:
