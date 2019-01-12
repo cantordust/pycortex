@@ -134,8 +134,7 @@ class Net(tn.Module):
     def as_str(self,
                _layers = True):
 
-        str = f'''
-###################[ Network {self.ID} ]###################
+        str = f'''###################[ Network {self.ID} ]###################
 >>> Fitness:
     Absolute: {self.fitness.absolute}
     Relative: {self.fitness.relative}

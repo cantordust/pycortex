@@ -347,10 +347,6 @@ def init():
     for species in cs.Species.Populations.values():
         species.print()
 
-    if not Conf.UnitTestMode:
-        os.makedirs(Conf.LogDir, exist_ok = True)
-        Conf.Logger = SummaryWriter(Conf.LogDir + '/TensorBoard')
-
 def calibrate():
 
     if get_rank() != 0:
@@ -606,6 +602,10 @@ def run():
             # Initialise the ecosystem
             try:
                 init()
+
+                if not Conf.UnitTestMode:
+                    os.makedirs(Conf.LogDir, exist_ok = True)
+                    Conf.Logger = SummaryWriter(Conf.LogDir + '/run_' + str(run))
 
             except:
                 print('Caught exception in init()')
