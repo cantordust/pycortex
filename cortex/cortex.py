@@ -345,7 +345,7 @@ def init():
 
     print(f'Species count: {len(cs.Species.Populations)}')
     for species in cs.Species.Populations.values():
-        species.print()
+        print(species.as_str())
 
 def calibrate():
 
@@ -373,24 +373,22 @@ def calibrate():
     # Highest fitness seen so far.
     top_fitness = -math.inf
 
-    complexity_fitness_scale = {}
+    params = {}
     complexity_stat = Stat.SMAStat()
     for net in cn.Net.Ecosystem.values():
-        complexity_fitness_scale[net.ID] = net.get_parameter_count()
-        complexity_stat.update(complexity_fitness_scale[net.ID])
+        params[net.ID] = net.get_parameter_count()
+        complexity_stat.update(params[net.ID])
 
-    for net_id in complexity_fitness_scale.keys():
-        # Lower complexity = higher scale factor.
+    for net_id in params.keys():
         # This means that for identical absolute fitness, an individual with
         # lower complexity would have a higher relative fitness.
-        complexity_fitness_scale[net_id] = complexity_stat.get_inv_offset(complexity_fitness_scale[net_id])
-#        print("Network", net_id, "fitness scale:", complexity_fitness_scale[net_id])
+        cn.Net.Ecosystem[net_id].complexity = complexity_stat.get_inv_offset(params[net_id])
 
     for species in cs.Species.Populations.values():
 
         # Compute the relative network fitness
         # and the absolute species fitness.
-        species.calibrate(complexity_fitness_scale)
+        species.calibrate()
         species_stat.update(species.fitness.absolute)
 
         if (cn.Net.Champion is None or
@@ -402,7 +400,6 @@ def calibrate():
     for species in cs.Species.Populations.values():
         # Compute the relative species fitness
         species.fitness.relative = species_stat.get_offset(species.fitness.absolute)
-#        species.print()
 
     print(f'>>> Global champion: {cn.Net.Champion} (fitness: {cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute})')
 
@@ -438,9 +435,9 @@ def cull():
     for net_id, net in cn.Net.Ecosystem.items():
         if (net.age > 0 and
             net_id != cn.Net.Champion):
-            # Networks whose fitness is low or hasn't changed much for a while
+            # Old, unfit and simple networks
             # are more likely to be eliminated.
-            wheel.add(net_id, net.fitness.relative * net.fitness.stat.get_sd() / net.age)
+            wheel.add(net_id, net.fitness.relative * net.complexity / net.age)
 
     removed_nets = []
     removed_species = []

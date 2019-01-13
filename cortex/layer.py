@@ -96,19 +96,18 @@ class Layer(tn.Module):
                           self.activation == _other.activation))
             return False
 
-        def print(self,
-                  _file = sys.stdout):
+        def as_str(self):
 
-            print("\tShape:", self.shape,
-                  "\n\tStride:", self.stride,
-                  "\n\tBias:", self.bias,
-                  "\n\tOp:", self.op,
-                  "\n\tRole:", self.role,
-                  "\n\tActivation:", self.activation.__name__,
-                  "\n\tConvolutional:", self.is_conv,
-                  "\n\tEmpty:", self.empty,
-                  file = _file)
+            str = f'''Shape: {self.shape}
+Stride: {self.stride}
+Bias: {self.bias}
+Op: {self.op}
+Role: {self.role}
+Activation: {self.activation.__name__}
+Convolutional: {self.is_conv}
+Empty: {self.empty}'''
 
+            return str
         ### /Def
 
     @staticmethod

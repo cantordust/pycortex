@@ -79,6 +79,9 @@ class Net(tn.Module):
         # Initialise the age
         self.age = 0
 
+        # Number of parameters relative to all other networks
+        self.complexity = 0.0
+
         # Initialise the fitness
         self.fitness = Fitness()
 
@@ -131,6 +134,7 @@ class Net(tn.Module):
 
         return True
 
+
     def as_str(self,
                _layers = True):
 
@@ -171,6 +175,12 @@ class Net(tn.Module):
                                        _role = layer.role))
 
         return genome
+
+
+    def genome_overlap(self,
+                       _other):
+
+        pass
 
     def reindex(self):
         for index, layer in enumerate(self.layers):
@@ -1032,12 +1042,14 @@ class Net(tn.Module):
                _probabilities = None,
                _complexify = None):
 
+        mut = Mutation()
+
         # Complexity can be increased or decreased
         # based on the current complexity of the
         # network relative to the average complexity
         # of the whole population.
 #        complexification_chance = (0.5 + self.get_relative_complexity()) / 2
-        complexify = Rand.chance(0.5) if _complexify is None else _complexify
+        complexify = Rand.chance(1.0 - self.fitness.stat.get_offset()) if _complexify is None else _complexify
 
         # Statistics about the structure of this network
         probabilities = self.get_mutation_probabilities(complexify) if _probabilities is None else _probabilities
@@ -1064,15 +1076,13 @@ class Net(tn.Module):
             if 'kernel' in probabilities:
                 wheel.add('kernel', probabilities['kernel'])
 
-        result = Mutation()
-
-        result.action = 'Complexification' if complexify else 'Simplification'
+        mut.action = 'Complexification' if complexify else 'Simplification'
 
         if wheel.is_empty():
-            result.msg = 'Empty mutation roulette wheel'
-            return result
+            mut.msg = 'Empty mutation roulette wheel'
+            return mut
 
-        result.element = wheel.spin()
+        mut.element = wheel.spin()
 
         for elem_index in range(len(wheel.elements)):
             print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
@@ -1081,34 +1091,34 @@ class Net(tn.Module):
 
         # Do not allow structural mutations if we have reached the limit
         # on the species count and this network's species has more than one member
-        if (result.element != 'kernel' and
+        if (mut.element != 'kernel' and
             cs.Species.Enabled and
             cs.Species.Max.Count > 0 and
             len(cs.Species.Populations) == cs.Species.Max.Count and
             len(cs.Species.Populations[self.species_id].nets) > 1):
-            result.msg = 'Species limit reached'
-            return result
+            mut.msg = 'Species limit reached'
+            return mut
 
         # Non-structural mutation
-        if result.element == 'kernel':
+        if mut.element == 'kernel':
 
-            mut = self.resize_kernel(_diff = 1) if complexify else self.resize_kernel(_diff = 1)
+            result = self.resize_kernel(_diff = 1) if complexify else self.resize_kernel(_diff = 1)
 
-        elif result.element == 'stride':
+        elif mut.element == 'stride':
 
             # Growing the stride actually reduces the number of parameters
-            mut = self.resize_stride(_diff = -1) if complexify else self.resize_stride(_diff = 1)
+            result = self.resize_stride(_diff = -1) if complexify else self.resize_stride(_diff = 1)
 
-        elif result.element == 'layer':
+        elif mut.element == 'layer':
 
-            mut = self.add_layer() if complexify else self.remove_layer()
+            result = self.add_layer() if complexify else self.remove_layer()
 
-        elif result.element == 'node':
+        elif mut.element == 'node':
 
-            mut = self.add_nodes() if complexify else self.remove_nodes()
+            result = self.add_nodes() if complexify else self.remove_nodes()
 
-        mut.action = result.action
-        mut.element = result.element
+        mut.success = result.success
+        mut.msg = result.msg
 
         if not mut.success:
             print(f'[Net {self.ID}] >>> {mut.action} failed: {mut.msg}')

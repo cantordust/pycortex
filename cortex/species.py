@@ -105,32 +105,26 @@ class Species:
 
         return True
 
-    def print(self,
-              _file = sys.stdout):
+    def as_str(self):
 
         import cortex.layer as cl
         import cortex.network as cn
 
-        print("\n\n===============[ Species", self.ID, "]===============",
-              "\nAbsolute fitness:", self.fitness.absolute,
-              "\nRelative fitness:", self.fitness.relative,
-              "\nNetworks:", self.nets,
-              "\nchampion:", self.champion,
-              "\n====[ Genome ]====",
-              file = _file)
-
-        for layer_index, layer in enumerate(self.genome):
-            print('\nLayer {}:'.format(layer_index), file = _file)
-            layer.print(_file = _file)
+        str = f'''===============[ Species {self.ID} ]===============
+Absolute fitness: {self.fitness.absolute}
+Relative fitness: {self.fitness.relative}
+Networks: {self.nets}
+champion: {self.champion}'''
 
         output_layer = cl.Layer.Def(_shape = cn.Net.Output.Shape,
                                     _role = 'output')
 
-        print('\nLayer {}:'.format(len(self.genome)), file = _file)
-        output_layer.print(_file = _file)
+        for layer_index, layer in enumerate([*self.genome, output_layer]):
+            str += f'\n\n======[ Layer {layer_index} ]======\n{layer.as_str()}'
 
-    def calibrate(self,
-                  _complexity_fitness_scale):
+        return str
+
+    def calibrate(self):
 
         if len(self.nets) == 0:
             return
@@ -162,7 +156,6 @@ class Species:
         for net_id in self.nets:
             # Compute the relative fitness
             net = cn.Net.Ecosystem[net_id]
-#            net.fitness.relative = _complexity_fitness_scale[net_id] * net_stats.get_offset(net.fitness.absolute)
             net.fitness.relative = net_stats.get_offset(net.fitness.absolute)
 
 #            print("Network", net_id, "fitness:",

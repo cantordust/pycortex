@@ -80,8 +80,8 @@ def train(_conf, _net):
 
 #        progress = batch_idx * len(data) / len(train_loader.dataset)
 
-        # Skip this training batch with probability determined by the network fitness and the epoch
-        if ctx.Rand.chance(1.0 - net.fitness.relative):
+        # Skip this training batch with probability determined by the network complexity
+        if ctx.Rand.chance(1.0 - net.complexity):
             continue
 
         examples += len(data)
