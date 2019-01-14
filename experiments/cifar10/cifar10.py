@@ -96,8 +96,7 @@ def train(_conf, _net):
 #                  f'({100. * progress:.0f}%)] Loss: {net.fitness.loss_stat.current_value:.6f}')
 
     print(f'[Net {net.ID}] Test | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(train_loader.dataset):.2f}% of the dataset')
-    net.fitness.absolute = test(_conf, net)
-    net.fitness.stat.update(net.fitness.absolute)
+    net.fitness.set(test(_conf, net))
 
     return net
 

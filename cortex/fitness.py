@@ -15,3 +15,9 @@ class Fitness:
         # Running statistics about the loss
         self.loss_stat = Stat.EMAStat()
 
+    def set(self,
+            _absolute):
+
+        self.absolute = _absolute
+        self.stat.update(_absolute)
+

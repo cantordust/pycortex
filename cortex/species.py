@@ -157,8 +157,7 @@ class Species:
 #                  "\t\tAbsolute:", cn.Net.Ecosystem[net_id].fitness.absolute,
 #                  "\t\tRelative:", cn.Net.Ecosystem[net_id].fitness.relative)
 
-        self.fitness.absolute = net_stats.mean
-        self.fitness.stat.update(self.fitness.absolute)
+        self.fitness.set(net_stats.mean)
 
     def evolve(self):
 
@@ -178,29 +177,29 @@ class Species:
         while not parent1_wheel.is_empty():
 
             # Choose one parent
-            p1 = parent1_wheel.pop()
+            p1 = cn.Net.Ecosystem[parent1_wheel.pop()]
 
             # Choose a partner
-            p2 = parent2_wheel.spin()
+            p2 = cn.Net.Ecosystem[parent2_wheel.spin()]
 
             # Fitter networks have a better chance of mating.
             # Take the average of the two parents' relative fitness values
-            mating_chance = 0.5 * (cn.Net.Ecosystem[p1].fitness.relative + cn.Net.Ecosystem[p2].fitness.relative) / (Species.Offspring + 1)
+            mating_chance = 0.5 * (p1.fitness.relative + p2.fitness.relative) / (Species.Offspring + 1)
             if not Species.Enabled:
-                mating_chance *= cn.Net.Ecosystem[p1].genome_overlap(cn.Net.Ecosystem[p2])
+                mating_chance *= p1.genome_overlap(p2)
 
-            print(f'Chance of mating nets {p1} and {p2}: {mating_chance}')
+            print(f'Chance of mating nets {p1.ID} and {p2.ID}: {mating_chance}')
 
             if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
                 Rand.chance(mating_chance)):
 
                 if p1 != p2:
                     # Crossover
-                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[p1], _p2 = cn.Net.Ecosystem[p2])
+                    offspring = cn.Net(_p1 = p1, _p2 = p2)
 
                 else:
                     # Clone
-                    offspring = cn.Net(_p1 = cn.Net.Ecosystem[p1])
+                    offspring = cn.Net(_p1 = p1)
                     offspring.mutate(_structure = False)
 
                 # Increase the offspring count
@@ -216,11 +215,14 @@ class Species:
                                 'kernel': 1
                                 }
 
-                cn.Net.Ecosystem[p1].mutate(_probabilities = probabilities)
+                complexification_chance = 1.0 - self.fitness.stat.get_offset() * p1.complexity
+                print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
+                p1.mutate(_complexify = Rand.chance(complexification_chance),
+                          _probabilities = probabilities)
 
-                if cn.Net.Ecosystem[p1].species_id != self.ID:
+                if p1.species_id != self.ID:
                     # The network has moved to another species.
                     # Remove it from the other wheel.
-                    parent2_wheel.remove(p1)
+                    parent2_wheel.remove(p1.ID)
 
 

@@ -317,21 +317,19 @@ class Net(tn.Module):
 #                new_nodes = math.floor(_stats['nodes'].mean)
                 for allowed_shape in self.get_allowed_layer_shapes(layer_index):
 
-                    if layer_index == len(self.layers):
-                        new_layer_shape = dcp(allowed_shape)
+                    new_layer_shape = dcp(allowed_shape)
 
-                    else:
+                    if layer_index < len(self.layers):
                         if (len(mut.shape) > 0 and
                             mut.shape[0] > 0):
                             new_nodes = mut.shape[0]
                         else:
                             new_nodes = Rand.uint(1, math.floor(node_stat.mean + 1))
 
-                        input_shape = self.get_input_shape(layer_index)
-                        new_layer_shape = dcp(allowed_shape)
-
                         # Set the number of output nodes
                         new_layer_shape[0] = new_nodes
+
+                    input_shape = self.get_input_shape(layer_index)
 
                     # Create a layer definition
                     layer_def = cl.Layer.Def(_shape = new_layer_shape,
@@ -1107,7 +1105,7 @@ class Net(tn.Module):
             # based on the current complexity of the
             # network relative to the average complexity
             # of the whole population.
-            complexify = Rand.chance(1.0 - self.fitness.stat.get_offset()) if _complexify is None else _complexify
+            complexify = Rand.chance(0.5) if _complexify is None else _complexify
 
             mut.action = 'Complexification' if complexify else 'Simplification'
             mut.msg += f'{mut.action} '
