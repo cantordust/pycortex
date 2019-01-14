@@ -215,10 +215,7 @@ class Species:
                                 'kernel': 1
                                 }
 
-                complexification_chance = 1.0 - self.fitness.stat.get_offset() * p1.complexity
-                print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
-                p1.mutate(_complexify = Rand.chance(complexification_chance),
-                          _probabilities = probabilities)
+                p1.mutate(_probabilities = probabilities)
 
                 if p1.species_id != self.ID:
                     # The network has moved to another species.

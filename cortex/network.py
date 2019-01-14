@@ -1105,7 +1105,13 @@ class Net(tn.Module):
             # based on the current complexity of the
             # network relative to the average complexity
             # of the whole population.
-            complexify = Rand.chance(0.5) if _complexify is None else _complexify
+
+            if _complexify:
+                complexify = _complexify
+            else:
+                complexification_chance = 1.0 - cs.Species.Populations[self.species_id].fitness.stat.get_offset() * self.complexity
+                print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
+                complexify = Rand.chance(complexification_chance)
 
             mut.action = 'Complexification' if complexify else 'Simplification'
             mut.msg += f'{mut.action} '
