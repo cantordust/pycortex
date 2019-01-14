@@ -7,14 +7,16 @@ Created on Thu Oct 11 14:52:44 2018
 @license: MIT ((https://opensource.org/licence/MIT)
 """
 
-import torch
-from torchvision import datasets, transforms
-
 import cortex.cortex as ctx
 import cortex.network as cn
 import cortex.layer as cl
 
+import torch
+from torchvision import datasets, transforms
+
 def get_train_loader(_conf):
+
+#    print('Data dir: {}'.format(_conf.data_dir))
 
     train_loader = torch.utils.data.DataLoader(
         datasets.CIFAR10(_conf.data_dir,
@@ -38,14 +40,13 @@ def get_test_loader(_conf):
 
     return test_loader
 
-def test(_net, _conf):
+def test(_conf, _net):
 
     _net.eval()
     test_loss = 0
     correct = 0
 
-    with loader_lock:
-        test_loader = get_test_loader(_conf)
+    test_loader = get_test_loader(_conf)
 
     with torch.no_grad():
         for data, target in test_loader:
@@ -58,64 +59,75 @@ def test(_net, _conf):
     test_loss /= len(test_loader.dataset)
 
     accuracy = 100. * correct / len(test_loader.dataset)
-    print('\n[Net {} | Test] Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        _net.ID, test_loss, correct, len(test_loader.dataset),
-        accuracy))
+    print(f'[Net {_net.ID}] Test | Run {_conf.run} | ' +
+          f'Epoch {_conf.epoch} Average loss: {test_loss:.4f}, ' +
+          f'Accuracy: {correct}/{len(test_loader.dataset)} ({accuracy:.2f}%)')
 
     return accuracy
 
-def train(_net, _epoch, _conf):
+def train(_conf, _net):
 
-    _net = _net.to(_conf.device)
-    _net.train()
-    optimiser = _conf.optimiser(_net.parameters())
+    net = _net.to(_conf.device)
+    net.train()
+    optimiser = _conf.optimiser(net.parameters())
 
-    with loader_lock:
-        train_loader = get_train_loader(_conf)
+    train_loader = get_train_loader(_conf)
 
-    _net.fitness.loss_stat.reset()
-    train_portion = 1.0 - _net.fitness.relative
+    net.fitness.loss_stat.reset()
 
+    examples = 0
     for batch_idx, (data, target) in enumerate(train_loader):
+
+#        progress = batch_idx * len(data) / len(train_loader.dataset)
+
+        # Skip this training batch with probability determined by the network complexity
+        if ctx.Rand.chance(1.0 - net.fitness.relative):
+            continue
+
+        examples += len(data)
+
         data, target = data.to(_conf.device), target.to(_conf.device)
 
-        _net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
-        progress = batch_idx / len(train_loader)
+        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
-        if (batch_idx + 1) % _conf.log_interval == 0:
-            print('[Net {} | Train] Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                _net.ID, _epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * progress, _net.fitness.loss_stat.current_value))
+#        if (batch_idx + 1) % _conf.log_interval == 0:
+#            print(f'[Net {net.ID}] Train | Run {_conf.run} | ' +
+#                  f'Epoch {_conf.epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} ' +
+#                  f'({100. * progress:.0f}%)] Loss: {net.fitness.loss_stat.current_value:.6f}')
 
-        if progress >= train_portion:
-            break
+    print(f'[Net {net.ID}] Test | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(train_loader.dataset):.2f}% of the dataset')
+    net.fitness.absolute = test(_conf, net)
+    net.fitness.stat.update(net.fitness.absolute)
 
-    _net.fitness.absolute = test(_net, _conf)
-
-    return _net
+    return net
 
 def main():
 
-    # Parse command line arguments and set default parameters
-    ctx.init_conf()
+    if ctx.get_rank() == 0:
 
-    cn.Net.Input.Shape = [3, 32, 32]
-    cn.Net.Output.Shape = [10]
-    cn.Net.Init.Layers = []
+        # This is the master process.
+        # Parse command line arguments and set default parameters
+        ctx.init_conf()
 
-    # If necessary, run the train loader to download the data
-    if ctx.Conf.DownloadData:
-        datasets.CIFAR10(ctx.Conf.DataDir,
-                         download=True,
-                         transform=transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+        # Set the initial parameters
+        cn.Net.Input.Shape = [3, 32, 32]
+        cn.Net.Output.Shape = [10]
+        cn.Net.Init.Layers = []
 
-    ctx.Conf.Evaluator = train
+        # If necessary, run the train loader to download the data
+        if ctx.Conf.DownloadData:
+            datasets.CIFAR10(ctx.Conf.DataDir,
+                             download=True,
+                             transform=transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
 
-    # Print the current configuration
-    ctx.print_conf()
+        # Assign the train function
+        ctx.Conf.Evaluator = train
+
+        ctx.print_conf()
+
+#        ctx.init()
 
     # Run Cortex
-#    ctx.init()
     ctx.run()
 
 if __name__ == '__main__':

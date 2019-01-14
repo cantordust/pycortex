@@ -935,8 +935,8 @@ class Net(tn.Module):
             self.add_layer(_shape = shape,
                            _stride = wheel.spin().stride,
                            _bias = wheel.spin().bias is not None,
-                           _layer_index = layer_index,
-                           _activation = wheel.spin().activation)
+                           _activation = wheel.spin().activation,
+                           _layer_index = layer_index)
 
             # Bias weight values
             bias_weights = []
@@ -985,8 +985,8 @@ class Net(tn.Module):
             self.add_layer(_shape = [0, *layer.kernel_size],
                            _stride = layer.stride,
                            _bias = layer.bias is not None,
-                           _layer_index = layer_index,
-                           _activation = layer.activation)
+                           _activation = layer.activation,
+                           _layer_index = layer_index)
 
             # Clone the nodes
             for node_index, node in enumerate(layer.nodes):
@@ -1107,7 +1107,7 @@ class Net(tn.Module):
             # based on the current complexity of the
             # network relative to the average complexity
             # of the whole population.
-            complexify = Rand.chance(0.5) if _complexify is None else _complexify
+            complexify = Rand.chance(1.0 - self.fitness.stat.get_offset()) if _complexify is None else _complexify
 
             mut.action = 'Complexification' if complexify else 'Simplification'
             mut.msg += f'{mut.action} '

@@ -100,7 +100,7 @@ class SMAStat(Stat):
 class EMAStat(Stat):
 
     def __init__(self,
-                 _alpha = 0.25,
+                 _alpha = 0.5,
                  _title = None):
         super(EMAStat, self).__init__(_title = _title)
         self.alpha = _alpha

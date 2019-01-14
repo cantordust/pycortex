@@ -107,11 +107,11 @@ class Species:
 
     def as_str(self):
 
-        str = f'''===============[ Species {self.ID} ]===============
-Absolute fitness: {self.fitness.absolute}
-Relative fitness: {self.fitness.relative}
-Networks: {self.nets}
-champion: {self.champion}'''
+        str = f'\n===============[ Species {self.ID} ]===============' +\
+              f'\nAbsolute fitness: {self.fitness.absolute}' +\
+              f'\nRelative fitness: {self.fitness.relative}' +\
+              f'\nNetworks: {self.nets}' +\
+              f'\nChampion: {self.champion}'
 
         for layer_index, layer in enumerate(self.genome):
             str += f'\n\n======[ Layer {layer_index} ]======\n{layer.as_str()}'
