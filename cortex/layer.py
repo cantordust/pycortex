@@ -83,6 +83,9 @@ class Layer(tn.Module):
             self.is_conv = len(self.shape) > 1
             self.empty = (self.shape[0] == 0)
 
+        def __len__(self):
+            return self.shape[0]
+
         def matches(self,
                     _other):
 
@@ -214,6 +217,9 @@ Empty: {self.empty}'''
                            self.input_shape[1:],
                            _layer_def.shape[1:])
 
+    def __len__(self):
+        return len(self.nodes)
+
     def matches(self,
                 _other):
 
@@ -258,10 +264,10 @@ Empty: {self.empty}'''
             print("\t>>> Layer 2:\n", _other.output_shape())
             return False
 
-        if self.get_output_nodes() != _other.get_output_nodes():
+        if len(self) != len(_other):
             print("(Layer", self.index, ")\t>>> Different output node count")
-            print("\t>>> Layer 1:\n", self.get_output_nodes())
-            print("\t>>> Layer 2:\n", _other.get_output_nodes())
+            print("\t>>> Layer 1:\n", len(self))
+            print("\t>>> Layer 2:\n", len(_other))
             return False
 
         if self.get_multiplier() != _other.get_multiplier():
@@ -328,7 +334,7 @@ Empty: {self.empty}'''
     Input nodes: {self.get_input_nodes()}
     Multiplier: {self.get_multiplier()}
 >>> Output shape: {self.get_output_shape()}
-    Output nodes: {self.get_output_nodes()}
+    Nodes: {len(self)}
 >>> Shape: {self.get_shape()}
 >>> Shape of weight tensor: {list(self.weight.size())}
 >>> Shape of bias tensor: {list(self.bias.size())}
@@ -362,9 +368,6 @@ Empty: {self.empty}'''
             _input_shape = self.input_shape
         return _input_shape[0]
 
-    def get_output_nodes(self):
-        return len(self.nodes)
-
     def get_output_shape(self,
                          _output_nodes = None,
                          _input_shape = None,
@@ -373,12 +376,22 @@ Empty: {self.empty}'''
                          _padding = None,
                          _dilation = None):
 
-        return Layer.compute_output_shape(_output_nodes = self.get_output_nodes() if _output_nodes is None else _output_nodes,
+        return Layer.compute_output_shape(_output_nodes = len(self.nodes) if _output_nodes is None else _output_nodes,
                                           _input_shape = self.input_shape if _input_shape is None else _input_shape,
                                           _kernel_size = self.kernel_size if _kernel_size is None else _kernel_size,
                                           _stride = self.stride if _stride is None else _stride,
                                           _padding = self.padding if _padding is None else _padding,
                                           _dilation = self.dilation if _dilation is None else _dilation)
+
+    def get_output_nodes(self,
+                         _output_nodes = None,
+                         _input_shape = None,
+                         _kernel_size = None,
+                         _stride = None,
+                         _padding = None,
+                         _dilation = None):
+
+        return Func.prod(self.get_output_shape(_output_nodes, _input_shape, _kernel_size, _stride, _padding, _dilation))
 
     def get_shape(self):
         return [len(self.nodes), *self.kernel_size]
@@ -681,7 +694,7 @@ Empty: {self.empty}'''
         if _pretend:
             link_diff = 0
 
-        for output_node in range(self.get_output_nodes()):
+        for output_node in range(len(self.nodes)):
 
             # Check if there is a discrepancy in the number of input nodes
             input_nodes = int(self.nodes[output_node].size(0)) / multiplier

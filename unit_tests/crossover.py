@@ -41,7 +41,7 @@ def test_crossover():
                 net.shrink_kernel()
 
             model = net.to('cpu')
-            match = list(model(torch.randn(ctx.Conf.TrainBatchSize, *ctx.cn.Net.Input.Shape)).size()) == [ctx.Conf.TrainBatchSize, net.layers[-1].get_output_nodes()]
+            match = list(model(torch.randn(ctx.Conf.TrainBatchSize, *ctx.cn.Net.Input.Shape)).size()) == [ctx.Conf.TrainBatchSize, len(net.layers[-1].nodes)]
             if not utest.pass_fail(match, "\tEvaluating the mutated network with random input..."):
                 net.print()
 
@@ -53,7 +53,7 @@ def test_crossover():
                 offspring = ctx.cn.Net(_p1 = nets[p1], _p2 = nets[p2], _isolated = True)
 
                 model = offspring.to('cpu')
-                match = list(model(torch.randn(ctx.Conf.TrainBatchSize, *ctx.cn.Net.Input.Shape)).size()) == [ctx.Conf.TrainBatchSize, net.layers[-1].get_output_nodes()]
+                match = list(model(torch.randn(ctx.Conf.TrainBatchSize, *ctx.cn.Net.Input.Shape)).size()) == [ctx.Conf.TrainBatchSize, len(net.layers[-1].nodes)]
                 if not utest.pass_fail(match, "\tEvaluating the offspring network with random input..."):
                     offspring.print()
 

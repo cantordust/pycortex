@@ -107,19 +107,13 @@ class Species:
 
     def as_str(self):
 
-        import cortex.layer as cl
-        import cortex.network as cn
-
         str = f'''===============[ Species {self.ID} ]===============
 Absolute fitness: {self.fitness.absolute}
 Relative fitness: {self.fitness.relative}
 Networks: {self.nets}
 champion: {self.champion}'''
 
-        output_layer = cl.Layer.Def(_shape = cn.Net.Output.Shape,
-                                    _role = 'output')
-
-        for layer_index, layer in enumerate([*self.genome, output_layer]):
+        for layer_index, layer in enumerate(self.genome):
             str += f'\n\n======[ Layer {layer_index} ]======\n{layer.as_str()}'
 
         return str
@@ -130,6 +124,7 @@ champion: {self.champion}'''
             return
 
         import cortex.network as cn
+        import cortex.functions as Func
 
         # Reset the champion
         self.champion = None
@@ -148,6 +143,11 @@ champion: {self.champion}'''
                 top_fitness = absolute_fitness
 
             net_stats.update(absolute_fitness)
+
+        net_ids = dcp(self.nets)
+        train_portions = Func.softmax([cn.Net.Ecosystem[net_id].fitness.absolute for net_id in net_ids])
+        for index in range(len(net_ids)):
+            cn.Net.Ecosystem[net_ids[index]].train_portion = train_portions[index]
 
         print(f'>>> Champion for species {self.ID}: {self.champion} (fitness: {cn.Net.Ecosystem[self.champion].fitness.absolute})')
 
@@ -190,8 +190,14 @@ champion: {self.champion}'''
 
             # Fitter networks have a better chance of mating.
             # Take the average of the two parents' relative fitness values
-            if (Species.Offspring < len(cn.Net.Ecosystem) and
-                Rand.chance(0.5 * (cn.Net.Ecosystem[p1].fitness.relative + cn.Net.Ecosystem[p2].fitness.relative) / (Species.Offspring + 1))):
+            mating_chance = 0.5 * (cn.Net.Ecosystem[p1].fitness.relative + cn.Net.Ecosystem[p2].fitness.relative) / (Species.Offspring + 1)
+            if not Species.Enabled:
+                mating_chance *= cn.Net.Ecosystem[p1].genome_overlap(cn.Net.Ecosystem[p2])
+
+            print(f'Chance of mating nets {p1} and {p2}: {mating_chance}')
+
+            if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
+                Rand.chance(mating_chance)):
 
                 if p1 != p2:
                     # Crossover
@@ -205,7 +211,8 @@ champion: {self.champion}'''
                 # Increase the offspring count
                 Species.Offspring += 1
 
-            elif p1 != self.champion:
+            elif (p1 != self.champion and
+                  Rand.chance(1.0 - self.fitness.stat.get_offset())):
 
                 probabilities = {
                                 'layer': 1,

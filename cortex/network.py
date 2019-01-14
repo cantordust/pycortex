@@ -79,6 +79,8 @@ class Net(tn.Module):
         # Initialise the age
         self.age = 0
 
+        self.train_portion = 0.0
+
         # Number of parameters relative to all other networks
         self.complexity = 0.0
 
@@ -111,25 +113,27 @@ class Net(tn.Module):
                                        _layer = layer_index)
 
                 # Output layer
-                self.add_layer(_shape = Net.Output.Shape,
-                               _bias = cl.Layer.Bias,
-                               _layer = len(self.layers))
+                if (len(self.layers) == 0 or
+                    self.layers[-1].role != 'output'):
+                    self.add_layer(_shape = Net.Output.Shape,
+                                   _bias = cl.Layer.Bias,
+                                   _layer = len(self.layers))
 
         print(">>> Network", self.ID, "created")
 
     def matches(self,
-                _other):
+                _partner):
 
-        if len(self.layers) != len(_other.layers):
+        if len(self.layers) != len(_partner.layers):
 #            print("\t>>> Different number of layers")
 #            print("\t>>> Network 1:\n")
 #            self.print()
 #            print("\t>>> Network 2:\n")
-#            _other.print()
+#            _partner.print()
             return False
 
         for layer_index in range(len(self.layers)):
-            if not self.layers[layer_index].matches(_other.layers[layer_index]):
+            if not self.layers[layer_index].matches(_partner.layers[layer_index]):
                 return False
 
         return True
@@ -155,21 +159,24 @@ class Net(tn.Module):
 
         # To determine whether this network is convolutional,
         # it is enough to check if the first layer is convolutional.
-        if len(self.lyaers) > 0:
+        if len(self.layers) > 0:
             return self.layers[0].is_conv
 
         return False
 
+    def get_node_count(self):
+        return sum([len(layer) for layer in self.layers])
+
     def get_genome(self):
 
         genome = []
-        for layer_index in range(len(self.layers) - 1):
+        for layer_index in range(len(self.layers)):
             layer = self.layers[layer_index]
             shape = [0] * len(layer.get_output_shape())
             shape[0] = len(layer.nodes)
 
             genome.append(cl.Layer.Def(_shape = shape,
-                                       _stride = layer.stride,
+                                       _stride = [0] * len(layer.stride),
                                        _bias = layer.bias is not None,
                                        _activation = layer.activation,
                                        _role = layer.role))
@@ -178,9 +185,41 @@ class Net(tn.Module):
 
 
     def genome_overlap(self,
-                       _other):
+                       _partner):
 
-        pass
+        self_layer_index = 0
+        partner_layer_index = 0
+
+        overlap = 0
+        total_nodes = self.get_node_count() + _partner.get_node_count()
+
+        while (self_layer_index < len(self.layers) and
+               partner_layer_index < len(_partner.layers)):
+
+            l1 = self.layers[self_layer_index]
+            l2 = _partner.layers[partner_layer_index]
+
+            # Ensure that the types of the reference layers match.
+            if (l1.role == l2.role):
+
+                overlap += len(l1) if len(l1) <= len(l2) else len(l2)
+
+                self_layer_index += 1
+                partner_layer_index += 1
+
+            else:
+
+                # Increment the current layer counter of the parent with the longer DNA
+                if (cl.Layer.Roles[l1.role] < cl.Layer.Roles[l2.role]):
+                    self_layer_index += 1
+                else:
+                    partner_layer_index += 1
+
+        overlap = overlap / (total_nodes - overlap)
+
+        print(f'Genome overlap between nets {self.ID} and {_partner.ID}: {overlap}')
+
+        return overlap
 
     def reindex(self):
         for index, layer in enumerate(self.layers):
@@ -228,7 +267,8 @@ class Net(tn.Module):
         input_shape = [0] * len(self.get_input_shape(_layer))
         output_shape = [0] * len(self.get_output_shape(_layer))
 
-        return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
+#        return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
+        return [input_shape]
 
     def get_parameter_count(self):
 
@@ -250,8 +290,7 @@ class Net(tn.Module):
                   _stride = [],
                   _bias = None,
                   _activation = None,
-                  _layer = None,
-                  _test = False):
+                  _layer = None):
 
         mut =  Mutation()
 
@@ -272,31 +311,27 @@ class Net(tn.Module):
 
             # Check how many links we have to add and / or remove
             # to insert a layer of each allowed shape
-            for layer_index in range(len(self.layers)):
+            for layer_index in range(len(self.layers) + 1):
 
 #                new_nodes = math.floor(_stats['nodes'].mean)
                 for allowed_shape in self.get_allowed_layer_shapes(layer_index):
 
-                    if (len(mut.shape) > 0 and
-                        mut.shape[0] > 0):
-                        new_nodes = mut.shape[0]
+                    if layer_index == len(self.layers):
+                        new_layer_shape = dcp(allowed_shape)
+
                     else:
-                        new_nodes = Rand.uint(1, math.floor(node_stat.mean + 1))
+                        if (len(mut.shape) > 0 and
+                            mut.shape[0] > 0):
+                            new_nodes = mut.shape[0]
+                        else:
+                            new_nodes = Rand.uint(1, math.floor(node_stat.mean + 1))
 
-                    input_shape = self.get_input_shape(layer_index)
-                    new_layer_shape = dcp(allowed_shape)
+                        input_shape = self.get_input_shape(layer_index)
+                        new_layer_shape = dcp(allowed_shape)
 
-                    # Set the number of output nodes
-                    if _test:
-                        # This is a special case used for unit tests.
-                        # It is necessary in order to ensure that the mutation is reversible.
-                        # TODO: Better unit test that doesn't require this special block.
-                        new_layer_shape = [0] * len(self.get_input_shape(layer_index))
-                        new_layer_shape[0] = self.layers[layer_index].get_input_nodes() + 1
-
-                    elif new_layer_shape[0] == 0:
+                        # Set the number of output nodes
                         new_layer_shape[0] = new_nodes
-#                        new_layer_shape[0] = 1
+    #                    new_layer_shape[0] = 1
 
                     wheel.add((layer_index, new_layer_shape), 1)
 
@@ -380,9 +415,9 @@ class Net(tn.Module):
         # Update the input size of the next layer (if there is one)
         if mut.layer is None:
 
-            wheel = Rand.RouletteWheel()
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
-                wheel.add((layer_index,), 1)
+                wheel.add((layer_index,), self.layers[layer_index].get_parameter_count())
 
             if wheel.is_empty():
                 mut.msg = 'Empty roulette wheel'
@@ -428,9 +463,9 @@ class Net(tn.Module):
 
         if mut.layer is None:
 
-            wheel = Rand.RouletteWheel()
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
-                wheel.add((layer_index,), 1)
+                wheel.add((layer_index,), len(self.layers[layer_index]))
 
             if wheel.is_empty():
                 mut.msg = 'Empty roulette wheel'
@@ -484,28 +519,19 @@ class Net(tn.Module):
         if (mut.layer is None or
             len(mut.nodes) == 0):
 
-            layer_wheel = Rand.RouletteWheel()
+            wheel = Rand.RouletteWheel()
 
             for layer_index in range(len(self.layers) - 1):
 
                 # Check if we can remove a node at all
-                if len(self.layers[layer_index].nodes) > 1:
-                    layer_wheel.add(layer_index, 1)
+                if len(self.layers[layer_index]) > 1:
+                    wheel.add(layer_index, len(self.layers[layer_index]))
 
-            if layer_wheel.is_empty():
+            if wheel.is_empty():
                 mut.msg = 'Empty layer roulette wheel'
                 return mut
 
-            layer_index = layer_wheel.spin()
-
-            # Create a new wheel only for the nodes in the selected layer
-            node_wheel = Rand.RouletteWheel()
-            for node_index in range(len(self.layers[layer_index].nodes)):
-                node_wheel.add(node_index, 1)
-
-            if node_wheel.is_empty():
-                mut.msg = 'Empty node roulette wheel'
-                return mut
+            layer_index = wheel.spin()
 
             # Store the layer index
             if mut.layer is None:
@@ -519,8 +545,8 @@ class Net(tn.Module):
                     return mut
 
                 # Draw the necessary number of node indices
-                while len(mut.nodes) < mut.count:
-                    mut.nodes.add(node_wheel.pop())
+                for node in range(len(self.layers[mut.layer]) - mut.count, len(self.layers[mut.layer])):
+                    mut.nodes.add(node)
 
         # Sanity check for the layer index
         if len(self.layers) == 0:
@@ -617,7 +643,12 @@ class Net(tn.Module):
                         return mut
 
                     for dim in dims:
-                        wheel.add((layer, node, dim), 1)
+                        if mut.diff > 0:
+                            wheel.add((layer, node, dim), list(self.layers[layer].nodes[node].size())[dim])
+                        elif mut.diff < 0:
+                            wheel.add((layer, node, dim), 1 / list(self.layers[layer].nodes[node].size())[dim])
+                        else:
+                            wheel.add((layer, node, dim), 1)
 
             while True:
 
@@ -697,7 +728,12 @@ class Net(tn.Module):
                     return mut
 
                 for dim in dims:
-                    wheel.add((layer, dim), 1)
+                    if mut.diff > 0:
+                        wheel.add((layer, dim), self.layers[layer].stride[dim])
+                    elif mut.diff < 0:
+                        wheel.add((layer, dim), 1 / self.layers[layer].stride[dim])
+                    else:
+                        wheel.add((layer, dim), 1)
 
             while True:
 
@@ -890,8 +926,8 @@ class Net(tn.Module):
             node_index = 0
 
             # Pick kernels from the two reference chromosomes.
-            while (node_index < wheel.elements[0].get_output_nodes() and
-                   node_index < wheel.elements[1].get_output_nodes()):
+            while (node_index < len(wheel.elements[0].nodes) and
+                   node_index < len(wheel.elements[1].nodes)):
 
                 # Pick a node (gene) from a random layer (chromosome)
                 rnd_layer = wheel.spin()
@@ -903,8 +939,8 @@ class Net(tn.Module):
 
                 node_index += 1
 
-                if (node_index == wheel.elements[0].get_output_nodes() or
-                    node_index == wheel.elements[1].get_output_nodes()):
+                if (node_index == len(wheel.elements[0].nodes) or
+                    node_index == len(wheel.elements[1].nodes)):
 
                     # Optionally store any extra nodes.
                     rnd_layer = wheel.spin()
@@ -976,7 +1012,7 @@ class Net(tn.Module):
         kernel_dim_stats = Stat.SMAStat(_title = 'Kernel dimensions')
 
         for layer_index, layer in enumerate(self.layers):
-            node_stats.update(layer.get_output_nodes())
+            node_stats.update(len(layer.nodes))
 
             for node_idx, node in enumerate(layer.nodes):
                 link_stats.update(layer.get_parameter_count(node_idx))
@@ -1044,114 +1080,115 @@ class Net(tn.Module):
 
         mut = Mutation()
 
-        # Complexity can be increased or decreased
-        # based on the current complexity of the
-        # network relative to the average complexity
-        # of the whole population.
-#        complexification_chance = (0.5 + self.get_relative_complexity()) / 2
-        complexify = Rand.chance(1.0 - self.fitness.stat.get_offset()) if _complexify is None else _complexify
+        while not mut.success:
 
-        # Statistics about the structure of this network
-        probabilities = self.get_mutation_probabilities(complexify) if _probabilities is None else _probabilities
+            # Complexity can be increased or decreased
+            # based on the current complexity of the
+            # network relative to the average complexity
+            # of the whole population.
+            complexify = Rand.chance(0.5) if _complexify is None else _complexify
 
-#        print('>>> Mutation probabilities:\n{}'.format(probabilities))
+            # Statistics about the structure of this network
+            probabilities = self.get_mutation_probabilities(complexify) if _probabilities is None else _probabilities
 
-        # The complexity can be increased or decreased
-        # with probability proportional to the number
-        # of parameters that the mutation will affect.
-        wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
+    #        print('>>> Mutation probabilities:\n{}'.format(probabilities))
 
-        if _structure:
+            # The complexity can be increased or decreased
+            # with probability proportional to the number
+            # of parameters that the mutation will affect.
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
-            wheel.add('layer', probabilities['layer'])
+            if _structure:
 
-            if len(self.layers) > 1:
-                wheel.add('node', probabilities['node'])
+                wheel.add('layer', probabilities['layer'])
 
-            if 'stride' in probabilities:
-                wheel.add('stride', probabilities['stride'])
+                if len(self.layers) > 1:
+                    wheel.add('node', probabilities['node'])
 
-        if _parameters:
+                if 'stride' in probabilities:
+                    wheel.add('stride', probabilities['stride'])
 
-            if 'kernel' in probabilities:
-                wheel.add('kernel', probabilities['kernel'])
+            if _parameters:
 
-        mut.action = 'Complexification' if complexify else 'Simplification'
+                if 'kernel' in probabilities:
+                    wheel.add('kernel', probabilities['kernel'])
 
-        if wheel.is_empty():
-            mut.msg = 'Empty mutation roulette wheel'
-            return mut
+            mut.action = 'Complexification' if complexify else 'Simplification'
 
-        mut.element = wheel.spin()
+            if wheel.is_empty():
+                mut.msg = 'Empty mutation roulette wheel'
+                return mut
 
-        for elem_index in range(len(wheel.elements)):
-            print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
+            mut.element = wheel.spin()
 
-        #return
+            for elem_index in range(len(wheel.elements)):
+                print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
 
-        # Do not allow structural mutations if we have reached the limit
-        # on the species count and this network's species has more than one member
-        if (mut.element != 'kernel' and
-            cs.Species.Enabled and
-            cs.Species.Max.Count > 0 and
-            len(cs.Species.Populations) == cs.Species.Max.Count and
-            len(cs.Species.Populations[self.species_id].nets) > 1):
-            mut.msg = 'Species limit reached'
-            return mut
+            #return
 
-        # Non-structural mutation
-        if mut.element == 'kernel':
+            # Do not allow structural mutations if we have reached the limit
+            # on the species count and this network's species has more than one member
+            if (mut.element != 'kernel' and
+                cs.Species.Enabled and
+                cs.Species.Max.Count > 0 and
+                len(cs.Species.Populations) == cs.Species.Max.Count and
+                len(cs.Species.Populations[self.species_id].nets) > 1):
+                mut.msg = 'Species limit reached'
+                return mut
 
-            result = self.resize_kernel(_diff = 1) if complexify else self.resize_kernel(_diff = 1)
+            # Non-structural mutation
+            if mut.element == 'kernel':
 
-        elif mut.element == 'stride':
+                result = self.resize_kernel(_diff = 1) if complexify else self.resize_kernel(_diff = -1)
 
-            # Growing the stride actually reduces the number of parameters
-            result = self.resize_stride(_diff = -1) if complexify else self.resize_stride(_diff = 1)
+            elif mut.element == 'stride':
 
-        elif mut.element == 'layer':
+                # Growing the stride actually reduces the number of parameters
+                result = self.resize_stride(_diff = -1) if complexify else self.resize_stride(_diff = 1)
 
-            result = self.add_layer() if complexify else self.remove_layer()
+            elif mut.element == 'layer':
 
-        elif mut.element == 'node':
+                result = self.add_layer() if complexify else self.remove_layer()
 
-            result = self.add_nodes() if complexify else self.remove_nodes()
+            elif mut.element == 'node':
 
-        mut.success = result.success
-        mut.msg = result.msg
+                result = self.add_nodes() if complexify else self.remove_nodes()
 
-        if not mut.success:
-            print(f'[Net {self.ID}] >>> {mut.action} failed: {mut.msg}')
+            mut.success = result.success
+            mut.msg = result.msg
 
-        if (mut.success and    # If the mutation was successful
-            mut.element != 'kernel' and  # ...and non-strucutral
-            cs.Species.Enabled and   # ...and speciation is enabled
-            self.species_id > 0):    # ...and the network is not isolated
+            if not mut.success:
+                print(f'[Net {self.ID}] >>> {mut.action} failed: {mut.msg}')
 
-            # Create a new species
-            new_species_id = cs.Species.find(_genome = self.get_genome())
-            if new_species_id == 0:
-                new_species = cs.Species(_genome = self.get_genome())
-            else:
-                new_species = cs.Species.Populations[new_species_id]
+            if (mut.success and    # If the mutation was successful
+                mut.element != 'kernel' and  # ...and non-strucutral
+                cs.Species.Enabled and   # ...and speciation is enabled
+                self.species_id > 0):    # ...and the network is not isolated
 
-            # Remove the network from the current species
-            print('\t>>> Removing net {} from species {}'.format(self.ID, self.species_id))
-            cs.Species.Populations[self.species_id].nets.remove(self.ID)
+                # Create a new species
+                new_species_id = cs.Species.find(_genome = self.get_genome())
+                if new_species_id == 0:
+                    new_species = cs.Species(_genome = self.get_genome())
+                else:
+                    new_species = cs.Species.Populations[new_species_id]
 
-            # Add the network to the new species
-            print('\t>>> Adding net {} to species {}'.format(self.ID, new_species.ID))
-            new_species.nets.add(self.ID)
+                # Remove the network from the current species
+                print('\t>>> Removing net {} from species {}'.format(self.ID, self.species_id))
+                cs.Species.Populations[self.species_id].nets.remove(self.ID)
 
-            # Remove the species from the ecosystem if it has gone extinct
-            if len(cs.Species.Populations[self.species_id].nets) == 0:
-                print(f'>>> Removing extinct species {self.species_id}')
-                del cs.Species.Populations[self.species_id]
+                # Add the network to the new species
+                print('\t>>> Adding net {} to species {}'.format(self.ID, new_species.ID))
+                new_species.nets.add(self.ID)
 
-            # Store the species ID in this network
-            self.species_id = new_species.ID
+                # Remove the species from the ecosystem if it has gone extinct
+                if len(cs.Species.Populations[self.species_id].nets) == 0:
+                    print(f'>>> Removing extinct species {self.species_id}')
+                    del cs.Species.Populations[self.species_id]
 
-        if mut.success:
-            print(f'[Net {self.ID}] >>> {mut.action} successful: {mut.msg}')
+                # Store the species ID in this network
+                self.species_id = new_species.ID
+
+            if mut.success:
+                print(f'[Net {self.ID}] >>> {mut.action} successful: {mut.msg}')
 
         return mut

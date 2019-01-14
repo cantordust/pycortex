@@ -337,7 +337,7 @@ def init():
         # Generate proto-nets.
         for n in range(net_quota):
             proto_net = cn.Net(_species = proto_species)
-            proto_net.mutate(_parameters = False)
+            proto_net.mutate()
 
     print(f'Network count: {len(cn.Net.Ecosystem)}')
     for net in cn.Net.Ecosystem.values():
@@ -562,7 +562,8 @@ def run():
         # Experiment statistics
         stats = {
                 'Parameters': Stat.SMAStat('Parameters'),
-                'Accuracy': Stat.SMAStat('Accuracy')
+                'Accuracy': Stat.SMAStat('Accuracy'),
+                'Initial offspring accuracy': Stat.SMAStat('Initial offspring accuracy')
                 }
 
         # Worker management subroutine
@@ -578,6 +579,8 @@ def run():
             if tag == Tags.Done:
                 cn.Net.Ecosystem[net.ID] = net
                 free_workers.append(source)
+                if net.age == 0:
+                    stats['Initial offspring accuracy'].update(net.fitness.absolute)
 
             elif tag == Tags.Exit:
                 Conf.Tag = Tags.Exit
