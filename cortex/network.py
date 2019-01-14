@@ -138,7 +138,8 @@ class Net(tn.Module):
 
 
     def as_str(self,
-               _layers = True):
+               _layers = True,
+               _parameters = False):
 
         str = f'\n###################[ Network {self.ID} ]###################' +\
               f'\n>>> Fitness:' +\
@@ -150,7 +151,7 @@ class Net(tn.Module):
 
         if _layers:
             for layer in self.layers:
-                str += layer.as_str()
+                str += layer.as_str(_parameters = _parameters)
         return str
 
     def is_conv(self):

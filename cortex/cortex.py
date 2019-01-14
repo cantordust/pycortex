@@ -709,6 +709,7 @@ def run():
 
                 except Exception:
                     print(f'Caught exception in worker {rank} while evaluating network {net.ID}')
+                    print(net.as_str(_parameters = True))
                     dump_exception()
                     break
 

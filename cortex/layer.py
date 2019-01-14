@@ -326,31 +326,28 @@ Empty: {self.empty}'''
     def as_str(self,
                _parameters = False):
 
-        str =  f'''
-==================[ Layer {self.index} ]==================
->>> Role: {self.role}
->>> Activation: {self.activation.__name__}
->>> Input shape: {self.input_shape}
-    Input nodes: {self.get_input_nodes()}
-    Multiplier: {self.get_multiplier()}
->>> Output shape: {self.get_output_shape()}
-    Nodes: {len(self)}
->>> Shape: {self.get_shape()}
->>> Shape of weight tensor: {list(self.weight.size())}
->>> Shape of bias tensor: {list(self.bias.size())}
->>> Attributes:
-    Kernel size: {self.kernel_size}
-    Stride: {self.stride}
-    Padding: {self.padding}
-    Dilation: {self.dilation}'''
+        str = f'\n==================[ Layer {self.index} ]==================' +\
+              f'\n>>> Role: {self.role}' +\
+              f'\n>>> Activation: {self.activation.__name__}' +\
+              f'\n>>> Input shape: {self.input_shape}' +\
+              f'\n    Input nodes: {self.get_input_nodes()}' +\
+              f'\n    Multiplier: {self.get_multiplier()}' +\
+              f'\n>>> Output shape: {self.get_output_shape()}' +\
+              f'\n    Nodes: {len(self)}' +\
+              f'\n>>> Shape: {self.get_shape()}' +\
+              f'\n>>> Shape of weight tensor: {list(self.weight.size())}' +\
+              f'\n>>> Shape of bias tensor: {list(self.bias.size())}' +\
+              f'\n>>> Attributes:' +\
+              f'\n    Kernel size: {self.kernel_size}' +\
+              f'\n    Stride: {self.stride}' +\
+              f'\n    Padding: {self.padding}' +\
+              f'\n    Dilation: {self.dilation}'
+
 
         if _parameters:
-            str += f'''
->>> Learnable parameters:'''
+            str += f'\n>>> Learnable parameters:'
             for idx, param in enumerate(self.parameters()):
-                str += f'''
->>> Parameter {idx}:
-    {param}'''
+                str += f'\nParameter {idx}:\n{param}'
 
         return str
 
