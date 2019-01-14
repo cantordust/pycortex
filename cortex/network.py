@@ -324,7 +324,9 @@ class Net(tn.Module):
                             mut.shape[0] > 0):
                             new_nodes = mut.shape[0]
                         else:
-                            new_nodes = Rand.uint(1, math.floor(node_stat.mean + 1))
+                            new_nodes = math.floor(node_stat.mean)
+                            if new_nodes == 0:
+                                new_nodes = 1
 
                         # Set the number of output nodes
                         new_layer_shape[0] = new_nodes
