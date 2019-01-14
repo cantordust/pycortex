@@ -108,14 +108,14 @@ class Net(tn.Module):
                                        _stride = layer_def.stride,
                                        _bias = layer_def.bias,
                                        _activation = layer_def.activation,
-                                       _layer = layer_index)
+                                       _layer_index = layer_index)
 
                 # Output layer
                 if (len(self.layers) == 0 or
                     self.layers[-1].role != 'output'):
                     self.add_layer(_shape = Net.Output.Shape,
                                    _bias = cl.Layer.Bias,
-                                   _layer = len(self.layers))
+                                   _layer_index = len(self.layers))
 
         print(">>> Network", self.ID, "created")
 
@@ -198,7 +198,9 @@ class Net(tn.Module):
             l2 = _partner.layers[partner_layer_index]
 
             # Ensure that the types of the reference layers match.
-            if (l1.role == l2.role):
+            if (l1.role == l2.role and
+                l1.activation == l2.activation and
+                l1.stride == l2.stride):
 
                 overlap += len(l1) if len(l1) <= len(l2) else len(l2)
 
@@ -229,44 +231,43 @@ class Net(tn.Module):
                 layer.role = layer.op.__name__
 
     def get_input_shape(self,
-                        _layer):
+                        _layer_index):
         """
         Compute the shape of this layer's input.
         """
 
-        if _layer <= 0:
+        if _layer_index <= 0:
             return Net.Input.Shape
 
-        assert _layer <= len(self.layers), "(get_input_shape) Invalid layer index %r (network %r contains %r layer(s))" % (_layer, self.ID, len(self.layers))
+        assert _layer_index <= len(self.layers), "(get_input_shape) Invalid layer index %r (network %r contains %r layer(s))" % (_layer_index, self.ID, len(self.layers))
 
-        return self.layers[_layer - 1].get_output_shape()
+        return self.layers[_layer_index - 1].get_output_shape()
 
     def get_output_shape(self,
-                         _layer):
+                         _layer_index):
         """
         Compute this layer's output shape based on the shape of the preceding layer
         (or the input shape if it is the first layer) and the layer's kernels.
         """
 
-        assert _layer < len(self.layers), "(get_output_shape) Invalid layer index %r (network %r contains %r layers)" % (_layer, self.ID, len(self.layers))
+        assert _layer_index < len(self.layers), "(get_output_shape) Invalid layer index %r (network %r contains %r layers)" % (_layer_index, self.ID, len(self.layers))
 
-        return self.layers[_layer].get_output_shape()
+        return self.layers[_layer_index].get_output_shape()
 
     def get_allowed_layer_shapes(self,
-                                 _layer):
+                                 _layer_index):
 
         """
         Check what layer shapes are allowed at this index
         """
         # The output layer has a predetermined shape
-        if _layer >= len(self.layers):
+        if _layer_index >= len(self.layers):
             return [Net.Output.Shape]
 
-        input_shape = [0] * len(self.get_input_shape(_layer))
-        output_shape = [0] * len(self.get_output_shape(_layer))
+        input_shape = [0] * len(self.get_input_shape(_layer_index))
+        output_shape = [0] * len(self.get_output_shape(_layer_index))
 
-#        return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
-        return [input_shape]
+        return [input_shape] if len(input_shape) == len(output_shape) else [input_shape, output_shape]
 
     def get_parameter_count(self):
 
@@ -288,20 +289,21 @@ class Net(tn.Module):
                   _stride = [],
                   _bias = None,
                   _activation = None,
-                  _layer = None):
+                  _layer_index = None):
 
         mut =  Mutation()
 
-        mut.layer = _layer
+        mut.layer_index = _layer_index
+        mut.layer = None
         mut.shape = _shape
         mut.stride = _stride
         mut.bias = _bias
         mut.activation = _activation
 
-        if (mut.layer is None or
+        if (mut.layer_index is None or
             len(mut.shape) == 0):
 
-            wheel = Rand.RouletteWheel()
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             node_stat = Stat.SMAStat()
             for layer in self.layers:
@@ -329,26 +331,37 @@ class Net(tn.Module):
 
                         # Set the number of output nodes
                         new_layer_shape[0] = new_nodes
-    #                    new_layer_shape[0] = 1
 
-                    wheel.add((layer_index, new_layer_shape), 1)
+                    # Create a layer definition if not provided
+                    layer_def = cl.Layer.Def(_shape = new_layer_shape,
+                                             _stride = mut.stride,
+                                             _bias = mut.bias,
+                                             _activation = mut.activation)
+
+                    # Create the new layer
+                    new_layer = cl.Layer(_layer_def = layer_def,
+                                         _input_shape = input_shape,
+                                         _layer_index = mut.layer_index)
+
+                    wheel.add((layer_index, new_layer), new_layer.get_parameter_count())
 
             if wheel.is_empty():
                 mut.msg = 'Empty roulette wheel'
                 return mut
 
-            random_layer, random_shape = wheel.spin()
+            layer_index, layer = wheel.spin()
 
-            if mut.layer is None:
-                mut.layer = random_layer
+            if mut.layer_index is None:
+                mut.layer_index = layer_index
 
             if len(mut.shape) == 0:
-                mut.shape = random_shape
+                mut.shape = layer.get_shape()
+                mut.layer = layer
 
         # Sanity check for the layer index
-        if mut.layer > len(self.layers):
+        if mut.layer_index > len(self.layers):
             #print("Invalid layer index", _index)
-            mut.msg = f'Invalid layer index ({mut.layer}): must be <= {len(self.layers)}'
+            mut.msg = f'Invalid layer index ({mut.layer_index}): must be <= {len(self.layers)}'
             return mut
 
         # Create a layer definition if not provided
@@ -357,61 +370,63 @@ class Net(tn.Module):
                                  _bias = mut.bias,
                                  _activation = mut.activation)
 
-        input_shape = self.get_input_shape(mut.layer)
+        input_shape = self.get_input_shape(mut.layer_index)
 
         # Ensure that the layer roles are contiguous.
         # This can be done with a simple comparison of the input and output shapes.
         if (len(input_shape) < len(layer_def.shape) or                              # Attempting to add a conv layer above an FC one
-            (mut.layer < len(self.layers) and
-             len(layer_def.shape) < len(self.get_output_shape(mut.layer)))):     # Attempting to add an FC layer below a conv one
+            (mut.layer_index < len(self.layers) and
+             len(layer_def.shape) < len(self.get_output_shape(mut.layer_index)))):     # Attempting to add an FC layer below a conv one
 
-            mut.msg = f'Invalid layer size: Cannot add layer of shape {layer_def.shape} at position {mut.layer}'
+            mut.msg = f'Invalid layer size: Cannot add layer of shape {layer_def.shape} at position {mut.layer_index}'
             return mut
 
-        # Create the new layer
-        new_layer = cl.Layer(_layer_def = layer_def,
-                             _input_shape = input_shape,
-                             _index = mut.layer)
+        if mut.layer is None:
+
+            # Create the new layer
+            mut.layer = cl.Layer(_layer_def = layer_def,
+                                 _input_shape = input_shape,
+                                 _layer_index = mut.layer_index)
 
         # Rearrange the module stack if necessary
-        if mut.layer == len(self.layers):
-            self.layers.append(new_layer)
+        if mut.layer_index == len(self.layers):
+            self.layers.append(mut.layer)
 
         else:
             new_ml = tn.ModuleList()
 
             for index in range(len(self.layers)):
-                if index == mut.layer:
-                    new_ml.append(new_layer)
+                if index == mut.layer_index:
+                    new_ml.append(mut.layer)
 
                 new_ml.append(self.layers[index])
 
             self.layers = new_ml
 
         # Adjust the input size of the following layers
-        for layer_index in range(mut.layer + 1, len(self.layers)):
+        for layer_index in range(mut.layer_index + 1, len(self.layers)):
             self.layers[layer_index].adjust_input_size(_input_shape = self.get_input_shape(layer_index))
 
         self.reindex()
 
         mut.success = True
-        mut.msg = f'Added {new_layer.role} layer at position {mut.layer}'
+        mut.msg = f'Added {mut.layer.role} layer at position {mut.layer_index}'
 
         return mut
 
     def remove_layer(self,
-                    _layer = None):
+                    _layer_index = None):
 
         mut =  Mutation()
 
-        mut.layer = _layer
+        mut.layer_index = _layer_index
 
         if len(self.layers) < 2:
             mut.msg = 'Not enough layers'
             return mut
 
         # Update the input size of the next layer (if there is one)
-        if mut.layer is None:
+        if mut.layer_index is None:
 
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
@@ -421,21 +436,21 @@ class Net(tn.Module):
                 mut.msg = 'Empty roulette wheel'
                 return mut
 
-            mut.layer = wheel.spin()[0]
+            mut.layer_index = wheel.spin()[0]
 
         # We cannot remove the output layer
-        if mut.layer == len(self.layers) - 1:
+        if mut.layer_index == len(self.layers) - 1:
             mut.msg = 'Attempted to remove the output layer'
             return mut
 
-#        mut.msg = f'Removed layer:\n{self.layers[mut.layer].as_str()}'
-        mut.msg = f'Removed {self.layers[mut.layer].role} layer in position {mut.layer}'
+#        mut.msg = f'Removed layer:\n{self.layers[mut.layer_index].as_str()}'
+        mut.msg = f'Removed {self.layers[mut.layer_index].role} layer in position {mut.layer_index}'
 
         # Remove the layer
-        del self.layers[mut.layer]
+        del self.layers[mut.layer_index]
 
         # Adjust the input size of the following layers
-        for layer_index in range(mut.layer, len(self.layers)):
+        for layer_index in range(mut.layer_index, len(self.layers)):
             self.layers[layer_index].adjust_input_size(_input_shape = self.get_input_shape(layer_index))
 
         self.reindex()
@@ -445,85 +460,85 @@ class Net(tn.Module):
         return mut
 
     def add_nodes(self,
-                  _layer = None,
+                  _layer_index = None,
                   _count = 1,
                   _max_radius = []):
 
         mut =  Mutation()
 
-        mut.layer = _layer # Layer index
+        mut.layer_index = _layer_index # Layer index
         mut.count = _count
-        mut.nodes = set()
+        mut.node_indices = set()
 
         if mut.count <= 0:
             mut.msg = f'Invalid count {mut.count}'
             return mut
 
-        if mut.layer is None:
+        if mut.layer_index is None:
 
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
             for layer_index in range(len(self.layers) - 1):
-                wheel.add((layer_index,), len(self.layers[layer_index]))
+                wheel.add((layer_index,), self.layers[layer_index].get_parameter_count() / len(self.layers[layer_index]))
 
             if wheel.is_empty():
                 mut.msg = 'Empty roulette wheel'
                 return mut
 
-            mut.layer = wheel.spin()[0]
+            mut.layer_index = wheel.spin()[0]
 
-        for n in range(len(self.layers[mut.layer].nodes), len(self.layers[mut.layer].nodes) + mut.count):
-            mut.nodes.add(n)
+        for n in range(len(self.layers[mut.layer_index].nodes), len(self.layers[mut.layer_index].nodes) + mut.count):
+            mut.node_indices.add(n)
 
-        mut.count = len(mut.nodes)
+        mut.count = len(mut.node_indices)
 
         # Sanity checks
         if len(self.layers) == 0:
             mut.msg = 'No layers found'
             return mut
 
-        if mut.layer >= len(self.layers) - 1:
+        if mut.layer_index >= len(self.layers) - 1:
             mut.msg = 'Attempted to add nodes to the output layer'
             return mut
 
         # Add the nodes
-        mut.success = self.layers[mut.layer].add_nodes(mut.count, _max_radius)
+        mut.success = self.layers[mut.layer_index].add_nodes(mut.count, _max_radius)
 
         # On success, adjust the input size of the next layer if there is one
         if mut.success:
-            self.layers[mut.layer + 1].adjust_input_size(_input_shape = self.get_output_shape(mut.layer))
-            mut.msg = f'Added node{"s" if mut.count > 1 else ""} {mut.nodes} to layer {mut.layer}'
+            self.layers[mut.layer_index + 1].adjust_input_size(_input_shape = self.get_output_shape(mut.layer_index))
+            mut.msg = f'Added node{"s" if mut.count > 1 else ""} {mut.node_indices} to layer {mut.layer_index}'
 
         return mut
 
     def remove_nodes(self,
                     _layer = None,
                     _count = 1,
-                    _nodes = set()):
+                    _node_indices = set()):
 
         mut =  Mutation()
 
-        mut.layer = _layer # Layer index
+        mut.layer_index = _layer # Layer index
         mut.count = _count
-        mut.nodes = set()
+        mut.node_indices = set()
 
         # Sanity checks
-        if isinstance(_nodes, int):
-            mut.nodes.add(_nodes)
+        if isinstance(_node_indices, int):
+            mut.node_indices.add(_node_indices)
 
-        elif isinstance(_nodes, list):
-            for node_index in _nodes:
-                mut.nodes.add(node_index)
+        elif isinstance(_node_indices, list):
+            for node_index in _node_indices:
+                mut.node_indices.add(node_index)
 
-        if (mut.layer is None or
-            len(mut.nodes) == 0):
+        if (mut.layer_index is None or
+            len(mut.node_indices) == 0):
 
-            wheel = Rand.RouletteWheel()
+            wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
             for layer_index in range(len(self.layers) - 1):
 
                 # Check if we can remove a node at all
                 if len(self.layers[layer_index]) > 1:
-                    wheel.add(layer_index, len(self.layers[layer_index]))
+                    wheel.add(layer_index, self.layers[layer_index].get_parameter_count() / len(self.layers[layer_index]))
 
             if wheel.is_empty():
                 mut.msg = 'Empty layer roulette wheel'
@@ -532,81 +547,81 @@ class Net(tn.Module):
             layer_index = wheel.spin()
 
             # Store the layer index
-            if mut.layer is None:
-                mut.layer = layer_index
+            if mut.layer_index is None:
+                mut.layer_index = layer_index
 
             # Populate the node indices
-            if len(mut.nodes) == 0:
+            if len(mut.node_indices) == 0:
                 # Check if we have enough nodes to work with
-                if mut.count >= len(self.layers[mut.layer].nodes):
-                    mut.msg = f'Attempted to remove {mut.count} nodes from a layer with {len(self.layers[mut.layer].nodes)} nodes'
+                if mut.count >= len(self.layers[mut.layer_index].nodes):
+                    mut.msg = f'Attempted to remove {mut.count} nodes from a layer with {len(self.layers[mut.layer_index].nodes)} nodes'
                     return mut
 
                 # Draw the necessary number of node indices
-                for node in range(len(self.layers[mut.layer]) - mut.count, len(self.layers[mut.layer])):
-                    mut.nodes.add(node)
+                for node in range(len(self.layers[mut.layer_index]) - mut.count, len(self.layers[mut.layer_index])):
+                    mut.node_indices.add(node)
 
         # Sanity check for the layer index
         if len(self.layers) == 0:
             mut.msg = 'No layers found'
             return mut
 
-        if mut.layer >= len(self.layers) - 1:
+        if mut.layer_index >= len(self.layers) - 1:
             mut.msg = 'Attempted to remove nodes from the output layer'
             return mut
 
         # Sanity check for node indices.
-        if len(mut.nodes) > 0:
-            for node_index in mut.nodes:
+        if len(mut.node_indices) > 0:
+            for node_index in mut.node_indices:
                 if (node_index < 0 or
-                    node_index >= len(self.layers[mut.layer].nodes)):
+                    node_index >= len(self.layers[mut.layer_index].nodes)):
                     mut.msg = f'Invalid node index {node_index}'
                     return mut
 
-        mut.count = len(mut.nodes)
+        mut.count = len(mut.node_indices)
 
         if mut.count == 0:
             mut.msg = f'Invalid number of nodes to remove ({mut.count})'
             return mut
 
         # Remove the nodes
-        mut.success = self.layers[mut.layer].remove_nodes(sorted(list(mut.nodes)))
+        mut.success = self.layers[mut.layer_index].remove_nodes(sorted(list(mut.node_indices)))
 
         # On success, adjust the input size of the next layer if there is one
         if (mut.success and
-            mut.layer < len(self.layers) - 1):
-            self.layers[mut.layer + 1].adjust_input_size(_input_shape = self.get_output_shape(mut.layer),
-                                                         _nodes = sorted(list(mut.nodes)))
+            mut.layer_index < len(self.layers) - 1):
+            self.layers[mut.layer_index + 1].adjust_input_size(_input_shape = self.get_output_shape(mut.layer_index),
+                                                               _node_indices = sorted(list(mut.node_indices)))
 
-            mut.msg = f'Removing node({"s" if mut.count > 1 else ""}) {mut.nodes} from layer {mut.layer}'
+            mut.msg = f'Removing node({"s" if mut.count > 1 else ""}) {mut.node_indices} from layer {mut.layer_index}'
 
         return mut
 
     def resize_kernel(self,
-                      _layer = None,
-                      _node = None,
+                      _layer_index = None,
+                      _node_index = None,
                       _dim = None,
                       _diff = None):
 
         mut =  Mutation()
 
-        mut.layer = _layer # Layer index
-        mut.node = _node
+        mut.layer_index = _layer_index # Layer index
+        mut.node_index = _node_index
         mut.dim = _dim
         mut.diff = _diff
 
-        if (mut.layer is None or
-            mut.node is None or
+        if (mut.layer_index is None or
+            mut.node_index is None or
             mut.dim is None or
             mut.diff is None):
 
             wheel = Rand.RouletteWheel()
 
-            if mut.layer is None:
+            if mut.layer_index is None:
                 layers = [l for l in range(len(self.layers)) if self.layers[l].is_conv]
-            elif (mut.layer < len(self.layers) and
-                  self.layers[mut.layer].is_conv):
-                layers = [mut.layer]
+            elif (mut.layer_index < len(self.layers) and
+                  self.layers[mut.layer_index].is_conv):
+                layers = [mut.layer_index]
             else:
                 layers = []
 
@@ -616,10 +631,10 @@ class Net(tn.Module):
 
             for layer in layers:
 
-                if mut.node is None:
+                if mut.node_index is None:
                     nodes = [n for n in range(len(self.layers[layer].nodes))]
-                elif mut.node < len(self.layers[layer].nodes):
-                    nodes = [mut.node]
+                elif mut.node_index < len(self.layers[layer].nodes):
+                    nodes = [mut.node_index]
                 else:
                     nodes = []
 
@@ -654,10 +669,10 @@ class Net(tn.Module):
                     mut.msg = 'Empty roulette wheel'
                     return mut
 
-                mut.layer, mut.node, mut.dim = wheel.pop()
+                mut.layer_index, mut.node_index, mut.dim = wheel.pop()
 
-                grow_allowed = list(self.layers[mut.layer].nodes[mut.node].size())[mut.dim + 1] < self.get_input_shape(mut.layer)[mut.dim + 1] // 2
-                shrink_allowed = list(self.layers[mut.layer].nodes[mut.node].size())[mut.dim + 1] > 1
+                grow_allowed = list(self.layers[mut.layer_index].nodes[mut.node_index].size())[mut.dim + 1] < self.get_input_shape(mut.layer_index)[mut.dim + 1] // 2
+                shrink_allowed = list(self.layers[mut.layer_index].nodes[mut.node_index].size())[mut.dim + 1] > 1
 
                 if (mut.diff < 0 and not shrink_allowed or
                     mut.diff > 0 and not grow_allowed):
@@ -676,35 +691,35 @@ class Net(tn.Module):
                     break
 
         # Resize the kernel
-        mut.success = self.layers[mut.layer].resize_kernel(mut.node, mut.dim, mut.diff)
+        mut.success = self.layers[mut.layer_index].resize_kernel(mut.node_index, mut.dim, mut.diff)
 
         if mut.success:
-            mut.msg = f'Resized dimension {mut.dim} of kernel {mut.node} in layer {mut.layer} by {mut.diff}'
+            mut.msg = f'Resized dimension {mut.dim} of kernel {mut.node_index} in layer {mut.layer_index} by {mut.diff}'
 
         return mut
 
     def resize_stride(self,
-                      _layer = None,
+                      _layer_index = None,
                       _dim = None,
                       _diff = None):
 
         mut =  Mutation()
 
-        mut.layer = _layer # Layer index
+        mut.layer_index = _layer_index # Layer index
         mut.dim = _dim
         mut.diff = _diff
 
-        if (mut.layer is None or
+        if (mut.layer_index is None or
             mut.dim is None or
             mut.diff is None):
 
             wheel = Rand.RouletteWheel()
 
-            if mut.layer is None:
+            if mut.layer_index is None:
                 layers = [l for l in range(len(self.layers)) if self.layers[l].is_conv]
-            elif (mut.layer < len(self.layers) and
-                  self.layers[mut.layer].is_conv):
-                layers = [mut.layer]
+            elif (mut.layer_index < len(self.layers) and
+                  self.layers[mut.layer_index].is_conv):
+                layers = [mut.layer_index]
             else:
                 layers = []
 
@@ -739,10 +754,10 @@ class Net(tn.Module):
                     mut.msg = 'Empty roulette wheel'
                     return mut
 
-                mut.layer, mut.dim = wheel.pop()
+                mut.layer_index, mut.dim = wheel.pop()
 
-                grow_allowed = self.layers[mut.layer].stride[mut.dim] < self.get_input_shape(mut.layer)[mut.dim + 1] // 2
-                shrink_allowed = self.layers[mut.layer].stride[mut.dim] > 1
+                grow_allowed = self.layers[mut.layer_index].stride[mut.dim] < self.get_input_shape(mut.layer_index)[mut.dim + 1] // 2
+                shrink_allowed = self.layers[mut.layer_index].stride[mut.dim] > 1
 
                 if (mut.diff < 0 and not shrink_allowed or
                     mut.diff > 0 and not grow_allowed):
@@ -761,15 +776,15 @@ class Net(tn.Module):
                     break
 
         # Resize the stride
-        print(f'Layer {mut.layer} stride: {self.layers[mut.layer].stride}, diff: {mut.diff}')
-        self.layers[mut.layer].stride[mut.dim] += mut.diff
+        print(f'Layer {mut.layer_index} stride: {self.layers[mut.layer_index].stride}, diff: {mut.diff}')
+        self.layers[mut.layer_index].stride[mut.dim] += mut.diff
 
         # Adjust the input size of the following layers
-        for layer in range(mut.layer + 1, len(self.layers)):
+        for layer in range(mut.layer_index + 1, len(self.layers)):
             self.layers[layer].adjust_input_size(_input_shape = self.get_input_shape(layer))
 
         mut.success = True
-        mut.msg = f'Resized dimension {mut.dim} of stride in layer {mut.layer} by {mut.diff}'
+        mut.msg = f'Resized dimension {mut.dim} of stride in layer {mut.layer_index} by {mut.diff}'
 
         return mut
 
@@ -914,7 +929,7 @@ class Net(tn.Module):
             self.add_layer(_shape = shape,
                            _stride = wheel.spin().stride,
                            _bias = wheel.spin().bias is not None,
-                           _layer = layer_index,
+                           _layer_index = layer_index,
                            _activation = wheel.spin().activation)
 
             # Bias weight values
@@ -964,7 +979,7 @@ class Net(tn.Module):
             self.add_layer(_shape = [0, *layer.kernel_size],
                            _stride = layer.stride,
                            _bias = layer.bias is not None,
-                           _layer = layer_index,
+                           _layer_index = layer_index,
                            _activation = layer.activation)
 
             # Clone the nodes
@@ -1080,11 +1095,16 @@ class Net(tn.Module):
 
         while not mut.success:
 
+            mut.msg = f'[Net {self.ID}] >>> '
+
             # Complexity can be increased or decreased
             # based on the current complexity of the
             # network relative to the average complexity
             # of the whole population.
             complexify = Rand.chance(0.5) if _complexify is None else _complexify
+
+            mut.action = 'Complexification' if complexify else 'Simplification'
+            mut.msg += f'{mut.action} '
 
             # Statistics about the structure of this network
             probabilities = self.get_mutation_probabilities(complexify) if _probabilities is None else _probabilities
@@ -1111,10 +1131,9 @@ class Net(tn.Module):
                 if 'kernel' in probabilities:
                     wheel.add('kernel', probabilities['kernel'])
 
-            mut.action = 'Complexification' if complexify else 'Simplification'
-
             if wheel.is_empty():
-                mut.msg = 'Empty mutation roulette wheel'
+                mut.msg += f'failed: Empty mutation roulette wheel'
+                print(mut.msg)
                 return mut
 
             mut.element = wheel.spin()
@@ -1131,7 +1150,8 @@ class Net(tn.Module):
                 cs.Species.Max.Count > 0 and
                 len(cs.Species.Populations) == cs.Species.Max.Count and
                 len(cs.Species.Populations[self.species_id].nets) > 1):
-                mut.msg = 'Species limit reached'
+                mut.msg += f'failed: Species limit reached.'
+                print(mut.msg)
                 return mut
 
             # Non-structural mutation
@@ -1153,13 +1173,13 @@ class Net(tn.Module):
                 result = self.add_nodes() if complexify else self.remove_nodes()
 
             mut.success = result.success
-            mut.msg = result.msg
+            mut.msg += f'{"successful" if mut.success else "failed"}: {result.msg}'
 
             if not mut.success:
-                print(f'[Net {self.ID}] >>> {mut.action} failed: {mut.msg}')
+                print(mut.msg)
+                continue
 
-            if (mut.success and    # If the mutation was successful
-                mut.element != 'kernel' and  # ...and non-strucutral
+            if (mut.element != 'kernel' and  # ...and non-strucutral
                 cs.Species.Enabled and   # ...and speciation is enabled
                 self.species_id > 0):    # ...and the network is not isolated
 
@@ -1186,7 +1206,6 @@ class Net(tn.Module):
                 # Store the species ID in this network
                 self.species_id = new_species.ID
 
-            if mut.success:
-                print(f'[Net {self.ID}] >>> {mut.action} successful: {mut.msg}')
+            print(mut.msg)
 
         return mut

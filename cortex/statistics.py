@@ -61,16 +61,18 @@ class Stat:
                        _val = None):
         return self.get_offset(_val, Func.Type.InvLogistic)
 
-    def print(self,
-              _file = sys.stdout):
+    def as_str(self):
 
-        print("\n\n======[", self.title, "]======",
-              "\nCurrent value: %r" % self.current_value,
-              "\nMean: %r" % self.mean,
-              "\nVariance: %r (SD: %r)" % (self.var, self.get_sd()),
-              "\nMinimum: %r" % self.min,
-              "\nMaximum: %r" % self.max,
-              file = _file)
+        str = f'''
+======[ {self.title} ]======
+Current value: {self.current_value}
+Mean: {self.mean}
+Variance: {self.var}
+SD: {self.get_sd()}
+Minimum: {self.min}
+Maximum: {self.max}'''
+
+        return str
 
 class SMAStat(Stat):
 

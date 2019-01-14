@@ -160,19 +160,19 @@ Empty: {self.empty}'''
     def __init__(self,
                  _layer_def,
                  _input_shape,
-                 _index = None):
+                 _layer_index = None):
 
         assert 1 <= len(_layer_def.shape) <= 4, 'Invalid layer shape {}'.format(_layer_def.shape)
         assert 1 <= len(_input_shape) <= 4, 'Invalid input shape {}'.format(_input_shape)
         assert len(_layer_def.shape) == 1 or len(_layer_def.shape) == len(_input_shape), 'Invalid input shape {} for layer shape {}'.format(_input_shape, _layer_def.shape)
-        assert _layer_def.shape[0] >= 0, 'Invalid number of nodes ({}) provided for layer {}'.forma(_layer_def.shape[0], _index)
-        assert _input_shape[0] > 0, 'Invalid number of input nodes ({}) provided for layer {}'.format(_input_shape[0], _index)
+        assert _layer_def.shape[0] >= 0, 'Invalid number of nodes ({}) provided for layer {}'.forma(_layer_def.shape[0], _layer_index)
+        assert _input_shape[0] > 0, 'Invalid number of input nodes ({}) provided for layer {}'.format(_input_shape[0], _layer_index)
 
         # Initialise the base class
         super(Layer, self).__init__()
 
         # Store the layer index
-        self.index = _index
+        self.index = _layer_index
 
         # Store the input shape as an attribute.
         # This can change as the containing network evovles.
@@ -663,7 +663,7 @@ Empty: {self.empty}'''
 
     def adjust_input_size(self,
                           _input_shape = None,
-                          _nodes = set(),
+                          _node_indices = set(),
                           _pretend = False):
 
         if not _pretend:
@@ -718,7 +718,7 @@ Empty: {self.empty}'''
                     # there are output ones in the preceding one.
                     # Shrink the receptive fields of all nodes.
 
-                    if len(_nodes) == 0:
+                    if len(_node_indices) == 0:
 
                         #print("Clipping node", output_node, "to have input size of", actual_input_nodes * multiplier)
                         self.nodes[output_node] = tn.Parameter(self.nodes[output_node][0:actual_input_nodes * multiplier])
@@ -731,14 +731,14 @@ Empty: {self.empty}'''
                         slices = []
 
                         begin = 0
-                        for node in _nodes:
+                        for node_index in _node_indices:
 
-                            if node == begin:
+                            if node_index == begin:
                                 begin += 1
 
                             else:
-                                slices.append(slice(begin * multiplier, node * multiplier))
-                                begin = node + 1
+                                slices.append(slice(begin * multiplier, node_index * multiplier))
+                                begin = node_index + 1
 
                         if begin < input_nodes:
                             slices.append(slice(begin * multiplier, None))
