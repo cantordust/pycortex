@@ -79,8 +79,6 @@ class Net(tn.Module):
         # Initialise the age
         self.age = 0
 
-        self.train_portion = 0.0
-
         # Number of parameters relative to all other networks
         self.complexity = 0.0
 

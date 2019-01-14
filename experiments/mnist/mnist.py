@@ -81,17 +81,19 @@ def train(_conf, _net):
 #        progress = batch_idx * len(data) / len(train_loader.dataset)
 
         # Skip this training batch with probability determined by the network complexity
-        if ctx.Rand.chance(net.train_portion):
-            examples += len(data)
+        if ctx.Rand.chance(1.0 - net.fitness.relative):
+            continue
 
-            data, target = data.to(_conf.device), target.to(_conf.device)
+        examples += len(data)
 
-            net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+        data, target = data.to(_conf.device), target.to(_conf.device)
 
-    #        if (batch_idx + 1) % _conf.log_interval == 0:
-    #            print(f'[Net {net.ID}] Train | Run {_conf.run} | ' +
-    #                  f'Epoch {_conf.epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} ' +
-    #                  f'({100. * progress:.0f}%)] Loss: {net.fitness.loss_stat.current_value:.6f}')
+        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+
+#        if (batch_idx + 1) % _conf.log_interval == 0:
+#            print(f'[Net {net.ID}] Train | Run {_conf.run} | ' +
+#                  f'Epoch {_conf.epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} ' +
+#                  f'({100. * progress:.0f}%)] Loss: {net.fitness.loss_stat.current_value:.6f}')
 
     print(f'[Net {net.ID}] Test | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(train_loader.dataset):.2f}% of the dataset')
     net.fitness.absolute = test(_conf, net)

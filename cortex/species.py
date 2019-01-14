@@ -144,11 +144,6 @@ champion: {self.champion}'''
 
             net_stats.update(absolute_fitness)
 
-        net_ids = list(self.nets)
-        train_portions = Func.softmax([cn.Net.Ecosystem[net_id].fitness.absolute for net_id in net_ids])
-        for index in range(len(net_ids)):
-            cn.Net.Ecosystem[net_ids[index]].train_portion = train_portions[index]
-
         print(f'>>> Champion for species {self.ID}: {self.champion} (fitness: {cn.Net.Ecosystem[self.champion].fitness.absolute})')
 
         # Compute the relative fitness of the networks
