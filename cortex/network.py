@@ -140,13 +140,13 @@ class Net(tn.Module):
     def as_str(self,
                _layers = True):
 
-        str = f'''###################[ Network {self.ID} ]###################
->>> Fitness:
-    Absolute: {self.fitness.absolute}
-    Relative: {self.fitness.relative}
->>> Age: {self.age}
->>> Species: {self.species_id}
->>> Total parameters: {self.get_parameter_count()}'''
+        str = f'\n###################[ Network {self.ID} ]###################' +\
+              f'\n>>> Fitness:' +\
+              f'\n    Absolute: {self.fitness.absolute}' +\
+              f'\n    Relative: {self.fitness.relative}' +\
+              f'\n>>> Age: {self.age}' +\
+              f'\n>>> Species: {self.species_id}' +\
+              f'\n>>> Total parameters: {self.get_parameter_count()}'
 
         if _layers:
             for layer in self.layers:
@@ -332,13 +332,13 @@ class Net(tn.Module):
                         # Set the number of output nodes
                         new_layer_shape[0] = new_nodes
 
-                    # Create a layer definition if not provided
+                    # Create a layer definition
                     layer_def = cl.Layer.Def(_shape = new_layer_shape,
                                              _stride = mut.stride,
                                              _bias = mut.bias,
                                              _activation = mut.activation)
 
-                    # Create the new layer
+                    # Create a new layer
                     new_layer = cl.Layer(_layer_def = layer_def,
                                          _input_shape = input_shape,
                                          _layer_index = mut.layer_index)
@@ -353,10 +353,15 @@ class Net(tn.Module):
 
             if mut.layer_index is None:
                 mut.layer_index = layer_index
+                mut.layer = layer
+                mut.shape = mut.layer.get_shape()
+            else:
+                mut.layer = wheel.elements[mut.layer_index][1]
+                mut.shape = mut.layer.get_shape()
 
             if len(mut.shape) == 0:
-                mut.shape = layer.get_shape()
                 mut.layer = layer
+                mut.shape = mut.layer.get_shape()
 
         # Sanity check for the layer index
         if mut.layer_index > len(self.layers):
@@ -364,26 +369,26 @@ class Net(tn.Module):
             mut.msg = f'Invalid layer index ({mut.layer_index}): must be <= {len(self.layers)}'
             return mut
 
-        # Create a layer definition if not provided
-        layer_def = cl.Layer.Def(_shape = mut.shape,
-                                 _stride = mut.stride,
-                                 _bias = mut.bias,
-                                 _activation = mut.activation)
-
         input_shape = self.get_input_shape(mut.layer_index)
 
         # Ensure that the layer roles are contiguous.
         # This can be done with a simple comparison of the input and output shapes.
-        if (len(input_shape) < len(layer_def.shape) or                              # Attempting to add a conv layer above an FC one
+        if (len(input_shape) < len(mut.shape) or                              # Attempting to add a conv layer above an FC one
             (mut.layer_index < len(self.layers) and
-             len(layer_def.shape) < len(self.get_output_shape(mut.layer_index)))):     # Attempting to add an FC layer below a conv one
+             len(mut.shape) < len(self.get_output_shape(mut.layer_index)))):     # Attempting to add an FC layer below a conv one
 
             mut.msg = f'Invalid layer size: Cannot add layer of shape {layer_def.shape} at position {mut.layer_index}'
             return mut
 
         if mut.layer is None:
 
-            # Create the new layer
+            # Create a layer definition
+            layer_def = cl.Layer.Def(_shape = mut.shape,
+                                     _stride = mut.stride,
+                                     _bias = mut.bias,
+                                     _activation = mut.activation)
+
+            # Create a new layer
             mut.layer = cl.Layer(_layer_def = layer_def,
                                  _input_shape = input_shape,
                                  _layer_index = mut.layer_index)

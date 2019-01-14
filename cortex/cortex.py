@@ -358,12 +358,6 @@ def calibrate():
     while len(extinct) > 0:
         del cs.Species.Populations[extinct.pop()]
 
-    # Increase and normalise the age of all networks.
-    net_stat = Stat.SMAStat()
-    for net in cn.Net.Ecosystem.values():
-        net.age += 1
-        net_stat.update(net.age)
-
     # Reset the global champion.
     cn.Net.Champion = None
 
@@ -520,6 +514,10 @@ def evolve(_global_stats,
         # Save the champion
         if cn.Net.Champion is not None:
             save_net(cn.Net.Champion, _run, _epoch, 'champion')
+
+        # Increase the age of all networks.
+        for net in cn.Net.Ecosystem.values():
+            net.age += 1
 
         if _epoch < Conf.Epochs:
             # Evolve networks in all species.
@@ -684,6 +682,7 @@ def run():
                 print_conf(_file = cfg_file)
 
             for key, stat in stats.items():
+                stat.title = key
                 print(stat.as_str())
                 save_stat(key, stat)
 
@@ -709,7 +708,7 @@ def run():
                     comm.send(net, dest=0, tag = Tags.Done)
 
                 except Exception:
-                    print('Caught exception in worker {}'.format(rank))
+                    print(f'Caught exception in worker {rank} while evaluating network {net.ID}')
                     dump_exception()
                     break
 

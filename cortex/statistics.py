@@ -63,14 +63,13 @@ class Stat:
 
     def as_str(self):
 
-        str = f'''
-======[ {self.title} ]======
-Current value: {self.current_value}
-Mean: {self.mean}
-Variance: {self.var}
-SD: {self.get_sd()}
-Minimum: {self.min}
-Maximum: {self.max}'''
+        str = f'\n======[ {self.title} ]======' +\
+              f'\nCurrent value: {self.current_value}' +\
+              f'\nMean: {self.mean}' +\
+              f'\nVariance: {self.var}' +\
+              f'\nSD: {self.get_sd()}' +\
+              f'\nMinimum: {self.min}' +\
+              f'\nMaximum: {self.max}'
 
         return str
 
@@ -91,11 +90,12 @@ class SMAStat(Stat):
         if (self.count > 1):
             self.var += (self.current_value - old_mean) * (self.current_value - self.mean) / self.count
 
-    def print(self,
-              _file = sys.stdout):
+    def as_str(self):
 
-        super(SMAStat, self).print(_file = _file)
-        print("Count: %r" % self.count, file = _file)
+        str = super(SMAStat, self).as_str() +\
+              f'\nCount: {self.count}'
+
+        return str
 
 class EMAStat(Stat):
 
@@ -113,8 +113,9 @@ class EMAStat(Stat):
         self.mean += inc
         self.var = (1.0 - self.alpha) * (self.var + diff * inc)
 
-    def print(self,
-              _file = sys.stdout):
+    def as_str(self):
 
-        super(EMAStat, self).print(_file = _file)
-        print("Alpha: %r" % self.alpha, file = _file)
+        str = super(SMAStat, self).as_str() +\
+              f'\nAlpha: {self.alpha}'
+
+        return str
