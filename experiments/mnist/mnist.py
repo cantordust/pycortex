@@ -23,8 +23,6 @@ def get_loader(_dir,
                _download = False,
                **_args):
 
-#    print('Data dir: {}'.format(_conf.data_dir))
-
     dataset = datasets.MNIST(_dir,
                              train = _train,
                              download = _download,
