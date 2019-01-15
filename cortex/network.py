@@ -312,7 +312,8 @@ class Net(tn.Module):
 
             # Check how many links we have to add and / or remove
             # to insert a layer of each allowed shape
-            for layer_index in range(len(self.layers) + 1):
+#            for layer_index in range(len(self.layers) + 1): # Allow a layer to be inserted above the output layer
+            for layer_index in range(len(self.layers)):      # Disallow new layers to be inserted above the output layer
 
 #                new_nodes = math.floor(_stats['nodes'].mean)
                 for allowed_shape in self.get_allowed_layer_shapes(layer_index):

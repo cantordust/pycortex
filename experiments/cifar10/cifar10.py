@@ -74,9 +74,9 @@ def train(_conf, _net):
 
     net = _net.to(_conf.device)
     net.train()
-    optimiser = _conf.optimiser(net.parameters(), lr = 1.0 - net.fitness.relative)
+    optimiser = _conf.optimiser(net.parameters())
 
-    loader = get_loader(_conf, True, net.fitness.relative)
+    loader = get_loader(_conf, True, net.complexity)
 
     net.fitness.loss_stat.reset()
 
@@ -87,7 +87,7 @@ def train(_conf, _net):
         data, target = data.to(_conf.device), target.to(_conf.device)
         net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
-    print(f'[Net {net.ID}] Test | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
+    print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
     net.fitness.set(test(_conf, net))
 
     return net
