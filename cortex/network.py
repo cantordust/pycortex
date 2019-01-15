@@ -417,7 +417,7 @@ class Net(tn.Module):
         self.reindex()
 
         mut.success = True
-        mut.msg = f'Added {mut.layer.role} layer at position {mut.layer_index}'
+        mut.msg = f'Added {mut.layer.role} layer with shape {mut.layer.get_shape()} at position {mut.layer_index}'
 
         return mut
 
@@ -1045,17 +1045,14 @@ class Net(tn.Module):
                         kernel_dim_stats.update(len(layer.kernel_size))
 
                     # Stride
-                    stride_stats.update(Func.prod(layer.get_output_shape()))
+                    stride_stats.update(layer.get_output_nodes())
 
         # Adding or removing a layer involves severing existing links and adding new ones.
         # For this computation, we assume that the new layer will contain
         # anywhere between 1 and the mean number of nodes (hence the 0.5).
         # The SD is a correction term for the average number of nodes
         # in the following layer whose links would need to be adjusted.
-        if _complexify:
-            probabilities['layer'] = link_stats.mean * (0.5 * (node_stats.mean + 1) + node_stats.get_sd())
-        else:
-            probabilities['layer'] = link_stats.mean * (node_stats.mean + node_stats.get_sd())
+        probabilities['layer'] = link_stats.mean * (node_stats.mean + node_stats.get_sd())
 
         # Adding or removing a node involves adding or removing new links.
         probabilities['node'] = link_stats.mean
@@ -1064,7 +1061,7 @@ class Net(tn.Module):
 
         conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
         if conv_layer_count > 0:
-            probabilities['stride'] = 0.5 * stride_stats.mean * link_stats.mean
+            probabilities['stride'] = stride_stats.mean * conv_layer_count
 
         # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
         # This is multiplied by the average number of input nodes.

@@ -311,18 +311,20 @@ def train(_conf, _net):
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,
                                _train = True,
-                               _portion = _conf.train_portion,
-                               _download = _conf.download_data,
                                **_conf.data_load_args)
 
     net.fitness.loss_stat.reset()
 
+    train_portion = net.fitness.stat.get_offset()
+
     examples = 0
     for batch_idx, (data, target) in enumerate(loader):
 
-        examples = batch_idx * len(data)
-        data, target = data.to(_conf.device), target.to(_conf.device)
-        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+        if Rand.chance(train_portion):
+
+            examples += len(data)
+            data, target = data.to(_conf.device), target.to(_conf.device)
+            net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
     print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
     net.fitness.set(test(_conf, net))
@@ -483,7 +485,7 @@ def save_net(_net_id,
     torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
 
     with open(save_dir + '/' + name + '.txt', 'w+') as plaintext:
-        print(cn.Net.Ecosystem[_net_id].as_str(), file = plaintext)
+        print(cn.Net.Ecosystem[_net_id].as_str(_parameters = True), file = plaintext)
 
 def cull():
 
@@ -612,12 +614,18 @@ def run():
 
         assert Conf.DataLoader is not None, "Please assign a data loader function."
 
-        # If necessary, run the train loader to download the data
-        if Conf.DownloadData:
-            loader = Conf.DataLoader(_dir = Conf.DataDir,
-                                     _download = True)
+        try:
+            # If necessary, run the train loader to download the data
+            if Conf.DownloadData:
+                loader = Conf.DataLoader(_dir = Conf.DataDir,
+                                         _download = True)
 
-            Conf.DownloadData = False
+                Conf.DownloadData = False
+
+        except:
+            print('Error downloading data')
+            dump_exception()
+            Conf.Tag = Tags.Exit
 
         # Wait for all workers to return a Ready signal
 
@@ -703,10 +711,6 @@ def run():
                 print("======[ Epoch", epoch, "]======")
 
                 conf.epoch = epoch
-                if cn.Net.Champion is not None:
-                    conf.train_portion = cn.Net.Ecosystem[cn.Net.Champion].fitness.relative
-                else:
-                    conf.train_portion = 0.0
 
                 print("\t`-> Evaluating networks...")
 

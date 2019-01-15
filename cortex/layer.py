@@ -18,10 +18,10 @@ class Layer(tn.Module):
         }
 
     Activations = {
-        'linear': tnf.selu,
-        'conv1d': tnf.selu,
-        'conv2d': tnf.selu,
-        'conv3d': tnf.selu,
+        'linear': Func.sqrl,
+        'conv1d': tnf.leaky_relu,
+        'conv2d': tnf.leaky_relu,
+        'conv3d': tnf.leaky_relu,
         'output': tnf.log_softmax
     }
 
