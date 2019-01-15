@@ -75,8 +75,7 @@ def train(_conf, _net):
     net.train()
     optimiser = _conf.optimiser(net.parameters(), lr = 1.0 - net.fitness.relative)
 
-#    loader = get_loader(_conf, True, net.fitness.relative)
-    loader = get_loader(_conf, True, 0.05)
+    loader = get_loader(_conf, True, net.fitness.relative)
 
     net.fitness.loss_stat.reset()
 
