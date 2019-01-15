@@ -315,12 +315,13 @@ def train(_conf, _net):
 
     net.fitness.loss_stat.reset()
 
-    train_portion = net.fitness.stat.get_offset()
+    train_portion = net.complexity
 
     examples = 0
     for batch_idx, (data, target) in enumerate(loader):
 
-        if Rand.chance(train_portion):
+#        if Rand.chance(train_portion):
+        if Rand.chance(0.05):
 
             examples += len(data)
             data, target = data.to(_conf.device), target.to(_conf.device)

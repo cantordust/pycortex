@@ -100,7 +100,7 @@ class Net(tn.Module):
 
             else:
 
-                layer_defs = _species.genome if isinstance(_species, cs.Species) else Net.Init.Layers
+                layer_defs = _species.genome[0:-1] if isinstance(_species, cs.Species) else Net.Init.Layers
 
                 if len(layer_defs) > 0:
                     for layer_index, layer_def in enumerate(layer_defs):
@@ -111,13 +111,11 @@ class Net(tn.Module):
                                        _layer_index = layer_index)
 
                 # Output layer
-                if (len(self.layers) == 0 or
-                    self.layers[-1].role != 'output'):
-                    self.add_layer(_shape = Net.Output.Shape,
-                                   _bias = cl.Layer.Bias,
-                                   _layer_index = len(self.layers))
+                self.add_layer(_shape = Net.Output.Shape,
+                               _bias = cl.Layer.Bias,
+                               _layer_index = len(self.layers))
 
-        print(">>> Network", self.ID, "created")
+        print(f'>>> Network {self.ID} created')
 
     def matches(self,
                 _partner):
@@ -181,7 +179,6 @@ class Net(tn.Module):
                                        _role = layer.role))
 
         return genome
-
 
     def genome_overlap(self,
                        _partner):
@@ -1109,7 +1106,7 @@ class Net(tn.Module):
             if _complexify:
                 complexify = _complexify
             else:
-                complexification_chance = 1.0 - cs.Species.Populations[self.species_id].fitness.stat.get_offset() * self.complexity
+                complexification_chance = 1.0 - self.fitness.stat.get_offset() * self.complexity
                 print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
                 complexify = Rand.chance(complexification_chance)
 

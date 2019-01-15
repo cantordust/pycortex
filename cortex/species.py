@@ -208,14 +208,15 @@ class Species:
             elif (p1 != self.champion and
                   Rand.chance(1.0 - self.fitness.stat.get_offset())):
 
-                probabilities = {
-                                'layer': 1,
-                                'node': 1,
-                                'stride': 1,
-                                'kernel': 1
-                                }
+#                probabilities = {
+#                                'layer': 1,
+#                                'node': 1,
+#                                'stride': 1,
+#                                'kernel': 1
+#                                }
+#                p1.mutate(_probabilities = probabilities)
 
-                p1.mutate(_probabilities = probabilities)
+                p1.mutate()
 
                 if p1.species_id != self.ID:
                     # The network has moved to another species.
