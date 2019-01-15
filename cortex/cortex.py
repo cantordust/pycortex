@@ -311,21 +311,17 @@ def train(_conf, _net):
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,
                                _train = True,
+                               _portion = net.complexity
                                **_conf.data_load_args)
 
     net.fitness.loss_stat.reset()
 
-    train_portion = net.complexity
-
     examples = 0
     for batch_idx, (data, target) in enumerate(loader):
 
-#        if Rand.chance(train_portion):
-        if Rand.chance(0.05):
-
-            examples += len(data)
-            data, target = data.to(_conf.device), target.to(_conf.device)
-            net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+        examples += len(data)
+        data, target = data.to(_conf.device), target.to(_conf.device)
+        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
     print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
     net.fitness.set(test(_conf, net))

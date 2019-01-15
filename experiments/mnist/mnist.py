@@ -31,21 +31,19 @@ def get_loader(_dir,
                                 transforms.Normalize((0.1307,), (0.3081,))
                              ]))
 
-#    indices = list(torch.randperm(len(dataset)))
+    indices = list(torch.randperm(len(dataset)))
 
-#    if _train:
-#        indices = indices[0:math.floor(_portion * len(dataset))]
+    if _train:
+        indices = indices[0:math.floor(_portion * len(dataset))]
 
-#    sampler = torch.utils.data.SubsetRandomSampler(indices)
+    sampler = torch.utils.data.SubsetRandomSampler(indices)
 
-#    batch_sampler = torch.utils.data.BatchSampler(sampler,
-#                                                  batch_size = _batch_size,
-#                                                  drop_last = False)
+    batch_sampler = torch.utils.data.BatchSampler(sampler,
+                                                  batch_size = _batch_size,
+                                                  drop_last = False)
 
     loader = torch.utils.data.DataLoader(dataset,
-                                         batch_size = _batch_size,
-                                         shuffle = True,
-                                         drop_last = False,
+                                         batch_sampler = batch_sampler,
                                          **_args)
 
     return loader
