@@ -16,6 +16,7 @@ torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth
 torch.multiprocessing.set_start_method('spawn')
 
 import torch.nn.functional as tnf
+import torchvision
 
 from tensorboardX import SummaryWriter
 
@@ -44,8 +45,9 @@ class Conf:
     TestBatchSize = 1000
 
     DataDir = ''
-    DownloadData = False
+    DownloadData = True
     DataLoadArgs = {}
+    DataLoader = None
 
     Device = torch.device('cpu')
     UseCuda = False
@@ -91,6 +93,7 @@ class Conf:
         self.output_function_args = Conf.OutputFunctionArgs
 
         self.evaluator = Conf.Evaluator
+        self.data_loader = Conf.DataLoader
 
 def get_rank():
     return MPI.COMM_WORLD.Get_rank()
@@ -268,6 +271,63 @@ def pause():
     if len(key) == 0:
         key = 'Y'
     return key
+
+
+def test(_conf, _net):
+
+    _net.eval()
+    test_loss = 0
+    correct = 0
+
+    loader = _conf.data_loader(_dir = _conf.data_dir,
+                               _batch_size = _conf.test_batch_size,
+                               _train = False,
+                               _download = _conf.download_data,
+                               **_conf.data_load_args)
+
+    with torch.no_grad():
+        for data, target in loader:
+            data, target = data.to(_conf.device), target.to(_conf.device)
+            output = _conf.output_function(_net(data), **_conf.output_function_args)
+            test_loss += _conf.loss_function(output, target, reduction='sum').item() # sum up batch loss
+            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    test_loss /= len(loader.dataset)
+
+    accuracy = 100. * correct / len(loader.dataset)
+    print(f'[Net {_net.ID}] Test | Run {_conf.run} | ' +
+          f'Epoch {_conf.epoch} Average loss: {test_loss:.4f}, ' +
+          f'Accuracy: {correct}/{len(loader.dataset)} ({accuracy:.2f}%)')
+
+    return accuracy
+
+def train(_conf, _net):
+
+    net = _net.to(_conf.device)
+    net.train()
+    optimiser = _conf.optimiser(net.parameters())
+
+    loader = _conf.data_loader(_dir = _conf.data_dir,
+                               _batch_size = _conf.train_batch_size,
+                               _train = True,
+                               _portion = _conf.train_portion,
+                               _download = _conf.download_data,
+                               **_conf.data_load_args)
+
+    net.fitness.loss_stat.reset()
+
+    examples = 0
+    for batch_idx, (data, target) in enumerate(loader):
+
+        examples = batch_idx * len(data)
+        data, target = data.to(_conf.device), target.to(_conf.device)
+        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+
+    print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
+    net.fitness.set(test(_conf, net))
+
+    return net
 
 def init():
 
@@ -547,7 +607,17 @@ def run():
 
         # Master process
 
-        assert Conf.Evaluator is not None, "Please assign a function for training networks."
+        if Conf.Evaluator is None:
+            Conf.Evaluator = train
+
+        assert Conf.DataLoader is not None, "Please assign a data loader function."
+
+        # If necessary, run the train loader to download the data
+        if Conf.DownloadData:
+            loader = Conf.DataLoader(_dir = Conf.DataDir,
+                                     _download = True)
+
+            Conf.DownloadData = False
 
         # Wait for all workers to return a Ready signal
 
@@ -633,6 +703,10 @@ def run():
                 print("======[ Epoch", epoch, "]======")
 
                 conf.epoch = epoch
+                if cn.Net.Champion is not None:
+                    conf.train_portion = cn.Net.Ecosystem[cn.Net.Champion].fitness.relative
+                else:
+                    conf.train_portion = 0.0
 
                 print("\t`-> Evaluating networks...")
 

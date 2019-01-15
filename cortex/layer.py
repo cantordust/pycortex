@@ -18,10 +18,10 @@ class Layer(tn.Module):
         }
 
     Activations = {
-        'linear': Func.sqrl,
-        'conv1d': Func.sqrl,
-        'conv2d': Func.sqrl,
-        'conv3d': Func.sqrl,
+        'linear': tnf.selu,
+        'conv1d': tnf.selu,
+        'conv2d': tnf.selu,
+        'conv3d': tnf.selu,
         'output': tnf.log_softmax
     }
 
@@ -37,8 +37,7 @@ class Layer(tn.Module):
 #    InitFunction = tn.init.uniform_
 #    InitArgs = {'a': -0.01, 'b': 0.05}
     InitFunction = tn.init.normal_
-    InitArgs = {}
-
+    InitArgs = {'mean': 0.0, 'std': 0.1}
 
     ### Layer definition class
     class Def:

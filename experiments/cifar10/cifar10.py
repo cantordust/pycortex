@@ -16,7 +16,6 @@ import math
 import torch
 from torchvision import datasets, transforms
 
-
 def get_loader(_conf, _train, _fitness = 0.0):
 
 #    print('Data dir: {}'.format(_conf.data_dir))
@@ -45,52 +44,52 @@ def get_loader(_conf, _train, _fitness = 0.0):
 
     return loader
 
-def test(_conf, _net):
+#def test(_conf, _net):
 
-    _net.eval()
-    test_loss = 0
-    correct = 0
+#    _net.eval()
+#    test_loss = 0
+#    correct = 0
 
-    loader = get_loader(_conf, False)
+#    loader = get_loader(_conf, False)
 
-    with torch.no_grad():
-        for data, target in loader:
-            data, target = data.to(_conf.device), target.to(_conf.device)
-            output = _conf.output_function(_net(data), **_conf.output_function_args)
-            test_loss += _conf.loss_function(output, target, reduction='sum').item() # sum up batch loss
-            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
+#    with torch.no_grad():
+#        for data, target in loader:
+#            data, target = data.to(_conf.device), target.to(_conf.device)
+#            output = _conf.output_function(_net(data), **_conf.output_function_args)
+#            test_loss += _conf.loss_function(output, target, reduction='sum').item() # sum up batch loss
+#            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+#            correct += pred.eq(target.view_as(pred)).sum().item()
 
-    test_loss /= len(loader.dataset)
+#    test_loss /= len(loader.dataset)
 
-    accuracy = 100. * correct / len(loader.dataset)
-    print(f'[Net {_net.ID}] Test | Run {_conf.run} | ' +
-          f'Epoch {_conf.epoch} Average loss: {test_loss:.4f}, ' +
-          f'Accuracy: {correct}/{len(loader.dataset)} ({accuracy:.2f}%)')
+#    accuracy = 100. * correct / len(loader.dataset)
+#    print(f'[Net {_net.ID}] Test | Run {_conf.run} | ' +
+#          f'Epoch {_conf.epoch} Average loss: {test_loss:.4f}, ' +
+#          f'Accuracy: {correct}/{len(loader.dataset)} ({accuracy:.2f}%)')
 
-    return accuracy
+#    return accuracy
 
-def train(_conf, _net):
+#def train(_conf, _net):
 
-    net = _net.to(_conf.device)
-    net.train()
-    optimiser = _conf.optimiser(net.parameters())
+#    net = _net.to(_conf.device)
+#    net.train()
+#    optimiser = _conf.optimiser(net.parameters())
 
-    loader = get_loader(_conf, True, net.complexity)
+#    loader = get_loader(_conf, True, net.complexity)
 
-    net.fitness.loss_stat.reset()
+#    net.fitness.loss_stat.reset()
 
-    examples = 0
-    for batch_idx, (data, target) in enumerate(loader):
+#    examples = 0
+#    for batch_idx, (data, target) in enumerate(loader):
 
-        examples = batch_idx * len(data)
-        data, target = data.to(_conf.device), target.to(_conf.device)
-        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+#        examples = batch_idx * len(data)
+#        data, target = data.to(_conf.device), target.to(_conf.device)
+#        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
-    print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
-    net.fitness.set(test(_conf, net))
+#    print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
+#    net.fitness.set(test(_conf, net))
 
-    return net
+#    return net
 
 def main():
 
@@ -104,14 +103,6 @@ def main():
         cn.Net.Input.Shape = [3, 32, 32]
         cn.Net.Output.Shape = [10]
         cn.Net.Init.Layers = []
-
-        # If necessary, run the train loader to download the data
-        if ctx.Conf.DownloadData:
-            datasets.CIFAR10(ctx.Conf.DataDir,
-                             download=True)
-
-        # Assign the train function
-        ctx.Conf.Evaluator = train
 
         ctx.print_conf()
 
