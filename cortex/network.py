@@ -92,10 +92,10 @@ class Net(tn.Module):
 
             if (isinstance(_p1, Net)):
                 if (isinstance(_p2, Net)):
-                    print('[Net {}] >>> Performing crossover with network {}...'.format(_p1.ID, _p2.ID))
+                    print(f'[Net {self.ID}] >>> Performing crossover between networks {_p1.ID} and {_p2.ID}...')
                     self.crossover(_p1, _p2)
                 else:
-                    print('[Net {}] >>> Cloning...'.format(_p1.ID))
+                    print(f'[Net {self.ID}] >>> Cloning network {_p1.ID}...')
                     self.clone(_p1)
 
             else:
@@ -173,7 +173,8 @@ class Net(tn.Module):
             shape[0] = len(layer.nodes)
 
             genome.append(cl.Layer.Def(_shape = shape,
-                                       _stride = [0] * len(layer.stride),
+#                                       _stride = [0] * len(layer.stride),
+                                       _stride = layer.stride,
                                        _bias = layer.bias is not None,
                                        _activation = layer.activation,
                                        _role = layer.role))
@@ -780,7 +781,7 @@ class Net(tn.Module):
                     break
 
         # Resize the stride
-        print(f'Layer {mut.layer_index} stride: {self.layers[mut.layer_index].stride}, diff: {mut.diff}')
+#        print(f'Layer {mut.layer_index} stride: {self.layers[mut.layer_index].stride}, diff: {mut.diff}')
         self.layers[mut.layer_index].stride[mut.dim] += mut.diff
 
         # Adjust the input size of the following layers
@@ -998,10 +999,11 @@ class Net(tn.Module):
             self.layers[-1].update_weights()
 
         self.species_id = _parent.species_id
+
         if self.species_id != 0:
             cs.Species.Populations[self.species_id].nets.add(self.ID)
 
-#        assert self.matches(_parent), 'Error cloning network {}'.format(_parent.ID)
+        assert self.matches(_parent), 'Error cloning network {}'.format(_parent.ID)
 
     def get_mutation_probabilities(self,
                                    _complexify):
@@ -1058,7 +1060,7 @@ class Net(tn.Module):
 
         conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
         if conv_layer_count > 0:
-            probabilities['stride'] = stride_stats.mean * conv_layer_count
+            probabilities['stride'] = 0.5 * stride_stats.mean * conv_layer_count
 
         # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
         # This is multiplied by the average number of input nodes.
@@ -1087,8 +1089,8 @@ class Net(tn.Module):
         return probabilities
 
     def mutate(self,
-               _structure = True,
-               _parameters = True,
+               _structure = None,
+               _parameters = None,
                _probabilities = None,
                _complexify = None):
 
@@ -1113,30 +1115,41 @@ class Net(tn.Module):
             mut.action = 'Complexification' if complexify else 'Simplification'
             mut.msg += f'{mut.action} '
 
+            # Check if both _structure and _parameters are undefined.
+            # In that case, choose the mutation type based on the fitness
+            # (lower fitness means _structure more likely than _parameters and vice versa)
+            if (_structure is None and _parameters is None):
+                if Rand.chance(self.fitness.relative):
+                    _parameters = True
+                else:
+                    _structure = True
+
             # Statistics about the structure of this network
             probabilities = self.get_mutation_probabilities(complexify) if _probabilities is None else _probabilities
 
-    #        print('>>> Mutation probabilities:\n{}'.format(probabilities))
+            if not _parameters:
+                probabilities.pop('kernel', None)
+
+            if not _structure:
+                probabilities.pop('stride', None)
+                probabilities.pop('node', None)
+                probabilities.pop('layer', None)
+
+            mutation_types = []
+            if _structure:
+                mutation_types.append('structure')
+            if _parameters:
+                mutation_types.append('parameters')
+
+            print(f'[Net {self.ID}] >>> Allowed mutation types: {mutation_types}')
 
             # The complexity can be increased or decreased
             # with probability proportional to the number
             # of parameters that the mutation will affect.
             wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
-            if _structure:
-
-                wheel.add('layer', probabilities['layer'])
-
-                if len(self.layers) > 1:
-                    wheel.add('node', probabilities['node'])
-
-                if 'stride' in probabilities:
-                    wheel.add('stride', probabilities['stride'])
-
-            if _parameters:
-
-                if 'kernel' in probabilities:
-                    wheel.add('kernel', probabilities['kernel'])
+            for key, weight in probabilities.items():
+                wheel.add(key, weight)
 
             if wheel.is_empty():
                 mut.msg += f'failed: Empty mutation roulette wheel'
@@ -1146,7 +1159,7 @@ class Net(tn.Module):
             mut.element = wheel.spin()
 
             for elem_index in range(len(wheel.elements)):
-                print(f'{wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
+                print(f'[Net {self.ID}] >>> {wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
 
             #return
 

@@ -306,12 +306,12 @@ def train(_conf, _net):
 
     net = _net.to(_conf.device)
     net.train()
-    optimiser = _conf.optimiser(net.parameters())
+    optimiser = _conf.optimiser(net.parameters(), lr = 1 / ((net.age + 1) * (1.0 - net.fitness.relative)))
 
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,
                                _train = True,
-                               _portion = net.complexity
+                               _portion = net.complexity,
                                **_conf.data_load_args)
 
     net.fitness.loss_stat.reset()
@@ -373,7 +373,7 @@ def init():
         # Generate proto-species and proto-nets
         while True:
 
-            # Generate proto-species
+            # Generate proto-species.
             proto_species = cs.Species(_genome = proto_net.get_genome())
 
             # Generate proto-nets for this proto-species.
@@ -386,17 +386,22 @@ def init():
             proto_net = cn.Net(_species = proto_species, _isolated = True)
 
             while cs.Species.find(proto_net.get_genome()) != 0:
-                proto_net.mutate(_probabilities = probabilities, _complexify = True)
+                proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True, _complexify = True)
 
     else:
 
-        # Generate proto-species
+        # Generate proto-species.
         proto_species = cs.Species(_genome = proto_net.get_genome())
 
+        # First proto-net.
+        # This is the first self-replicating prion to spring
+        # into existence in the digital primordial bouillon.
+        proto_net = cn.Net(_species = proto_species)
+
         # Generate proto-nets.
-        for n in range(net_quota):
-            proto_net = cn.Net(_species = proto_species)
-            proto_net.mutate()
+        for n in range(net_quota - 1):
+            proto_net = cn.Net(_p1 = proto_net)
+            proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True, _complexify = True)
 
     print(f'Network count: {len(cn.Net.Ecosystem)}')
     for net in cn.Net.Ecosystem.values():
@@ -522,8 +527,10 @@ def cull():
             removed_species.append(species_id)
             del cs.Species.Populations[species_id]
 
-    print('Removed nets: {}'.format(removed_nets))
-    print('Removed species: {}'.format(removed_species))
+    if len(removed_nets) > 0:
+        print('Removed nets: {}'.format(*removed_nets))
+    if len(removed_species) > 0:
+        print('Removed species: {}'.format(*removed_species))
 
 def evolve(_global_stats,
            _run,
@@ -610,19 +617,6 @@ def run():
             Conf.Evaluator = train
 
         assert Conf.DataLoader is not None, "Please assign a data loader function."
-
-        try:
-            # If necessary, run the train loader to download the data
-            if Conf.DownloadData:
-                loader = Conf.DataLoader(_dir = Conf.DataDir,
-                                         _download = True)
-
-                Conf.DownloadData = False
-
-        except:
-            print('Error downloading data')
-            dump_exception()
-            Conf.Tag = Tags.Exit
 
         # Wait for all workers to return a Ready signal
 
