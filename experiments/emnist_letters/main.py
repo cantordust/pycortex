@@ -80,7 +80,7 @@ def test(_conf, _net):
 
 def train(_conf, _net):
 
-    net = _net.to(_conf.device)
+    net = _net.to(_conf.device, non_blocking=True)
     net.train()
     optimiser = _conf.optimiser(net.parameters(), lr = 1 / ((net.age + 1) * (1.0 - net.fitness.relative)))
 

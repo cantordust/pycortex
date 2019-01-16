@@ -51,6 +51,7 @@ class Conf:
 
     Device = torch.device('cpu')
     UseCuda = False
+    GPUCount = 0
 
     LearningRate = 0.01
     Momentum = 0.5
@@ -71,10 +72,18 @@ class Conf:
 
     Evaluator = None
 
+    GPUs = []
     Workers = []
     Tag = Tags.Start
 
-    def __init__(self):
+    def __init__(self,
+                 _run,
+                 _epoch,
+                 _gpu = None):
+        self.run = _run
+        self.epoch = _epoch
+        self.gpu = None
+
         self.train_batch_size = Conf.TrainBatchSize
         self.test_batch_size = Conf.TestBatchSize
 
@@ -124,6 +133,7 @@ def init_conf():
     parser.add_argument('--learning-rate', type=float, help='Learning rate')
     parser.add_argument('--momentum', type=float, help='SGD momentum')
     parser.add_argument('--use-cuda', action='store_true', help='Enables CUDA training')
+    parser.add_argument('--gpu-count', type=int, help='Indicate how many GPUs are available')
     parser.add_argument('--rand-seed', type=int, help='Manual random seed')
     parser.add_argument('--max-workers', type=int, help='Number of workers for evaluating networks in parallel')
     parser.add_argument('--download-data', action='store_true', help='Indicate whether the training data should be downloaded automatically.')
@@ -604,6 +614,9 @@ def run():
     size = comm.Get_size()
     status = MPI.Status()
 
+    if Conf.UseCuda and rank > Conf.GPUCount:
+        return
+
     if rank == 0:
 
         # Master process
@@ -664,9 +677,6 @@ def run():
             print(f'\n===============[ Run {run} ]===============')
 
             # Fresh configuration
-            conf = Conf()
-
-            conf.run = run
 
             stats = {}
 
@@ -698,8 +708,6 @@ def run():
 
                 print(f'\n===============[ Epoch {epoch} ]===============')
 
-                conf.epoch = epoch
-
                 print("\n======[ Evaluating ecosystem ]======\n")
 
                 # Dispatch the networks for evaluation
@@ -717,7 +725,7 @@ def run():
                     if len(free_workers) > 0:
                         worker = free_workers.pop()
                         net_id = net_ids.pop()
-                        package = (cn.Net.Ecosystem[net_id], conf)
+                        package = (cn.Net.Ecosystem[net_id], Conf(run, epoch, worker if Conf.UseCuda else None))
                         comm.send(package, dest = worker, tag=Conf.Tag)
 
                 # Wait for the last workers to finish
