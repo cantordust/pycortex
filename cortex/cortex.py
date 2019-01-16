@@ -246,7 +246,8 @@ def print_conf(_file = sys.stdout):
 >>> Learning rate: {Conf.LearningRate}
 >>> Momentum: {Conf.Momentum}
 >>> Device: {Conf.Device}
->>> Max. workers: {Conf.MaxWorkers}'''
+>>> Max. workers: {Conf.MaxWorkers}
+'''
 
 
     str += '>>> Data loader arguments:'
