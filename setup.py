@@ -5,4 +5,4 @@ setuptools.setup(name='cortex',
                  description='Library for evolving deep learning models in PyTorch',
                  license='MIT',
                  packages=setuptools.find_packages(),
-                 install_requires=['torch','torchvision','numpy','colorama','tensorboardX','mpi4py'])
+                 install_requires=['numpy','colorama','tensorboardX'])
