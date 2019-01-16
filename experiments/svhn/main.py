@@ -70,12 +70,12 @@ def main():
 
             try:
                 loader = ctx.Conf.DataLoader(_dir = ctx.Conf.DataDir,
-                                             _download = True,
-                                             **{'split': 'train'})
+                                             _train = False,
+                                             _download = True)
 
                 loader = ctx.Conf.DataLoader(_dir = ctx.Conf.DataDir,
-                                             _download = True,
-                                             **{'split': 'test'})
+                                             _train = True,
+                                             _download = True)
 
                 ctx.Conf.DownloadData = False
 
