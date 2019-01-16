@@ -523,9 +523,9 @@ def cull():
             del cs.Species.Populations[species_id]
 
     if len(removed_nets) > 0:
-        print('Removed nets: {}'.format(*removed_nets))
+        print(f'Removed nets: {removed_nets}')
     if len(removed_species) > 0:
-        print('Removed species: {}'.format(*removed_species))
+        print(f'Removed species: {removed_species}')
 
 def evolve(_global_stats,
            _run,
@@ -593,7 +593,7 @@ def evolve(_global_stats,
 
             # Eliminate unfit networks and empty species.
             if len(cn.Net.Ecosystem) > cn.Net.Max.Count:
-                print("\t`-> Culling...")
+                print("\n======[ Culling ecosystem ]======\n")
                 cull()
 
 def run():
