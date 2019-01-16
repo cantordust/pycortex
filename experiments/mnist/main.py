@@ -79,8 +79,10 @@ def main():
                 ctx.dump_exception()
                 ctx.Conf.Tag = ctx.Tags.Exit
 
+        ctx.init()
+
     # Run Cortex
-    ctx.run()
+#    ctx.run()
 
 if __name__ == '__main__':
     main()

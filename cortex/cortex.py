@@ -386,22 +386,17 @@ def init():
             proto_net = cn.Net(_species = proto_species, _isolated = True)
 
             while cs.Species.find(proto_net.get_genome()) != 0:
-                proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True, _complexify = True)
+                proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True)
 
     else:
 
         # Generate proto-species.
         proto_species = cs.Species(_genome = proto_net.get_genome())
 
-        # First proto-net.
-        # This is the first self-replicating prion to spring
-        # into existence in the digital primordial bouillon.
-        proto_net = cn.Net(_species = proto_species)
-
         # Generate proto-nets.
-        for n in range(net_quota - 1):
-            proto_net = cn.Net(_p1 = proto_net)
-            proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True, _complexify = True)
+        for n in range(net_quota):
+            proto_net = cn.Net(_species = proto_species)
+            proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True)
 
     print(f'Network count: {len(cn.Net.Ecosystem)}')
     for net in cn.Net.Ecosystem.values():
