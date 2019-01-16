@@ -45,7 +45,7 @@ class Conf:
     TestBatchSize = 1000
 
     DataDir = ''
-    DownloadData = True
+    DownloadData = False
     DataLoadArgs = {}
     DataLoader = None
 
