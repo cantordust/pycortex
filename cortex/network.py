@@ -216,7 +216,7 @@ class Net(tn.Module):
 
         overlap = overlap / (total_nodes - overlap)
 
-        print(f'Genome overlap between nets {self.ID} and {_partner.ID}: {overlap}')
+#        print(f'Genome overlap between nets {self.ID} and {_partner.ID}: {overlap}')
 
         return overlap
 
@@ -1109,7 +1109,7 @@ class Net(tn.Module):
                 complexify = _complexify
             else:
                 complexification_chance = 1.0 - self.fitness.stat.get_offset() * self.complexity
-                print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
+#                print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
                 complexify = Rand.chance(complexification_chance)
 
             mut.action = 'Complexification' if complexify else 'Simplification'
@@ -1141,7 +1141,7 @@ class Net(tn.Module):
             if _parameters:
                 mutation_types.append('parameters')
 
-            print(f'[Net {self.ID}] >>> Allowed mutation types: {mutation_types}')
+#            print(f'[Net {self.ID}] >>> Allowed mutation types: {mutation_types}')
 
             # The complexity can be increased or decreased
             # with probability proportional to the number
@@ -1158,8 +1158,8 @@ class Net(tn.Module):
 
             mut.element = wheel.spin()
 
-            for elem_index in range(len(wheel.elements)):
-                print(f'[Net {self.ID}] >>> {wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
+#            for elem_index in range(len(wheel.elements)):
+#                print(f'[Net {self.ID}] >>> {wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
 
             #return
 

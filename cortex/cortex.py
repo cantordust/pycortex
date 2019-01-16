@@ -534,10 +534,8 @@ def evolve(_global_stats,
     if get_rank() != 0:
        return
 
-    print("======[ Evolving ecosystem ]======")
-
     # Compute the relative fitness of networks and species.
-    print("\t`-> Calibrating...")
+    print("\n======[ Calibrating ecosystem ]======\n")
     calibrate()
 
     # Experiment statistics
@@ -581,8 +579,9 @@ def evolve(_global_stats,
             net.age += 1
 
         if _epoch < Conf.Epochs:
+
             # Evolve networks in all species.
-            print("\t`-> Evolving networks...")
+            print("\n======[ Evolving ecosystem ]======\n")
 
             wheel = Rand.RouletteWheel()
 
@@ -661,7 +660,7 @@ def run():
             if len(Conf.Workers) == 0:
                 break
 
-            print("===============[ Run", run, "]===============")
+            print(f'\n===============[ Run {run} ]===============')
 
             # Fresh configuration
             conf = Conf()
@@ -677,6 +676,8 @@ def run():
 
             # Initialise the ecosystem
             try:
+
+                print("\n======[ Initialising ecosystem ]======\n")
                 init()
 
                 if not Conf.UnitTestMode:
@@ -694,11 +695,11 @@ def run():
                 if len(Conf.Workers) == 0:
                     break
 
-                print("======[ Epoch", epoch, "]======")
+                print(f'\n===============[ Epoch {epoch} ]===============')
 
                 conf.epoch = epoch
 
-                print("\t`-> Evaluating networks...")
+                print("\n======[ Evaluating ecosystem ]======\n")
 
                 # Dispatch the networks for evaluation
 
@@ -732,23 +733,20 @@ def run():
                         dump_exception()
                         break
 
-#            for net_id in cn.Net.Ecosystem.keys():
-#                save(net_id, run, epoch)
+            if os.path.exists(Conf.LogDir):
+                with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
+                    print_conf(_file = cfg_file)
+
+                for key, stat in stats.items():
+                    stat.title = key
+                    print(stat.as_str())
+                    save_stat(key, stat)
 
         Conf.Tag = Tags.Exit
 
         print('Sending exit command to workers...')
         for worker in Conf.Workers:
             comm.send(None, dest = worker, tag=Conf.Tag)
-
-        if os.path.exists(Conf.LogDir):
-            with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
-                print_conf(_file = cfg_file)
-
-            for key, stat in stats.items():
-                stat.title = key
-                print(stat.as_str())
-                save_stat(key, stat)
 
     else:
 

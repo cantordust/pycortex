@@ -188,7 +188,7 @@ class Species:
             if not Species.Enabled:
                 mating_chance *= p1.genome_overlap(p2)
 
-            print(f'Chance of mating nets {p1.ID} and {p2.ID}: {mating_chance}')
+#            print(f'Chance of mating nets {p1.ID} and {p2.ID}: {mating_chance}')
 
             if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
                 Rand.chance(mating_chance)):
