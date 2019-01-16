@@ -123,7 +123,7 @@ def init_conf():
     parser.add_argument('--test-batch-size', type=int, help='Input batch size for testing')
     parser.add_argument('--learning-rate', type=float, help='Learning rate')
     parser.add_argument('--momentum', type=float, help='SGD momentum')
-    parser.add_argument('--use-cuda', help='Enables CUDA training')
+    parser.add_argument('--use-cuda', action='store_true', help='Enables CUDA training')
     parser.add_argument('--rand-seed', type=int, help='Manual random seed')
     parser.add_argument('--max-workers', type=int, help='Number of workers for evaluating networks in parallel')
     parser.add_argument('--download-data', action='store_true', help='Indicate whether the training data should be downloaded automatically.')
