@@ -131,7 +131,7 @@ def init_conf():
     parser.add_argument('--init-species', type=int, help='Initial number of species')
     parser.add_argument('--max-species', type=int, help='Maximal number of species')
     parser.add_argument('--train-batch-size', type=int, help='Input batch size for training')
-    parser.add_argument('--train-portion', type=int, help='Input batch size for training')
+    parser.add_argument('--train-portion', type=float, help='Input batch size for training')
     parser.add_argument('--test-batch-size', type=int, help='Input batch size for testing')
     parser.add_argument('--learning-rate', type=float, help='Learning rate')
     parser.add_argument('--momentum', type=float, help='SGD momentum')
