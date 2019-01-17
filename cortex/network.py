@@ -815,6 +815,7 @@ class Net(tn.Module):
             loss = _loss_function(_output_function(self(_data), **_output_function_args), _target)
             loss.backward()
             self.fitness.loss_stat.update(loss.item())
+            return loss
 
         _optimiser.step(closure)
 
