@@ -187,6 +187,9 @@ def init_conf():
         Conf.DataLoadArgs['num_workers'] = 1
         Conf.DataLoadArgs['pin_memory'] = True
 
+    if args.gpu_count:
+        Conf.GPUCount = args.gpu_count
+
     if args.learning_rate:
         Conf.LearningRate = args.learning_rate
 
