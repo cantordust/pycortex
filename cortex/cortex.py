@@ -326,7 +326,7 @@ def train(_conf, _net):
 
     net = _net.to(_conf.device)
     net.train()
-    optimiser = _conf.optimiser(net.parameters())
+    optimiser = _conf.optimiser(net.parameters(), lr = 1 / ((net.age + 1) * (1.0 - net.fitness.relative)) )
 
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,

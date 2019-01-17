@@ -4,6 +4,8 @@
 #!/cortex/*.py
 #!/experiments/**/*.py
 *__.py
+/experiments/*
+!/experiments/*/*
 /experiments/**/data
 /experiments/**/logs
 !/unit_tests/**/*.py
