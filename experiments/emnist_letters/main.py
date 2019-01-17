@@ -87,7 +87,7 @@ def train(_conf, _net):
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,
                                _train = True,
-                               _portion = 0.1,
+                               _portion = net.complexity if _conf.train_portion is None else _conf.train_portion,
                                **_conf.data_load_args)
 
     net.fitness.loss_stat.reset()

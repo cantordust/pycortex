@@ -43,6 +43,7 @@ class Conf:
 
     TrainBatchSize = 128
     TestBatchSize = 1000
+    TrainPortion = None
 
     DataDir = ''
     DownloadData = False
@@ -86,6 +87,7 @@ class Conf:
 
         self.train_batch_size = Conf.TrainBatchSize
         self.test_batch_size = Conf.TestBatchSize
+        self.train_portion = Conf.TrainPortion
 
         self.data_dir = Conf.DataDir
         self.data_load_args = Conf.DataLoadArgs
@@ -129,6 +131,7 @@ def init_conf():
     parser.add_argument('--init-species', type=int, help='Initial number of species')
     parser.add_argument('--max-species', type=int, help='Maximal number of species')
     parser.add_argument('--train-batch-size', type=int, help='Input batch size for training')
+    parser.add_argument('--train-portion', type=int, help='Input batch size for training')
     parser.add_argument('--test-batch-size', type=int, help='Input batch size for testing')
     parser.add_argument('--learning-rate', type=float, help='Learning rate')
     parser.add_argument('--momentum', type=float, help='SGD momentum')
@@ -170,6 +173,9 @@ def init_conf():
 
     if args.train_batch_size:
         Conf.TrainBatchSize = args.train_batch_size
+
+    if args.train_portion:
+        Conf.TrainPortion = args.train_portion
 
     if args.test_batch_size:
         Conf.TestBatchSize = args.test_batch_size
@@ -325,7 +331,7 @@ def train(_conf, _net):
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,
                                _train = True,
-                               _portion = 0.1,
+                               _portion = net.complexity if _conf.train_portion is None else _conf.train_portion,
                                **_conf.data_load_args)
 
     net.fitness.loss_stat.reset()

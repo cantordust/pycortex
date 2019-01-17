@@ -1108,8 +1108,10 @@ class Net(tn.Module):
             if _complexify:
                 complexify = _complexify
             else:
+#                complexification_chance = 1.0 - self.fitness.stat.get_offset() * self.complexity
+                complexification_chance = 0.5
 #                print(f'[Net {self.ID}] >>> Complexification chance: {complexification_chance}')
-                complexify = Rand.chance(0.5)
+                complexify = Rand.chance(complexification_chance)
 
             mut.action = 'Complexification' if complexify else 'Simplification'
             mut.msg += f'{mut.action} '
