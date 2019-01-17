@@ -82,12 +82,12 @@ def train(_conf, _net):
 
     net = _net.to(_conf.device, non_blocking=True)
     net.train()
-    optimiser = _conf.optimiser(net.parameters(), lr = 1 / ((net.age + 1) * (1.0 - net.fitness.relative)))
+    optimiser = _conf.optimiser(net.parameters())
 
     loader = _conf.data_loader(_dir = _conf.data_dir,
                                _batch_size = _conf.train_batch_size,
                                _train = True,
-                               _portion = net.complexity,
+                               _portion = 0.1,
                                **_conf.data_load_args)
 
     net.fitness.loss_stat.reset()
