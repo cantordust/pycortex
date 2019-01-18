@@ -206,8 +206,7 @@ class Species:
                 Species.Offspring += 1
 
             elif (p1 != self.champion and
-                  p1.age > 0 and
-                  Rand.chance(1 / p1.age)):
+                  Rand.chance(1.0 - self.fitness.stat.get_offset())):
 
 #                probabilities = {
 #                                'layer': 1,

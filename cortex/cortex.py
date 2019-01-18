@@ -329,7 +329,7 @@ def train(_conf, _net):
     # Train the network if it is not a new offspring
     if net.age > 0:
         net.train()
-        optimiser = _conf.optimiser(net.parameters(), lr = 1 / net.age )
+        optimiser = _conf.optimiser(net.parameters())
 
         loader = _conf.data_loader(_dir = _conf.data_dir,
                                    _batch_size = _conf.train_batch_size,
