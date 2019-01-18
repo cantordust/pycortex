@@ -19,7 +19,7 @@ from torchvision import datasets, transforms
 def get_loader(_dir,
                _batch_size = 1,
                _train = True,
-               _portion = 1.0,
+               _portion = None,
                _download = False,
                **_args):
 
@@ -33,7 +33,7 @@ def get_loader(_dir,
 
     indices = list(torch.randperm(len(dataset)))
 
-    if _train:
+    if _portion is not None:
         indices = indices[0:math.floor(_portion * len(dataset))]
 
     sampler = torch.utils.data.SubsetRandomSampler(indices)

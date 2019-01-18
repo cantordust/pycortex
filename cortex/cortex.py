@@ -325,25 +325,30 @@ def test(_conf, _net):
 def train(_conf, _net):
 
     net = _net.to(_conf.device)
-    net.train()
-    optimiser = _conf.optimiser(net.parameters(), lr = 1 / ((net.age + 1) * (1.0 - net.fitness.relative)) )
 
-    loader = _conf.data_loader(_dir = _conf.data_dir,
-                               _batch_size = _conf.train_batch_size,
-                               _train = True,
-                               _portion = net.complexity if _conf.train_portion is None else _conf.train_portion,
-                               **_conf.data_load_args)
+    # Train the network if it is not a new offspring
+    if net.age > 0:
+        net.train()
+        optimiser = _conf.optimiser(net.parameters())
 
-    net.fitness.loss_stat.reset()
+        loader = _conf.data_loader(_dir = _conf.data_dir,
+                                   _batch_size = _conf.train_batch_size,
+                                   _train = True,
+                                   _portion = net.complexity if _conf.train_portion is None else _conf.train_portion,
+                                   **_conf.data_load_args)
 
-    examples = 0
-    for batch_idx, (data, target) in enumerate(loader):
+        net.fitness.loss_stat.reset()
 
-        examples += len(data)
-        data, target = data.to(_conf.device), target.to(_conf.device)
-        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+        examples = 0
+        for batch_idx, (data, target) in enumerate(loader):
 
-    print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
+            examples += len(data)
+            data, target = data.to(_conf.device), target.to(_conf.device)
+            net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+
+        print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
+
+    # Evaluate on the test set to determine the fitness
     net.fitness.set(test(_conf, net))
 
     return net
