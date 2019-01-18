@@ -41,7 +41,7 @@ class Conf:
     Runs = 1
     Epochs = 50
 
-    TrainBatchSize = 128
+    TrainBatchSize = 256
     TestBatchSize = 1000
     TrainPortion = None
 
@@ -334,19 +334,20 @@ def train(_conf, _net):
         loader = _conf.data_loader(_dir = _conf.data_dir,
                                    _batch_size = _conf.train_batch_size,
                                    _train = True,
-                                   _portion = net.complexity if _conf.train_portion is None else _conf.train_portion,
+#                                   _portion = net.complexity if _conf.train_portion is None else _conf.train_portion,
                                    **_conf.data_load_args)
 
         net.fitness.loss_stat.reset()
 
         examples = 0
-        for batch_idx, (data, target) in enumerate(loader):
+#        for batch_idx, (data, target) in enumerate(loader):
+        (data, target) = next(iter(loader))
 
-            examples += len(data)
-            data, target = data.to(_conf.device), target.to(_conf.device)
-            net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+        examples += len(data)
+        data, target = data.to(_conf.device), target.to(_conf.device)
+        net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
-        print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
+        print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * len(data) / len(loader.dataset):.2f}% of the dataset')
 
     # Evaluate on the test set to determine the fitness
     net.fitness.set(test(_conf, net))
