@@ -77,6 +77,13 @@ class Conf:
     Workers = []
     Tag = Tags.Start
 
+    Stats = {
+    'Species_count': Stat.SMAStat(),
+    'Network_count': Stat.SMAStat(),
+    'Champion_parameter_count': Stat.SMAStat(),
+    'Highest_fitness': Stat.SMAStat()
+    }
+
     def __init__(self,
                  _run,
                  _epoch,
@@ -113,6 +120,34 @@ def dump_exception():
     print("-"*60)
     traceback.print_exc()
     print("-"*60)
+
+def save_stat(_title,
+              _stat):
+
+    with open(Conf.LogDir + '/' + str(_title) + '_stats.txt', 'w+') as stat_file:
+        print(_stat.as_str(), file = stat_file)
+
+def save_net(_net_id,
+             _run,
+             _epoch,
+             _name = None):
+
+    if get_rank() != 0:
+         return
+
+    save_dir = Conf.LogDir + '/run_' + str(_run) + '/epoch_' + str(_epoch)
+
+    os.makedirs(save_dir, exist_ok = True)
+
+    if _name is None:
+        name = 'net_' + str(_net_id)
+    else:
+        name = _name
+
+    torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
+
+    with open(save_dir + '/' + name + '.txt', 'w+') as plaintext:
+        print(cn.Net.Ecosystem[_net_id].as_str(_parameters = True), file = plaintext)
 
 def init_conf():
 
@@ -362,13 +397,17 @@ def init():
     Initialise the ecosystem and generate initial species if speciation is enabled.
     """
 
-    print(">>> Initialising ecosystem...")
+    print("\n======[ Initialising ecosystem ]======\n")
 
     # Reset the static network attributes
     cn.Net.reset()
 
     # Reset the static species attributes
     cs.Species.reset()
+
+    # Reset all statistics
+    for key, val in Conf.Stats.items():
+        Conf.Stats[key] = Stat.SMAStat()
 
     # Sanity check on the species count
     if cs.Species.Enabled:
@@ -431,10 +470,12 @@ def init():
     for species in cs.Species.Populations.values():
         print(species.as_str())
 
-def calibrate():
+def calibrate(_epoch):
 
     if get_rank() != 0:
         return
+
+    print("\n======[ Calibrating ecosystem ]======\n")
 
     # Remove extinct species.
     extinct = [species.ID for species in cs.Species.Populations.values() if len(species.nets) == 0]
@@ -481,38 +522,76 @@ def calibrate():
 
     print(f'>>> Global champion: {cn.Net.Champion} (fitness: {cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute})')
 
-def save_stat(_title,
-              _stat):
+    # Store statistics
+    Conf.Stats['Species_count'].update(len(cs.Species.Populations))
+    Conf.Stats['Network_count'].update(len(cn.Net.Ecosystem))
+    Conf.Stats['Champion_parameter_count'].update(cn.Net.Ecosystem[cn.Net.Champion].get_parameter_count())
+    Conf.Stats['Highest_fitness'].update(cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute)
 
-    with open(Conf.LogDir + '/' + str(_title) + '_stats.txt', 'w+') as stat_file:
-        print(_stat.as_str(), file = stat_file)
+    epoch_stats = {
+    'Average_fitness': Stat.SMAStat(),
+    'Average_initial_fitness': Stat.SMAStat(),
+    'Champion_parameter_count': Stat.SMAStat()
+    }
 
-def save_net(_net_id,
-             _run,
-             _epoch,
-             _name = None):
+    if not Conf.UnitTestMode:
+
+        for net in cn.Net.Ecosystem.values():
+
+            if net.ID == cn.Net.Champion:
+                epoch_stats['Champion_parameter_count'].update(net.get_parameter_count())
+
+            epoch_stats['Average_fitness'].update(net.fitness.absolute)
+
+            if net.age == 0:
+                epoch_stats['Average_initial_fitness'].update(net.fitness.absolute)
+
+        # Global statistics
+        for key, val in Conf.Stats.items():
+            Conf.Logger.add_scalar(key, val.current_value, _epoch)
+
+        # Epoch statistics
+        for key, val in epoch_stats.items():
+            Conf.Logger.add_scalar(key, val.current_value, _epoch)
+
+def evolve( _run,
+           _epoch):
 
     if get_rank() != 0:
-         return
+       return
 
-    save_dir = Conf.LogDir + '/run_' + str(_run) + '/epoch_' + str(_epoch)
+    print("\n======[ Evolving ecosystem ]======\n")
 
-    os.makedirs(save_dir, exist_ok = True)
+    # Set the offspring count to 0
+    cs.Species.Offspring = 0
 
-    if _name is None:
-        name = 'net_' + str(_net_id)
-    else:
-        name = _name
+    if not Conf.UnitTestMode:
 
-    torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
+        # Save the champion
+        if cn.Net.Champion is not None:
+            save_net(cn.Net.Champion, _run, _epoch, 'champion')
 
-    with open(save_dir + '/' + name + '.txt', 'w+') as plaintext:
-        print(cn.Net.Ecosystem[_net_id].as_str(_parameters = True), file = plaintext)
+        # Increase the age of all networks.
+        for net in cn.Net.Ecosystem.values():
+            net.age += 1
+
+        if _epoch < Conf.Epochs:
+
+            # Evolve networks in all species.
+            wheel = Rand.RouletteWheel()
+
+            for species_id, species in cs.Species.Populations.items():
+                wheel.add(species_id, species.fitness.relative)
+
+            while not wheel.is_empty():
+                cs.Species.Populations[wheel.pop()].evolve()
 
 def cull():
 
     if get_rank() != 0:
         return
+
+    print("\n======[ Culling ecosystem ]======\n")
 
     wheel = Rand.RouletteWheel(Rand.WeightType.Inverse)
 
@@ -551,75 +630,6 @@ def cull():
         print(f'Removed nets: {removed_nets}')
     if len(removed_species) > 0:
         print(f'Removed species: {removed_species}')
-
-def evolve(_global_stats,
-           _run,
-           _epoch):
-
-    if get_rank() != 0:
-       return
-
-    # Compute the relative fitness of networks and species.
-    print("\n======[ Calibrating ecosystem ]======\n")
-    calibrate()
-
-    # Experiment statistics
-    _global_stats['Species_count'].update(len(cs.Species.Populations))
-    _global_stats['Network_count'].update(len(cn.Net.Ecosystem))
-    _global_stats['Champion_parameter_count'].update(cn.Net.Ecosystem[cn.Net.Champion].get_parameter_count())
-    _global_stats['Highest_fitness'].update(cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute)
-
-    epoch_stats = {}
-    epoch_stats['Average_parameter_count'] = Stat.SMAStat()
-    epoch_stats['Average_fitness'] = Stat.SMAStat()
-    epoch_stats['Average_initial_fitness'] = Stat.SMAStat()
-
-    # Set the offspring count to 0
-    cs.Species.Offspring = 0
-
-    if not Conf.UnitTestMode:
-
-        for net in cn.Net.Ecosystem.values():
-
-            epoch_stats['Average_parameter_count'].update(net.get_parameter_count())
-            epoch_stats['Average_fitness'].update(net.fitness.absolute)
-
-            if net.age == 0:
-                epoch_stats['Average_initial_fitness'].update(net.fitness.absolute)
-
-        # Global statistics
-        for key, val in _global_stats.items():
-            Conf.Logger.add_scalar(key, val.current_value, _epoch)
-
-        # Epoch statistics
-        for key, val in epoch_stats.items():
-            Conf.Logger.add_scalar(key, val.mean, _epoch)
-
-        # Save the champion
-        if cn.Net.Champion is not None:
-            save_net(cn.Net.Champion, _run, _epoch, 'champion')
-
-        # Increase the age of all networks.
-        for net in cn.Net.Ecosystem.values():
-            net.age += 1
-
-        if _epoch < Conf.Epochs:
-
-            # Evolve networks in all species.
-            print("\n======[ Evolving ecosystem ]======\n")
-
-            wheel = Rand.RouletteWheel()
-
-            for species_id, species in cs.Species.Populations.items():
-                wheel.add(species_id, species.fitness.relative)
-
-            while not wheel.is_empty():
-                cs.Species.Populations[wheel.pop()].evolve()
-
-            # Eliminate unfit networks and empty species.
-            if len(cn.Net.Ecosystem) > cn.Net.Max.Count:
-                print("\n======[ Culling ecosystem ]======\n")
-                cull()
 
 def run():
 
@@ -690,15 +700,6 @@ def run():
 
             print(f'\n===============[ Run {run} ]===============')
 
-            # Fresh configuration
-
-            stats = {}
-
-            stats['Species_count'] = Stat.SMAStat()
-            stats['Network_count'] = Stat.SMAStat()
-            stats['Champion_parameter_count'] = Stat.SMAStat()
-            stats['Highest_fitness'] = Stat.SMAStat()
-
             # Initialise the ecosystem
             try:
 
@@ -748,7 +749,18 @@ def run():
 
                 if len(Conf.Workers) > 0:
                     try:
-                        evolve(stats, run, epoch)
+
+                        # Compute the relative fitness of networks and species.
+                        calibrate(epoch)
+
+                        if epoch < Conf.Epochs:
+
+                            # Evolve the ecosystem
+                            evolve(run, epoch)
+
+                            # Eliminate unfit networks and empty species.
+                            if len(cn.Net.Ecosystem) > cn.Net.Max.Count:
+                                cull()
 
                     except:
                         print('Caught exception in evolve()')
@@ -760,7 +772,7 @@ def run():
                 with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
                     print_conf(_file = cfg_file)
 
-                for key, stat in stats.items():
+                for key, stat in Conf.Stats.items():
                     stat.title = key
                     print(stat.as_str())
                     save_stat(key, stat)

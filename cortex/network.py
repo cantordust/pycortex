@@ -1057,35 +1057,23 @@ class Net(tn.Module):
         # Adding or removing a node involves adding or removing new links.
         probabilities['node'] = link_stats.mean
 
-        # Changing the stride of a layer involves resizing the input of all subsequent layers
+        if sum([1 for layer in self.layers if layer.is_conv]) > 0:
 
-        conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
-        if conv_layer_count > 0:
-            probabilities['stride'] = 0.5 * stride_stats.mean * conv_layer_count
+            # Changing the stride of a layer involves resizing the input of all subsequent layers
+            # up to and including the first fully connected layer.
+            conv_param_count = 0
+            for layer in self.layers:
+                conv_param_count += layer.get_parameter_count()
+                if not layer.is_conv:
+                    break
+
+            probabilities['stride'] = conv_param_count
 
         # Growing or shrinking a kernel involves padding the kernel in one of its dimensions.
         # This is multiplied by the average number of input nodes.
         kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
         if kernel_count > 0:
-            probabilities['kernel'] = 2 * node_stats.mean * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
-
-#        parameter_count = self.get_parameter_count()
-
-#        layer_count = len(self.layers)
-#        probabilities['layer'] = parameter_count / layer_count
-
-#        node_count = sum([len(layer.nodes) for layer in self.layers])
-#        probabilities['node'] = parameter_count / node_count
-
-#        conv_layer_count = sum([1 for layer in self.layers if layer.is_conv])
-#        conv_layer_parameter_count = sum([layer.get_parameter_count() for layer in self.layers if layer.is_conv])
-
-#        if conv_layer_count > 0:
-#            probabilities['stride'] = conv_layer_parameter_count / conv_layer_count
-
-#        kernel_count = sum([len(layer.nodes) for layer in self.layers if layer.is_conv])
-#        if kernel_count > 0:
-#            probabilities['kernel'] = conv_layer_parameter_count / kernel_count
+            probabilities['kernel'] = 2 * kernel_count * math.pow(kernel_size_stats.mean, kernel_dim_stats.mean - 1)
 
         return probabilities
 
@@ -1159,8 +1147,8 @@ class Net(tn.Module):
 
             mut.element = wheel.spin()
 
-#            for elem_index in range(len(wheel.elements)):
-#                print(f'[Net {self.ID}] >>> {wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
+            for elem_index in range(len(wheel.elements)):
+                print(f'[Net {self.ID}] >>> {wheel.elements[elem_index]:10s} | {wheel.weights[Rand.WeightType.Raw][elem_index]:15.5f} | {wheel.weights[Rand.WeightType.Inverse][elem_index]:15.5f}')
 
             #return
 

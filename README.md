@@ -14,6 +14,10 @@ All mutation and crossover operations should produce fully functional models whi
 
 All functionality will be backported to the C++ version of Cortex (with Python bindings for the die-hard Python fans).
 
+# Dependencies
+
+Install PyTorch if you haven't done so already. PyCortex runs only on CPUs for now (GPU support is WIP), so please install the CPU-only version for better performance. The GPU-enabled version will work, but it may not be optimal (this needs to be confirmed). Installation instructions can be found at (the PyTorch website)[https://pytorch.org/].
+
 # Installation
 
 To setup a dev version of the library:
@@ -24,17 +28,13 @@ $> cd PyCortex && . ./bin/activate
 $> pip3 install --user -e .
 ```
 
-# Run unit tests
-Note: Some unit tests are not working at the moment due to significant changes in the backend. This note will be removed when they get fixed.
+It will try to install all the dependencies. If any of them are already installed and you want to keep an old version for some reason, just remove the entry for that dependency from `setup.py`
 
-```
-$> cd unit_tests
-$> python3 <unit_test_script>
-```
+# Run unit tests
+Note: Some unit tests are not working at the moment due to significant changes in the backend. I haven't had time to fix them as I have been working on the core, but I will update this as soon as they are all working again.
 
 # Run the MNIST example
-
 ```
-$> cd experiments/MNIST
-$> python3 mnist.py
+$> cd experiments/mnist
+$> mpirun --map-by core --np <number-of-cores> python3 mnist.py
 ```
