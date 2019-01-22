@@ -23,12 +23,13 @@ Install PyTorch if you haven't done so already. PyCortex runs only on CPUs for n
 To setup a dev version of the library:
 
 ```
-$> python3 -m venv PyCortex
-$> cd PyCortex && . ./bin/activate
+$> git clone https://gitlab.com/cantordust/pycortex
+$> cd pycortex
 $> pip3 install --user -e .
 ```
+PyCortex works only with Python 3.
 
-It will try to install all the dependencies. If any of them are already installed and you want to keep an old version for some reason, just remove the entry for that dependency from `setup.py`
+This should install all the dependencies. If any of them are already installed and you want to keep an old version for some reason, just remove the entry for that dependency from `setup.py`.
 
 # Run unit tests
 Note: Some unit tests are not working at the moment due to significant changes in the backend. I haven't had time to fix them as I have been working on the core, but I will update this as soon as they are all working again.
