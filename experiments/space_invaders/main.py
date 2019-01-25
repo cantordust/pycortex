@@ -137,7 +137,6 @@ if __name__ == '__main__':
         sparse_tensor = 1
         print(sparse_tensor)
 
-
 #        print(tensor)
 #        done = True
 

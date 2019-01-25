@@ -328,6 +328,23 @@ def pause():
         key = 'Y'
     return key
 
+def optimise(_net,
+             _data,
+             _target,
+             _optimiser,
+             _loss_function,
+             _output_function,
+             _output_function_args = {}):
+
+    def closure():
+
+        _optimiser.zero_grad()
+        loss = _loss_function(_output_function(_net(_data), **_output_function_args), _target)
+        loss.backward()
+        _net.fitness.loss_stat.update(loss.item())
+        return loss
+
+    _optimiser.step(closure)
 
 def test(_conf, _net):
 
@@ -380,7 +397,7 @@ def train(_conf, _net):
 
             examples += len(data)
             data, target = data.to(_conf.device), target.to(_conf.device)
-            net.optimise(data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
+            optimise(net, data, target, optimiser, _conf.loss_function, _conf.output_function, _conf.output_function_args)
 
         print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
 

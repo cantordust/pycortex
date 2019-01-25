@@ -801,24 +801,6 @@ class Net(tn.Module):
 
         return _tensor
 
-    def optimise(self,
-                 _data,
-                 _target,
-                 _optimiser,
-                 _loss_function,
-                 _output_function,
-                 _output_function_args = {}):
-
-        def closure():
-
-            _optimiser.zero_grad()
-            loss = _loss_function(_output_function(self(_data), **_output_function_args), _target)
-            loss.backward()
-            self.fitness.loss_stat.update(loss.item())
-            return loss
-
-        _optimiser.step(closure)
-
     def crossover(self,
                   _p1,  # Parent 1
                   _p2): # Parent 2
