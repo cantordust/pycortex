@@ -8,7 +8,7 @@ class Ring(object):
 
     def push(self, _elem):
         self.buffer[self.position] = _elem
-        self.position = (self.position + 1) % self.capacity
+        self.position = (self.position + 1) % len(self.buffer)
 
     def sample(self, _batch_size, _weights):
         batch = []
