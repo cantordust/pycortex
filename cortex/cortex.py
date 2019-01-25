@@ -257,68 +257,57 @@ def print_conf(_file = sys.stdout):
     if get_rank() != 0:
         return
 
-    str = f'''
-========================[ PyCortex configuration ]========================
->>> Experiment name: {Conf.ExperimentName}
->>> Runs: {Conf.Runs}
->>> Epochs: {Conf.Epochs}
->>> Init. networks: {cn.Net.Init.Count}
->>> Max. networks: {cn.Net.Max.Count}
->>> Speciation: {"enabled" if cs.Species.Enabled else "disabled"}'''
+    str = f'========================[ PyCortex configuration ]========================' + \
+          f'\n>>> Experiment name: {Conf.ExperimentName}' + \
+          f'\n>>> Runs: {Conf.Runs}' + \
+          f'\n>>> Epochs: {Conf.Epochs}' + \
+          f'\n>>> Init. networks: {cn.Net.Init.Count}' + \
+          f'\n>>> Max. networks: {cn.Net.Max.Count}' + \
+          f'\n>>> Speciation: {"enabled" if cs.Species.Enabled else "disabled"}'
 
     if cs.Species.Enabled:
-        str += f'''
-    Init. species: {cs.Species.Init.Count}
-    Max. species: {cs.Species.Max.Count}'''
+        str += f'\n\tInit. species: {cs.Species.Init.Count}' + \
+               f'\n\tMax. species: {cs.Species.Max.Count}'
 
-    str += f'''
->>> Learning rate: {Conf.LearningRate}
->>> Momentum: {Conf.Momentum}
->>> CUDA: {"enabled" if Conf.UseCuda else "disabled"}
->>> Input shape: {cn.Net.Input.Shape}
->>> Output shape: {cn.Net.Output.Shape}
->>> Layer bias: {cl.Layer.Bias}
->>> Layer activations:'''
+    str += f'\n>>> Learning rate: {Conf.LearningRate}' + \
+           f'\n>>> Momentum: {Conf.Momentum}' + \
+           f'\n>>> CUDA: {"enabled" if Conf.UseCuda else "disabled"}' + \
+           f'\n>>> Input shape: {cn.Net.Input.Shape}' + \
+           f'\n>>> Output shape: {cn.Net.Output.Shape}' + \
+           f'\n>>> Layer bias: {cl.Layer.Bias}' + \
+           f'\n>>> Layer activations:'
 
     for key, val in cl.Layer.Activations.items():
-        str += f'''
-    {key}: {val.__name__}'''
+        str += f'\n\t{key}: {val.__name__}'
 
     for layer_index, layer_def in enumerate(cn.Net.Init.Layers):
         str += layer_def.as_str()
 
-    str += f'''
->>> Init. function: {cl.Layer.InitFunction.__name__}
->>> Init. arguments:'''
+    str += f'\n>>> Init. function: {cl.Layer.InitFunction.__name__}' + \
+           f'\n>>> Init. arguments:'
 
     for key, val in cl.Layer.InitArgs.items():
-        str += f'''
-    {key}: {val}'''
+          str += f'\n\t{key}: {val}'
 
-    str += f'''
->>> Max. nets: {cn.Net.Max.Count}
->>> Max. net age: {cn.Net.Max.Age}
->>> Learning rate: {Conf.LearningRate}
->>> Momentum: {Conf.Momentum}
->>> Device: {Conf.Device}
->>> Max. workers: {Conf.MaxWorkers}
-'''
+    str += f'\n>>> Max. nets: {cn.Net.Max.Count}' + \
+           f'\n>>> Max. net age: {cn.Net.Max.Age}' + \
+           f'\n>>> Learning rate: {Conf.LearningRate}' + \
+           f'\n>>> Momentum: {Conf.Momentum}' + \
+           f'\n>>> Device: {Conf.Device}' + \
+           f'\n>>> Max. workers: {Conf.MaxWorkers}' + \
+           f'\n>>> Data loader arguments:'
 
-
-    str += '>>> Data loader arguments:'
     for key, val in Conf.DataLoadArgs.items():
-        str += f'''
-    {key}: {val}'''
+        str += f'\n\t{key}: {val}'
 
-    str += f'''
->>> Data directory: {Conf.DataDir}
->>> Download: {Conf.DownloadData}
->>> Optimiser: {Conf.Optimiser.__name__}
->>> Loss function: {Conf.LossFunction.__name__}
->>> Log directory: {Conf.LogDir}
->>> Log interval: {Conf.LogInterval}
->>> Unit test mode: {Conf.UnitTestMode}
-=====================[ End of PyCortex configuration ]===================='''
+    str += f'\n>>> Data directory: {Conf.DataDir}' + \
+           f'\n>>> Download: {Conf.DownloadData}' + \
+           f'\n>>> Optimiser: {Conf.Optimiser.__name__}' + \
+           f'\n>>> Loss function: {Conf.LossFunction.__name__}' + \
+           f'\n>>> Log directory: {Conf.LogDir}' + \
+           f'\n>>> Log interval: {Conf.LogInterval}' + \
+           f'\n>>> Unit test mode: {Conf.UnitTestMode}' + \
+           f'\n=====================[ End of PyCortex configuration ]===================='
 
     print(str, file = _file)
 
