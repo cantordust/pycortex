@@ -80,7 +80,7 @@ def main():
 #        ctx.init()
 
     # Run Cortex
-    ctx.run()
+    ctx.execute()
 
 if __name__ == '__main__':
     main()

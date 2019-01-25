@@ -80,7 +80,7 @@ def main():
                 ctx.Conf.Tag = ctx.Tags.Exit
 
     # Run Cortex
-    ctx.run()
+    ctx.execute()
 
 if __name__ == '__main__':
     main()

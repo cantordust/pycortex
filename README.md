@@ -16,7 +16,7 @@ All functionality will be backported to the C++ version of Cortex (with Python b
 
 # Dependencies
 
-Install PyTorch if you haven't done so already. PyCortex runs only on CPUs for now (GPU support is WIP), so please install the CPU-only version for better performance. The GPU-enabled version will work, but it may not be optimal (this needs to be confirmed). Installation instructions can be found at [the PyTorch website](https://pytorch.org/).
+Install PyTorch if you haven't done so already. PyCortex runs only on CPUs for now (GPU support is WIP), so please install the CPU-only version for better performance. The GPU-enabled version will work, but it may not be optimal (this needs to be confirmed). Installation instructions can be found on [the PyTorch website](https://pytorch.org/).
 
 # Installation
 

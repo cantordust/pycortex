@@ -598,7 +598,7 @@ class Net(tn.Module):
             self.layers[mut.layer_index + 1].adjust_input_size(_input_shape = self.get_output_shape(mut.layer_index),
                                                                _node_indices = sorted(list(mut.node_indices)))
 
-            mut.msg = f'Removing node({"s" if mut.count > 1 else ""}) {mut.node_indices} from layer {mut.layer_index}'
+            mut.msg = f'Removing node{"s" if mut.count > 1 else ""} {mut.node_indices} from layer {mut.layer_index}'
 
         return mut
 

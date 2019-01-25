@@ -23,6 +23,7 @@ from tensorboardX import SummaryWriter
 import cortex.random as Rand
 import cortex.statistics as Stat
 import cortex.functions as Func
+import cortex.containers as Cont
 
 import cortex.network as cn
 import cortex.layer as cl
@@ -547,14 +548,14 @@ def calibrate(_epoch):
                 epoch_stats['Average_initial_fitness'].update(net.fitness.absolute)
 
         # Global statistics
-        for key, val in Conf.Stats.items():
-            Conf.Logger.add_scalar(key, val.current_value, _epoch)
+        for key, stat in Conf.Stats.items():
+            Conf.Logger.add_scalar(key, stat.current_value, _epoch)
 
         # Epoch statistics
-        for key, val in epoch_stats.items():
-            Conf.Logger.add_scalar(key, val.current_value, _epoch)
+        for key, stat in epoch_stats.items():
+            Conf.Logger.add_scalar(key, stat.current_value, _epoch)
 
-def evolve( _run,
+def evolve(_run,
            _epoch):
 
     if get_rank() != 0:
@@ -631,7 +632,7 @@ def cull():
     if len(removed_species) > 0:
         print(f'Removed species: {removed_species}')
 
-def run():
+def execute():
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -779,7 +780,7 @@ def run():
 
         Conf.Tag = Tags.Exit
 
-        print('Sending exit command to workers...')
+        print('\n\n>>> Sending exit command to workers...')
         for worker in Conf.Workers:
             comm.send(None, dest = worker, tag=Conf.Tag)
 
@@ -815,4 +816,4 @@ def run():
 
         comm.send(None, dest=0, tag=Tags.Exit)
 
-    print('Worker {} exiting...'.format(rank))
+    print(f'Worker {rank} exiting...')
