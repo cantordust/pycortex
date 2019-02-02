@@ -1,21 +1,31 @@
-import cortex.random as Rand
-
 class Ring(object):
-
     def __init__(self, _capacity):
-        self.buffer = [None] * _capacity
-        self.position = 0
-
-    def push(self, _elem):
-        self.buffer[self.position] = _elem
-        self.position = (self.position + 1) % len(self.buffer)
-
-    def sample(self, _batch_size, _weights):
-        batch = []
-        for n in range(_batch_size):
-            batch.append(self.buffer[Rand.roulette(len(self.buffer), _weights)])
-
-        return batch
+        self.size = 0
+        self.head = 0
+        self.capacity = _capacity
+        self.data = [None for _ in range(self.capacity)]
 
     def __len__(self):
-        return len(self.buffer)
+        return self.size
+
+    def __getitem__(self, idx):
+        if idx < 0 or idx >= self.length:
+            raise KeyError()
+        return self.data[(self.head + idx) % self.size]
+
+    def append(self, _elem):
+        if self.size < self.capacity:
+            # Increment the size
+            self.size += 1
+
+        self.head = (self.head + 1) % self.size
+        self.data[self.head] = _elem
+
+    def dump(self):
+        data = []
+        head = self.head
+        for _ in range(self.size):
+            head = (head + 1) % self.size
+            data.append(self.data[head])
+
+        return data

@@ -41,34 +41,38 @@ class Conf:
     ExperimentName = 'Experiment'
     Runs = 1
     Epochs = 50
+    Episodes = 5
 
-    TrainBatchSize = 128
-    TestBatchSize = 1000
-    TrainPortion = None
+    DiscountFactor = 0.99
+    Epsilon = 1.0e-8
+
+    Device = torch.device('cpu')
+    UseCuda = False
+    GPUCount = 0
+    MaxWorkers = 1
 
     DataDir = ''
     DownloadData = False
     DataLoadArgs = {}
     DataLoader = None
 
-    Device = torch.device('cpu')
-    UseCuda = False
-    GPUCount = 0
-
-    LearningRate = 0.01
-    Momentum = 0.5
-
-    MaxWorkers = 1
+    TrainBatchSize = 128
+    TestBatchSize = 1000
+    TrainPortion = None
 
     LogDir = './logs'
     LogInterval = 500
     Logger = None
 
-    Optimiser = torch.optim.Adadelta
-    LossFunction = tnf.cross_entropy
-
     OutputFunction = tnf.log_softmax
     OutputFunctionArgs = {'dim': 1}
+
+    LossFunction = tnf.nll_loss
+
+    Optimiser = torch.optim.Adadelta
+    OptimiserArgs = {
+                'lr': 1.0
+                }
 
     UnitTestMode = False
 
@@ -79,19 +83,20 @@ class Conf:
     Tag = Tags.Start
 
     Stats = {
-    'Species_count': Stat.SMAStat(),
-    'Network_count': Stat.SMAStat(),
-    'Champion_parameter_count': Stat.SMAStat(),
-    'Highest_fitness': Stat.SMAStat()
-    }
+            'Species_count': Stat.SMAStat(),
+            'Network_count': Stat.SMAStat(),
+            'Champion_parameter_count': Stat.SMAStat(),
+            'Highest_fitness': Stat.SMAStat()
+            }
 
     def __init__(self,
                  _run,
                  _epoch,
-                 _gpu = None):
+                 _gpu_slot = None):
         self.run = _run
         self.epoch = _epoch
-        self.gpu = None
+        self.episodes = Conf.Episodes
+        self.gpu_slot = None
 
         self.train_batch_size = Conf.TrainBatchSize
         self.test_batch_size = Conf.TestBatchSize
@@ -105,14 +110,19 @@ class Conf:
 
         self.log_interval = Conf.LogInterval
 
-        self.optimiser = Conf.Optimiser
         self.loss_function = Conf.LossFunction
+
+        self.optimiser = Conf.Optimiser
+        self.optimiser_args = Conf.OptimiserArgs
 
         self.output_function = Conf.OutputFunction
         self.output_function_args = Conf.OutputFunctionArgs
 
         self.evaluator = Conf.Evaluator
         self.data_loader = Conf.DataLoader
+
+        self.discount_factor = Conf.DiscountFactor
+        self.epsilon = Conf.Epsilon
 
 def get_rank():
     return MPI.COMM_WORLD.Get_rank()
@@ -122,33 +132,36 @@ def dump_exception():
     traceback.print_exc()
     print("-"*60)
 
-def save_stat(_title,
-              _stat):
+def save_stat(_stat,
+              _path = ''):
 
-    with open(Conf.LogDir + '/' + str(_title) + '_stats.txt', 'w+') as stat_file:
+    _path = Conf.LogDir + _path
+    _path.replace('//', '/')
+
+    os.makedirs(_path, exist_ok = True)
+
+    with open(_path + '/' + _stat.title + '_stats.txt', 'w+') as stat_file:
         print(_stat.as_str(), file = stat_file)
 
-def save_net(_net_id,
-             _run,
-             _epoch,
-             _name = None):
+def save_net(_net,
+             _path,
+             _name = ''):
 
     if get_rank() != 0:
          return
 
-    save_dir = Conf.LogDir + '/run_' + str(_run) + '/epoch_' + str(_epoch)
+    _path = Conf.LogDir + _path
+    _path.replace('//', '/')
 
-    os.makedirs(save_dir, exist_ok = True)
+    os.makedirs(_path, exist_ok = True)
 
     if _name is None:
-        name = 'net_' + str(_net_id)
-    else:
-        name = _name
+        _name = 'net_' + str(_net.ID)
 
-    torch.save(cn.Net.Ecosystem[_net_id], save_dir + '/' + name + '.pt')
+    torch.save(_net, _path + '/' + _name + '.pt')
 
-    with open(save_dir + '/' + name + '.txt', 'w+') as plaintext:
-        print(cn.Net.Ecosystem[_net_id].as_str(_parameters = True), file = plaintext)
+    with open(_path + '/' + _name + '.txt', 'w+') as plaintext:
+        print(_net.as_str(_parameters = True), file = plaintext)
 
 def init_conf():
 
@@ -169,8 +182,6 @@ def init_conf():
     parser.add_argument('--train-batch-size', type=int, help='Input batch size for training')
     parser.add_argument('--train-portion', type=float, help='Input batch size for training')
     parser.add_argument('--test-batch-size', type=int, help='Input batch size for testing')
-    parser.add_argument('--learning-rate', type=float, help='Learning rate')
-    parser.add_argument('--momentum', type=float, help='SGD momentum')
     parser.add_argument('--use-cuda', action='store_true', help='Enables CUDA training')
     parser.add_argument('--gpu-count', type=int, help='Indicate how many GPUs are available')
     parser.add_argument('--rand-seed', type=int, help='Manual random seed')
@@ -232,12 +243,6 @@ def init_conf():
     if args.gpu_count:
         Conf.GPUCount = args.gpu_count
 
-    if args.learning_rate:
-        Conf.LearningRate = args.learning_rate
-
-    if args.momentum:
-        Conf.Momentum = args.momentum
-
     if args.max_workers:
         Conf.MaxWorkers = args.max_workers
 
@@ -263,25 +268,26 @@ def print_conf(_file = sys.stdout):
           f'\n>>> Epochs: {Conf.Epochs}' + \
           f'\n>>> Init. networks: {cn.Net.Init.Count}' + \
           f'\n>>> Max. networks: {cn.Net.Max.Count}' + \
+          f'\n>>> Max. net age: {cn.Net.Max.Age}' + \
           f'\n>>> Speciation: {"enabled" if cs.Species.Enabled else "disabled"}'
 
     if cs.Species.Enabled:
         str += f'\n\tInit. species: {cs.Species.Init.Count}' + \
                f'\n\tMax. species: {cs.Species.Max.Count}'
 
-    str += f'\n>>> Learning rate: {Conf.LearningRate}' + \
-           f'\n>>> Momentum: {Conf.Momentum}' + \
-           f'\n>>> CUDA: {"enabled" if Conf.UseCuda else "disabled"}' + \
+    str += f'\n>>> Discount factor: {Conf.DiscountFactor}' + \
            f'\n>>> Input shape: {cn.Net.Input.Shape}' + \
            f'\n>>> Output shape: {cn.Net.Output.Shape}' + \
            f'\n>>> Layer bias: {cl.Layer.Bias}' + \
+           f'\n>>> FC layer recurrence: {"enabled" if cl.Layer.RecurrentFC else "disabled"}' + \
            f'\n>>> Layer activations:'
 
     for key, val in cl.Layer.Activations.items():
-        str += f'\n\t{key}: {val.__name__}'
+        str += f'\n\t{key}: {val.__name__ if val is not None else None}'
 
     for layer_index, layer_def in enumerate(cn.Net.Init.Layers):
-        str += layer_def.as_str()
+        title = f'\n========[ Initial layer {layer_index} ]========'
+        str += title + layer_def.as_str() + '\n' + ''.join(['=' for chars in range(len(title) - 1)])
 
     str += f'\n>>> Init. function: {cl.Layer.InitFunction.__name__}' + \
            f'\n>>> Init. arguments:'
@@ -289,32 +295,49 @@ def print_conf(_file = sys.stdout):
     for key, val in cl.Layer.InitArgs.items():
           str += f'\n\t{key}: {val}'
 
-    str += f'\n>>> Max. nets: {cn.Net.Max.Count}' + \
-           f'\n>>> Max. net age: {cn.Net.Max.Age}' + \
-           f'\n>>> Learning rate: {Conf.LearningRate}' + \
-           f'\n>>> Momentum: {Conf.Momentum}' + \
-           f'\n>>> Device: {Conf.Device}' + \
+    str += f'\n>>> Device: {Conf.Device}' + \
+           f'\n>>> CUDA: {"enabled" if Conf.UseCuda else "disabled"}' + \
+           f'\n>>> GPU count: {Conf.GPUCount}' + \
            f'\n>>> Max. workers: {Conf.MaxWorkers}' + \
+           f'\n>>> Data directory: {Conf.DataDir}' + \
+           f'\n>>> Download data: {Conf.DownloadData}' + \
+           f'\n>>> Data loader function: {Conf.DataLoader}' + \
            f'\n>>> Data loader arguments:'
 
     for key, val in Conf.DataLoadArgs.items():
         str += f'\n\t{key}: {val}'
 
-    str += f'\n>>> Data directory: {Conf.DataDir}' + \
-           f'\n>>> Download: {Conf.DownloadData}' + \
-           f'\n>>> Optimiser: {Conf.Optimiser.__name__}' + \
-           f'\n>>> Loss function: {Conf.LossFunction.__name__}' + \
+    str += f'\n>>> Train batch size: {Conf.TrainBatchSize}' + \
+           f'\n>>> Test batch size: {Conf.TestBatchSize}' + \
+           f'\n>>> Train portion: {Conf.TrainPortion}' + \
            f'\n>>> Log directory: {Conf.LogDir}' + \
            f'\n>>> Log interval: {Conf.LogInterval}' + \
-           f'\n>>> Unit test mode: {Conf.UnitTestMode}' + \
+           f'\n>>> Output function: {Conf.OutputFunction.__name__ if Conf.OutputFunction is not None else None}' + \
+           f'\n>>> Output function arguments:'
+
+    for key, val in Conf.OutputFunctionArgs.items():
+        str += f'\n\t{key}: {val}'
+
+    str += f'\n>>> Loss function: {Conf.LossFunction.__name__ if Conf.LossFunction is not None else None}' + \
+           f'\n>>> Optimiser: {Conf.Optimiser.__name__ if Conf.Optimiser is not None else None}' + \
+           f'\n>>> Optimiser arguments:'
+
+    for key, val in Conf.OptimiserArgs.items():
+       str += f'\n\t{key}: {val}'
+
+    str += f'\n>>> Unit test mode: {Conf.UnitTestMode}' + \
            f'\n=====================[ End of PyCortex configuration ]===================='
 
     print(str, file = _file)
 
 def pause():
-    key = input("Continue (Y/n)? ")
-    if len(key) == 0:
-        key = 'Y'
+
+    key = ''
+    while not (key == 'Y' or key == 'y'):
+        key = input("Continue (Y/n)? ")
+        if len(key) == 0:
+            key = 'Y'
+
     return key
 
 def optimise(_net,
@@ -328,14 +351,19 @@ def optimise(_net,
     def closure():
 
         _optimiser.zero_grad()
-        loss = _loss_function(_output_function(_net(_data), **_output_function_args), _target)
+        output = _output_function(_net(_data), **_output_function_args)
+
+#        print(f'Output: {output}')
+#        print(f'Target: {_target}')
+        loss = _loss_function(output, _target)
+#        print(f'Loss: {loss}')
         loss.backward()
         _net.fitness.loss_stat.update(loss.item())
         return loss
 
-    _optimiser.step(closure)
+    _net.optimise(closure, _optimiser)
 
-def test(_conf, _net):
+def test(_net, _conf):
 
     _net.eval()
     test_loss = 0
@@ -364,14 +392,19 @@ def test(_conf, _net):
 
     return accuracy
 
-def train(_conf, _net):
+def train(_net, _conf):
 
     net = _net.to(_conf.device)
 
     # Train the network if it is not a new offspring
     if net.age > 0:
         net.train()
-        optimiser = _conf.optimiser(net.parameters())
+        if 'lr' not in _conf.optimiser_args:
+            _conf.optimiser_args['lr'] = 1.0
+
+        _conf.optimiser_args['lr'] *= (1.0 - net.fitness.relative) / (net.age + 1)
+
+        optimiser = _conf.optimiser(net.parameters(), **_conf.optimiser_args)
 
         loader = _conf.data_loader(_dir = _conf.data_dir,
                                    _batch_size = _conf.train_batch_size,
@@ -391,7 +424,7 @@ def train(_conf, _net):
         print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
 
     # Evaluate on the test set to determine the fitness
-    net.fitness.set(test(_conf, net))
+    net.fitness.set(test(net, _conf))
 
     return net
 
@@ -434,11 +467,11 @@ def init():
     proto_net = cn.Net(_isolated = True)
 
     probabilities = {
-                'layer': 1,
-                'node': 1,
-                'stride': 1,
-                'kernel': 1
-                }
+                    'layer': 1,
+                    'node': 1,
+                    'stride': 1,
+                    'kernel': 1
+                    }
 
     if cs.Species.Enabled:
         # Generate proto-species and proto-nets
@@ -477,7 +510,8 @@ def init():
     for species in cs.Species.Populations.values():
         print(species.as_str())
 
-def calibrate(_epoch):
+def calibrate(_run,
+              _epoch):
 
     if get_rank() != 0:
         return
@@ -529,6 +563,10 @@ def calibrate(_epoch):
 
     print(f'>>> Global champion: {cn.Net.Champion} (fitness: {cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute})')
 
+    # Save the champion
+    if cn.Net.Champion is not None:
+        save_net(cn.Net.Ecosystem[cn.Net.Champion], f'/run_{_run}/epoch_{_epoch}', 'Champion')
+
     # Store statistics
     Conf.Stats['Species_count'].update(len(cs.Species.Populations))
     Conf.Stats['Network_count'].update(len(cn.Net.Ecosystem))
@@ -536,10 +574,10 @@ def calibrate(_epoch):
     Conf.Stats['Highest_fitness'].update(cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute)
 
     epoch_stats = {
-    'Average_fitness': Stat.SMAStat(),
-    'Average_initial_fitness': Stat.SMAStat(),
-    'Champion_parameter_count': Stat.SMAStat()
-    }
+                  'Average_fitness': Stat.SMAStat(),
+                  'Average_initial_fitness': Stat.SMAStat(),
+                  'Champion_parameter_count': Stat.SMAStat()
+                  }
 
     if not Conf.UnitTestMode:
 
@@ -559,7 +597,9 @@ def calibrate(_epoch):
 
         # Epoch statistics
         for key, stat in epoch_stats.items():
-            Conf.Logger.add_scalar(key, stat.current_value, _epoch)
+            Conf.Logger.add_scalar(key, stat.mean, _epoch)
+            stat.title = key
+            save_stat(stat, f'/run_{_run}/epoch_{_epoch}')
 
 def evolve(_run,
            _epoch):
@@ -573,10 +613,6 @@ def evolve(_run,
     cs.Species.Offspring = 0
 
     if not Conf.UnitTestMode:
-
-        # Save the champion
-        if cn.Net.Champion is not None:
-            save_net(cn.Net.Champion, _run, _epoch, 'champion')
 
         # Increase the age of all networks.
         for net in cn.Net.Ecosystem.values():
@@ -652,6 +688,18 @@ def execute():
 
         # Master process
 
+        try:
+            # Set the default tensor type
+            if Conf.UseCuda:
+                torch.set_default_tensor_type(torch.cuda.FloatTensor)
+            else:
+                torch.set_default_tensor_type(torch.FloatTensor)
+
+        except:
+            print('Caught exception in init()')
+            Conf.Tag = Tags.Exit
+            dump_exception()
+
         if Conf.Evaluator is None:
             Conf.Evaluator = train
 
@@ -715,7 +763,7 @@ def execute():
 
                 if not Conf.UnitTestMode:
                     os.makedirs(Conf.LogDir, exist_ok = True)
-                    Conf.Logger = SummaryWriter(Conf.LogDir + '/run_' + str(run))
+                    Conf.Logger = SummaryWriter(Conf.LogDir + f'/run_{run}')
 
             except:
                 print('Caught exception in init()')
@@ -758,7 +806,7 @@ def execute():
                     try:
 
                         # Compute the relative fitness of networks and species.
-                        calibrate(epoch)
+                        calibrate(run, epoch)
 
                         if epoch < Conf.Epochs:
 
@@ -779,10 +827,11 @@ def execute():
                 with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
                     print_conf(_file = cfg_file)
 
+                # Save global statistics
                 for key, stat in Conf.Stats.items():
                     stat.title = key
                     print(stat.as_str())
-                    save_stat(key, stat)
+                    save_stat(stat)
 
         Conf.Tag = Tags.Exit
 
@@ -808,7 +857,7 @@ def execute():
 
                 try:
 
-                    conf.evaluator(conf, net)
+                    conf.evaluator(net, conf)
                     comm.send(net, dest=0, tag = Tags.Done)
 
                 except Exception:

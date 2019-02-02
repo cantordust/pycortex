@@ -6,8 +6,8 @@ def test_random_functions():
     print("ND:", Rand.ND())
     print("negND:", Rand.negND())
     print("posND:", Rand.posND())
-    print("ureal(-100.0,100.0):", Rand.ureal(-100.0, 100.0))
-    print("uint(-100,100):", Rand.uint(-100, 100))
+    print("uni_real(-100.0,100.0):", Rand.uni_real(-100.0, 100.0))
+    print("uni_int(-100,100):", Rand.uni_int(-100, 100))
 
     print("\n===[ Roulette wheel selection ]===\n")
     weights = [5, 3, 100, 67, 22, 0, 1e-3]

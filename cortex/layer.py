@@ -19,10 +19,10 @@ class Layer(tn.Module):
 
     Activations = {
         'linear': Func.sqrl,
-        'conv1d': tnf.leaky_relu,
-        'conv2d': tnf.leaky_relu,
-        'conv3d': tnf.leaky_relu,
-        'output': tnf.log_softmax
+        'conv1d': Func.sqrl,
+        'conv2d': Func.sqrl,
+        'conv3d': Func.sqrl,
+        'output': None
     }
 
     Roles = {
@@ -33,7 +33,10 @@ class Layer(tn.Module):
         'output': 4
         }
 
+    RecurrentFC = False
+
     Bias = True
+
 #    InitFunction = tn.init.uniform_
 #    InitArgs = {'a': -0.01, 'b': 0.05}
     InitFunction = tn.init.normal_
@@ -47,6 +50,7 @@ class Layer(tn.Module):
                      _stride = [],
                      _bias = None,
                      _activation = None,
+                     _recurrent = None,
                      _role = None):
 
             if isinstance(_shape, int):
@@ -83,6 +87,10 @@ class Layer(tn.Module):
                 self.activation = Layer.Activations[self.role]
 
             self.is_conv = len(self.shape) > 1
+            if self.is_conv:
+                self.is_recurrent = False
+            else:
+                self.is_recurrent = Layer.RecurrentFC if _recurrent is None else _recurrent
             self.empty = (self.shape[0] == 0)
 
         def __len__(self):
@@ -96,6 +104,7 @@ class Layer(tn.Module):
                         self.stride == _other.stride and
                         self.bias == _other.bias and
                         self.role == _other.role and
+                        self.is_recurrent == _other.is_recurrent and
                         ((self.activation is None and
                           _other.activation is None) or
                           self.activation == _other.activation))
@@ -103,14 +112,15 @@ class Layer(tn.Module):
 
         def as_str(self):
 
-            str = f'''Shape: {self.shape}
-Stride: {self.stride}
-Bias: {self.bias}
-Op: {self.op}
-Role: {self.role}
-Activation: {self.activation.__name__}
-Convolutional: {self.is_conv}
-Empty: {self.empty}'''
+            str = f'\nShape: {self.shape}' + \
+                  f'\nStride: {self.stride}' + \
+                  f'\nBias: {self.bias}' + \
+                  f'\nOp: {self.op}' + \
+                  f'\nRole: {self.role}' + \
+                  f'\nActivation: {self.activation.__name__}' + \
+                  f'\nConvolutional: {self.is_conv}' + \
+                  f'\nRecurrent: {self.is_recurrent}' + \
+                  f'\nEmpty: {self.empty}'
 
             return str
         ### /Def
@@ -189,8 +199,9 @@ Empty: {self.empty}'''
         # Activation function
         self.activation = _layer_def.activation
 
-        # Convenience indicator for whether this layer is convolutional
+        # Self-explanatory
         self.is_conv = _layer_def.is_conv
+        self.is_recurrent = _layer_def.is_recurrent
 
         # Common attributes
         self.kernel_size = _layer_def.shape[1:] if self.is_conv else []
@@ -213,11 +224,16 @@ Empty: {self.empty}'''
         self.nodes = tn.ParameterList() if self.is_conv else []
         self.bias = None if not _layer_def.bias else tn.Parameter()
 
+        if self.is_recurrent:
+            self.rec_nodes = []
+            self.rec_state = torch.Tensor()
+
         if not _layer_def.empty:
             # Generate nodes
             self.add_nodes(_layer_def.shape[0],
                            self.input_shape[1:],
                            _layer_def.shape[1:])
+
 
     def __len__(self):
         return len(self.nodes)
@@ -225,7 +241,7 @@ Empty: {self.empty}'''
     def matches(self,
                 _other):
 
-        tolerance = 1e-8
+        tolerance = 1.0e-8
 
         self.update_nodes()
         _other.update_nodes()
@@ -235,6 +251,19 @@ Empty: {self.empty}'''
             print("\t>>> Layer 1:\n", self.nodes)
             print("\t>>> Layer 2:\n", _other.nodes)
             return False
+
+        if (self.is_recurrent != _other.is_recurrent):
+            print(f'(Layer {self.index}) >>> One layer is recurrent while the other is not')
+            print(f'\t[Layer 1]: Recurrent: {self.is_recurrent}')
+            print(f'\t[Layer 2]: Recurrent: {_other.is_recurrent}')
+            return False
+
+        if self.is_recurrent:
+            if len(self.rec_nodes) != len(_other.rec_nodes):
+                print("(Layer", self.index, ")\t>>> Different number of recurrent nodes")
+                print("\t>>> Layer 1:\n", self.rec_nodes)
+                print("\t>>> Layer 2:\n", _other.rec_nodes)
+                return False
 
         if (self.role != _other.role):
             print("(Layer", self.index, ")\t>>> Different layer roles")
@@ -323,6 +352,14 @@ Empty: {self.empty}'''
                 print("\t>>> Layer 2:\n", _other.nodes[node])
                 return False
 
+        if self.is_recurrent:
+            for rec_node in range(len(self.rec_nodes)):
+                if not torch.allclose(self.rec_nodes[rec_node], _other.rec_nodes[rec_node], tolerance, tolerance):
+                    print(f'(Layer {self.index}) >>> Different recurrent node in position {rec_node}')
+                    print(f'\t>>> Layer 1:\n {self.rec_nodes[rec_node]}')
+                    print(f'\t>>> Layer 2:\n {_other.rec_nodes[rec_node]}')
+                    return False
+
         return True
 
     def as_str(self,
@@ -330,20 +367,23 @@ Empty: {self.empty}'''
 
         str = f'\n==================[ Layer {self.index} ]==================' +\
               f'\n>>> Role: {self.role}' +\
+              f'\n>>> Recurrent: {self.is_recurrent}' +\
+              f'\n>>> Convolutional: {self.is_conv}' +\
               f'\n>>> Activation: {self.activation.__name__}' +\
               f'\n>>> Input shape: {self.input_shape}' +\
-              f'\n    Input nodes: {self.get_input_nodes()}' +\
-              f'\n    Multiplier: {self.get_multiplier()}' +\
+              f'\n\tInput nodes: {self.get_input_nodes()}' +\
+              f'\n\tMultiplier: {self.get_multiplier()}' +\
               f'\n>>> Output shape: {self.get_output_shape()}' +\
-              f'\n    Nodes: {len(self)}' +\
+              f'\n\tNodes: {len(self)}' +\
+              f'\n\tRecurrent nodes: {len(self.rec_nodes) if self.is_recurrent else 0}' +\
               f'\n>>> Shape: {self.get_shape()}' +\
               f'\n>>> Shape of weight tensor: {list(self.weight.size())}' +\
               f'\n>>> Shape of bias tensor: {list(self.bias.size())}' +\
               f'\n>>> Attributes:' +\
-              f'\n    Kernel size: {self.kernel_size}' +\
-              f'\n    Stride: {self.stride}' +\
-              f'\n    Padding: {self.padding}' +\
-              f'\n    Dilation: {self.dilation}'
+              f'\n\tKernel size: {self.kernel_size}' +\
+              f'\n\tStride: {self.stride}' +\
+              f'\n\tPadding: {self.padding}' +\
+              f'\n\tDilation: {self.dilation}'
 
 
         if _parameters:
@@ -363,6 +403,7 @@ Empty: {self.empty}'''
 
     def get_input_nodes(self,
                         _input_shape = None):
+
         if _input_shape is None:
             _input_shape = self.input_shape
         return _input_shape[0]
@@ -468,7 +509,7 @@ Empty: {self.empty}'''
         return [wheel.spin() for k in range(_count)]
 
     def get_random_stride(self,
-                          _stride): # Pre-determined kernel size. Dimensions with value 0 are populated with random values.
+                          _stride): # Pre-determined stride size. Dimensions with value 0 are populated with random values.
 
         if not self.is_conv:
             return []
@@ -519,6 +560,10 @@ Empty: {self.empty}'''
         if _count <= 0:
             return False
 
+        if self.is_recurrent:
+            # The number of recurrent weights that need to be added to each node
+            rec_count = len(self.nodes) + _count if self.is_recurrent else 0
+
         # Weights -> nodes
         self.update_nodes()
 
@@ -541,12 +586,19 @@ Empty: {self.empty}'''
 
             Layer.init_tensor(self.nodes[-1])
 
+            if self.is_recurrent:
+                self.rec_nodes.append(tn.Parameter(torch.zeros(rec_count)))
+                Layer.init_tensor(self.rec_nodes[-1])
+
         # Add bias nodes
         if self.bias is not None:
             bias = torch.zeros(_count)
             Layer.init_tensor(bias)
 #                    print("resize() extra bias:", bias)
             self.bias = tn.Parameter(torch.cat((self.bias.clone().detach(), bias)))
+
+        if self.is_recurrent:
+            self.adjust_recurrent_size()
 
         # Nodes -> weights
         self.update_weights()
@@ -556,28 +608,34 @@ Empty: {self.empty}'''
         return True
 
     def remove_nodes(self,
-                     _nodes = []):
+                     _node_indices = []):
 
-        if (len(_nodes) == 0 or
-            len(_nodes) >= len(self.nodes)):
+        if (len(_node_indices) == 0 or
+            len(_node_indices) >= len(self.nodes)):
             return False
 
         # Weights -> nodes
         self.update_nodes()
 
-        #print("Nodes to remove:", *_nodes)
+        #print(f'Nodes to remove: {_node_indices}')
 
-#        print('Original node count: {}'.format(len(self.nodes)))
+#        print(f'Original node count: {len(self.nodes)}')
 
         # Remove the selected nodes
         nodes = tn.ParameterList()
         bias = []
 
-        for index, node in enumerate(self.nodes):
-            if index not in _nodes:
-                nodes.append(node)
+        if self.is_recurrent:
+            rec_nodes = []
+
+        for node_index in range(len(self.nodes)):
+            if node_index not in _node_indices:
+                nodes.append(self.nodes[node_index])
                 if bias is not None:
-                    bias.append(self.bias[index].item())
+                    bias.append(self.bias[node_index].item())
+
+                if self.is_recurrent:
+                    rec_nodes.append(self.rec_nodes[node_index])
 
         # Update the bias parameters
         if len(bias) > 0:
@@ -585,7 +643,11 @@ Empty: {self.empty}'''
 
         self.nodes = nodes
 
-#        print('New node count: {}'.format(len(self.nodes)))
+        if self.is_recurrent:
+            self.rec_nodes = rec_nodes
+            self.adjust_recurrent_size(_node_indices)
+
+#        print(f'New node count: {len(self.nodes))}')
 
         # Nodes -> weights
         self.update_weights()
@@ -662,7 +724,7 @@ Empty: {self.empty}'''
 
     def adjust_input_size(self,
                           _input_shape = None,
-                          _node_indices = set(),
+                          _node_indices = [],
                           _pretend = False):
 
         if not _pretend:
@@ -773,6 +835,78 @@ Empty: {self.empty}'''
             # Update weight data from nodes
             self.update_weights()
 
+    def adjust_recurrent_size(self,
+                              _node_indices = []):
+
+        if not self.is_recurrent:
+            return
+
+        for rec_node in range(len(self.rec_nodes)):
+
+            # Check if there is a discrepancy in the number of input nodes
+            input_nodes = int(self.rec_nodes[rec_node].size(0))
+            input_node_diff = input_nodes - len(self.nodes)
+
+            #print(">>> node", rec_node, " input_nodes:", input_nodes)
+            #print(">>> difference:", input_node_diff)
+
+            if input_node_diff > 0:
+
+                # There are more input nodes in this layer than
+                # there are output ones in the preceding one.
+                # Shrink the receptive fields of all nodes.
+
+                if len(_node_indices) == 0:
+
+                    #print(f'Clipping node {rec_node} to have input size of {len(self.nodes) * multiplier}')
+                    self.rec_nodes[rec_node] = tn.Parameter(self.rec_nodes[rec_node][0:len(self.nodes)])
+                    #print("Node", rec_node, "size:", self.rec_nodes[rec_node].size())
+
+                else:
+
+                    #print("Expanding node", rec_node, "to have input size of", len(self.nodes) * multiplier)
+
+                    slices = []
+
+                    begin = 0
+                    for node_index in _node_indices:
+
+                        if node_index == begin:
+                            begin += 1
+
+                        else:
+                            slices.append(slice(begin, node_index))
+                            begin = node_index + 1
+
+                    if begin < input_nodes:
+                        slices.append(slice(begin, None))
+
+                    #print("Slices:", slices)
+
+                    new_rec_node = self.rec_nodes[rec_node][slices[0]].clone().detach()
+
+                    for s in range(1, len(slices)):
+                        new_rec_node = torch.cat((new_rec_node, self.rec_nodes[rec_node][slices[s]].clone().detach()))
+
+                    self.rec_nodes[rec_node] = tn.Parameter(new_rec_node)
+
+            elif input_node_diff < 0:
+
+                # Take the absolute value of the difference
+                input_node_diff = abs(input_node_diff)
+
+                # There are more output nodes in the preceding layer
+                # than there are input ones in this one.
+                # Expand the receptive fields of all nodes.
+                #print("Expanding node", rec_node, "to have input size of", len(self.nodes) * multiplier)
+
+                padding = torch.zeros(int(len(self.nodes) - self.rec_nodes[rec_node].size(0)), *list(self.rec_nodes[rec_node].size())[1:])
+                Layer.init_tensor(padding)
+
+                self.rec_nodes[rec_node] = tn.Parameter(torch.cat((self.rec_nodes[rec_node].clone().detach(), padding)))
+
+        self.rec_state = torch.zeros(len(self.nodes))
+
     def update_kernel(self):
 
         """
@@ -797,15 +931,22 @@ Empty: {self.empty}'''
     def update_nodes(self):
         """
         Create nodes from weights.
-        For now, this does something only for non-convolutional layers.
+        This does something only for non-convolutional layers.
         """
 
         # Update the node data from the weights for non-convolutional layers
-        if (not self.is_conv and
-            int(self.weight.size(0)) > 0):
-            for node in range(len(self.nodes)):
-                self.nodes[node] = tn.Parameter(self.weight[node].clone().detach().requires_grad_(False))
-                self.nodes[node].requires_grad = False
+        if (self.is_conv or
+            int(self.weight.size(0)) == 0):
+            return
+
+        with torch.no_grad():
+            for node_index in range(len(self.nodes)):
+                self.nodes[node_index] = tn.Parameter(self.weight[node_index][0:len(self.nodes[node_index])].clone().detach().requires_grad_(False))
+                self.nodes[node_index].requires_grad = False
+
+                if self.is_recurrent:
+                    self.rec_nodes[node_index] = tn.Parameter(self.weight[node_index][len(self.nodes[node_index]):].clone().detach().requires_grad_(False))
+                    self.rec_nodes[node_index].requires_grad = False
 
     def update_slices(self):
 
@@ -830,35 +971,43 @@ Empty: {self.empty}'''
         Create weights from nodes.
         """
 
-        # Update the weight tensor
-        if self.is_conv:
+        with torch.no_grad():
+            # Update the weight tensor
+            if self.is_conv:
 
-            #print("Updating weights")
-            # Update the kernel size
-            self.update_kernel()
+                #print("Updating weights")
+                # Update the kernel size
+                self.update_kernel()
 
-            self.update_slices()
+                self.update_slices()
 
-            self.weight = torch.zeros(len(self.nodes),      # Output node count
-                                       self.input_shape[0], # Input node count
-                                       *self.kernel_size)   # Unpacked kernel dimensions
+                self.weight = torch.zeros(len(self.nodes),      # Output node count
+                                           self.input_shape[0], # Input node count
+                                           *self.kernel_size)   # Unpacked kernel dimensions
 
-        else:
-            # We don't want the weights for non-convolutional layers
-            # to be generated on the fly like they are in convolutional ones.
-            # Instead, the weights are updated directly, which means
-            # that manipulating non-convolutional nodes should be preceded
-            # by a call to update_nodes() in order to update the
-            # nodes from the current weights.
-            tensor_list = []
-            for node in self.nodes:
-                tensor_list.append(node.clone().detach().requires_grad_(False))
+            else:
 
-            self.weight = tn.Parameter(torch.stack(tensor_list))
+                # We don't want the weights for non-convolutional layers
+                # to be generated on the fly like they are in convolutional ones.
+                # Instead, the weights are updated directly, which means
+                # that manipulating non-convolutional nodes should be preceded
+                # by a call to update_nodes() in order to update the
+                # nodes from the current weights.
+                with torch.no_grad():
+                    tensor_list = []
+                    for node_index in range(len(self.nodes)):
+                        if self.is_recurrent:
+                            tensor_list.append(torch.cat((self.nodes[node_index], self.rec_nodes[node_index])).clone().detach().requires_grad_(False))
+                        else:
+                            tensor_list.append(self.nodes[node_index].clone().detach().requires_grad_(False))
+
+                self.weight = tn.Parameter(torch.stack(tensor_list))
 
         # Update the requires_grad attribute of weights and nodes
         for node_id in range(len(self.nodes)):
             self.nodes[node_id].requires_grad = self.is_conv
+            if self.is_recurrent:
+                self.rec_nodes[node_id].requires_grad = False
 
     def extract_patch(self,
                       _node_idx,
@@ -867,26 +1016,26 @@ Empty: {self.empty}'''
         if not self.is_conv:
             return torch.Tensor()
 
-        slices = [slice(0, self.weight.size(1))]
+        with torch.no_grad():
+            slices = [slice(0, self.weight.size(1))]
 
-        if _size is None:
-            _size = list(self.nodes[_node_idx].size())[1:]
+            if _size is None:
+                _size = list(self.nodes[_node_idx].size())[1:]
 
-        for dim in range(len(_size)):
-            kernel_size = list(self.weight.size())[2:]
-            diff = kernel_size[dim] - _size[dim]
+            for dim in range(len(_size)):
+                kernel_size = list(self.weight.size())[2:]
+                diff = kernel_size[dim] - _size[dim]
 
-            # Patch is smaller in this dimension, narrow down
-            if diff > 0:
-                slices.append(slice(diff // 2, kernel_size[dim] - diff // 2))
-            else:
-                slices.append(slice(0, kernel_size[dim]))
+                # Patch is smaller in this dimension, narrow down
+                if diff > 0:
+                    slices.append(slice(diff // 2, kernel_size[dim] - diff // 2))
+                else:
+                    slices.append(slice(0, kernel_size[dim]))
 
         return self.nodes[_node_idx][slices].clone().detach().requires_grad_(False)
 
     def overlay_kernels(self):
 
-#        self.weight.detach_()
         self.weight = self.weight.detach()
 
         for output_node in range(len(self.nodes)):
@@ -899,14 +1048,23 @@ Empty: {self.empty}'''
         #print("weight tensor size:", self.weight.size())
         #print("output shape:", self.get_output_shape())
 
+#        with torch.autograd.set_detect_anomaly(True):
         if self.is_conv:
-            self.overlay_kernels()
             _tensor = self.op(_tensor, self.weight, self.bias, self.stride, self.padding, self.dilation)
 
         else:
             if len(list(_tensor.size())) > 2:
                 _tensor = Layer.stretch(_tensor)
+            if self.is_recurrent:
+                _tensor = torch.cat((_tensor, self.rec_state.unsqueeze(0).expand(_tensor.size(0), -1)), 1)
+
             _tensor = self.op(_tensor, self.weight, self.bias)
+
+            if self.is_recurrent:
+                with torch.no_grad():
+                    self.rec_state = _tensor[0].clone().detach()
+
+#            print(f'Recurrent state: {self.rec_state}')
 
         if self.activation is not None:
             _tensor = self.activation(_tensor)

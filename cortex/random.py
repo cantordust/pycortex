@@ -19,12 +19,12 @@ def negND(_mean = 0.0, _sd = 1.0):
     return -abs(ND(_mean, _sd))
 
 # Returns a random floating-point value between _min and _max.
-def ureal(_min = 0.0, _max = 1.0):
+def uni_real(_min = 0.0, _max = 1.0):
     return random.uniform(_min, _max)
 
 # Returns the outcome of a condition check with probability @p _prob.
 def chance(_prob):
-    return ureal(0.0, 1.0) <= _prob
+    return uni_real(0.0, 1.0) <= _prob
 
 # Returns the outcome of a condition check with probability @p _prob.
 def inverse_chance(_prob):
@@ -48,7 +48,7 @@ def roulette(_len, _weights):
     return idx
 
 # Returns a random integer value in the range [_min, _max).
-def uint(_min, _max):
+def uni_int(_min, _max):
     return random.randint(_min, _max - 1)
 
 # Returns a random element from a container.

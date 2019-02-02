@@ -793,19 +793,58 @@ class Net(tn.Module):
 
         return mut
 
+    def overlay_kernels(self):
+
+        '''
+        Overlay the kernels onto the weight tensor.
+        This doesn't need to be called manually as long as optimise() is used to
+        optimise the weights (cf. below).
+        '''
+
+        for layer_index, layer in enumerate(self.layers):
+            if layer.is_conv:
+                self.layers[layer_index].overlay_kernels()
+
     def forward(self,
                 _tensor):
+
+        '''
+        Perform a forward pass.
+        '''
 
         for layer in self.layers:
             _tensor = layer.forward(_tensor)
 
         return _tensor
 
+    def optimise(self,
+                 _closure,
+                 _optimiser):
+        '''
+        Optimise the network weights using a closure for the loss.
+        '''
+
+        loss = _optimiser.step(_closure)
+        self.fitness.loss_stat.update(loss)
+
+        # Transfer kernels to the weight tensor in convolutional layers
+        self.overlay_kernels()
+
+    def reset_recurrent_layers(self):
+        '''
+        Reset all recurrent states.
+        '''
+
+        for layer_index, layer in enumerate(self.layers):
+            if layer.is_recurrent:
+                with torch.no_grad():
+                    self.layers[layer_index].rec_state.data.zero_()
+
     def crossover(self,
                   _p1,  # Parent 1
                   _p2): # Parent 2
 
-                # Ensure that the nodes in all layers
+        # Ensure that the nodes in all layers
         # in each parent are up to date
         for layer in _p1.layers:
             layer.update_nodes()
@@ -935,6 +974,9 @@ class Net(tn.Module):
                 self.layers[-1].nodes.append(tn.Parameter(rnd_layer.nodes[node_index].clone().detach().requires_grad_(False)))
                 self.layers[-1].nodes[-1].requires_grad = self.layers[-1].is_conv
 
+                if self.layers[-1].is_recurrent:
+                    self.layers[-1].rec_nodes.append(tn.Parameter(rnd_layer.rec_nodes[node_index].clone().detach().requires_grad_(False)))
+
                 if rnd_layer.bias is not None:
                     bias_weights.append(rnd_layer.bias[node_index].item())
 
@@ -950,7 +992,13 @@ class Net(tn.Module):
             if self.layers[-1].bias is not None:
                 self.layers[-1].bias = tn.Parameter(torch.Tensor(bias_weights))
 
+            if self.layers[-1].is_recurrent:
+                self.layers[-1].adjust_recurrent_size()
+
             self.layers[-1].adjust_input_size()
+
+        # Transfer kernels to the weight tensor in convolutional layers
+        self.overlay_kernels()
 
         # Add the new network to the respective species
         self.species_id = _p1.species_id
@@ -975,11 +1023,17 @@ class Net(tn.Module):
                 self.layers[-1].nodes.append(tn.Parameter(node.clone().detach().requires_grad_(False)))
                 self.layers[-1].nodes[-1].requires_grad = self.layers[-1].is_conv
 
+                if self.layers[-1].is_recurrent:
+                    self.layers[-1].rec_nodes.append(tn.Parameter(layer.rec_nodes[node_index].clone().detach().requires_grad_(False)))
+
             # Clone the bias
             if layer.bias is not None:
                 self.layers[-1].bias = tn.Parameter(layer.bias.clone().detach().requires_grad_(False))
 
             self.layers[-1].update_weights()
+
+        # Transfer kernels to the weight tensor in convolutional layers
+        self.overlay_kernels()
 
         self.species_id = _parent.species_id
 

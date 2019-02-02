@@ -59,7 +59,7 @@ def main():
         # Set the initial parameters
         cn.Net.Input.Shape = [1, 28, 28]
         cn.Net.Output.Shape = [10]
-        cn.Net.Init.Layers = []
+        cn.Net.Init.Layers = [ctx.cl.Layer.Def([10, 0, 0])]
 
         ctx.Conf.DataLoader = get_loader
 

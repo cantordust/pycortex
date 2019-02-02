@@ -28,8 +28,8 @@ def test_overlay_kernels():
     successes = 0
 
     while successes < attempts:
-        node = ctx.Rand.uint(0,len(layer.nodes))
-        dim = ctx.Rand.uint(0,2)
+        node = ctx.Rand.uni_int(0,len(layer.nodes))
+        dim = ctx.Rand.uni_int(0,2)
         diff = wheel.spin()
 
         print('================[ Resizing kernel ]================')
