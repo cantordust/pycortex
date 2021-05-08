@@ -87,10 +87,12 @@ class Layer(tn.Module):
                 self.activation = Layer.Activations[self.role]
 
             self.is_conv = len(self.shape) > 1
+
             if self.is_conv:
                 self.is_recurrent = False
             else:
                 self.is_recurrent = Layer.RecurrentFC if _recurrent is None else _recurrent
+
             self.empty = (self.shape[0] == 0)
 
         def __len__(self):
@@ -215,7 +217,7 @@ class Layer(tn.Module):
         # Used for overlaying kernels onto the weight tensor
         self.weight_slices = []
 
-        # Learnable parameters
+        # Learnable parameters.
         # Convolutional layers store their parameters
         # in a list of variables which are overlaid onto
         # the layer's weights, whereas linear layers store
@@ -252,7 +254,9 @@ class Layer(tn.Module):
             print("\t>>> Layer 2:\n", _other.nodes)
             return False
 
-        if (self.is_recurrent != _other.is_recurrent):
+        if (hasattr(self, 'recurrent') and
+            hasattr(_other, 'recurrent') and
+            self.is_recurrent != _other.is_recurrent):
             print(f'(Layer {self.index}) >>> One layer is recurrent while the other is not')
             print(f'\t[Layer 1]: Recurrent: {self.is_recurrent}')
             print(f'\t[Layer 2]: Recurrent: {_other.is_recurrent}')
@@ -944,7 +948,8 @@ class Layer(tn.Module):
                 self.nodes[node_index] = tn.Parameter(self.weight[node_index][0:len(self.nodes[node_index])].clone().detach().requires_grad_(False))
                 self.nodes[node_index].requires_grad = False
 
-                if self.is_recurrent:
+                if (hasattr(self, 'is_recurrent') and
+                    self.is_recurrent):
                     self.rec_nodes[node_index] = tn.Parameter(self.weight[node_index][len(self.nodes[node_index]):].clone().detach().requires_grad_(False))
                     self.rec_nodes[node_index].requires_grad = False
 
@@ -982,8 +987,10 @@ class Layer(tn.Module):
                 self.update_slices()
 
                 self.weight = torch.zeros(len(self.nodes),      # Output node count
-                                           self.input_shape[0], # Input node count
-                                           *self.kernel_size)   # Unpacked kernel dimensions
+                                          self.input_shape[0], # Input node count
+                                          *self.kernel_size)   # Unpacked kernel dimensions
+
+                self.overlay_kernels()
 
             else:
 
@@ -993,13 +1000,12 @@ class Layer(tn.Module):
                 # that manipulating non-convolutional nodes should be preceded
                 # by a call to update_nodes() in order to update the
                 # nodes from the current weights.
-                with torch.no_grad():
-                    tensor_list = []
-                    for node_index in range(len(self.nodes)):
-                        if self.is_recurrent:
-                            tensor_list.append(torch.cat((self.nodes[node_index], self.rec_nodes[node_index])).clone().detach().requires_grad_(False))
-                        else:
-                            tensor_list.append(self.nodes[node_index].clone().detach().requires_grad_(False))
+                tensor_list = []
+                for node_index in range(len(self.nodes)):
+                    if self.is_recurrent:
+                        tensor_list.append(torch.cat((self.nodes[node_index], self.rec_nodes[node_index])).clone().detach().requires_grad_(False))
+                    else:
+                        tensor_list.append(self.nodes[node_index].clone().detach().requires_grad_(False))
 
                 self.weight = tn.Parameter(torch.stack(tensor_list))
 
@@ -1035,6 +1041,9 @@ class Layer(tn.Module):
         return self.nodes[_node_idx][slices].clone().detach().requires_grad_(False)
 
     def overlay_kernels(self):
+
+        if not self.is_conv:
+            return
 
         self.weight = self.weight.detach()
 

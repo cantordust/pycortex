@@ -25,6 +25,7 @@ import numpy as np
 import matplotlib.pyplot as mpl
 import matplotlib.animation as anim
 from collections import defaultdict
+from memory_profiler import profile
 
 ROM = 'Pong-v0'
 
@@ -51,6 +52,7 @@ def update_buffer(_env, _buffer, _action):
     ###################################################
     # Skip 2, take the max of the next two, visual mode
     ###################################################
+
 #    step = 0
 #    state1 = None
 #    state2 = None
@@ -77,32 +79,31 @@ def update_buffer(_env, _buffer, _action):
 
 #    return total_reward, done
 
+    ####################################
+    # Skip n, take the (n+1)st, RAM mode
+    ####################################
 
-    ##################################
-    # Skip 2, take the third, RAM mode
-    ##################################
+    total_reward = 0.0
 
-#    total_reward = 0.0
+    for _ in range(4):
+        state, reward, done, _ = _env.step(_action)
+        total_reward += reward
 
-#    for it in range(2):
-#        state, reward, done, _ = _env.step(_action)
-#        total_reward += reward
+        if done:
+            break
 
-#        if done:
-#            break
+    _buffer.append(torch.from_numpy(_env.unwrapped._get_ram()).float() / 255)
 
-#    _buffer.append(torch.from_numpy(_env.unwrapped._get_ram()).float() / 255)
-
-#    return total_reward, done
+    return total_reward, done
 
     ###############################
     # One state at a time, RAM mode
     ###############################
 
-    state, reward, done, _ = _env.step(_action)
-    _buffer.append(torch.from_numpy(_env.unwrapped._get_ram()).float() / 255)
+#    state, reward, done, _ = _env.step(_action)
+#    _buffer.append(torch.from_numpy(_env.unwrapped._get_ram()).float() / 255)
 
-    return reward, done
+#    return reward, done
 
 def init_buffer(_env, _buffer_size):
 
@@ -123,22 +124,16 @@ def init_buffer(_env, _buffer_size):
     return buffer, done
 
 def select_action(_net, _input):
-    output = tnf.log_softmax(_net(_input), dim = 1)
+    output = tnf.softmax(_net(_input), dim = 1)
 #    print(f'Output: {output}')
 
     ###############################################
     # Choose an action from a weighted distribution
     ###############################################
-    action_dist = Categorical(torch.exp(output))
-#    action_dist = Categorical(-1 / output)
+    action_dist = Categorical(output)
     action = action_dist.sample()
 
-    ###############################
-    # Always choose a greedy aciton
-    ###############################
-#    action = torch.argmax(output)
-
-    return action.item(), output
+    return action.item(), action_dist.log_prob(action)
 
 def optimise(_net, _conf, _history, _optimiser, _lr_scheduler):
 
@@ -146,40 +141,32 @@ def optimise(_net, _conf, _history, _optimiser, _lr_scheduler):
     def closure():
 
         _optimiser.zero_grad()
-        discounted_reward = 0
 
-        raw_rewards = np.array(_history['reward'])
+        raw_rewards = list(enumerate(np.array(_history['reward'])))
 #        print(f'Raw rewards: {raw_rewards}')
+
+        raw_rewards.reverse()
 
         scaled_rewards = torch.zeros(len(raw_rewards))
 
         factor = 1.0 - _conf.discount_factor
-        for idx, reward in reversed(list(enumerate(raw_rewards))):
+        discounted_reward = 0
+        for idx, reward in raw_rewards:
             discounted_reward = reward + factor * discounted_reward
             scaled_rewards[idx] = discounted_reward
 
-        mean = scaled_rewards.mean()
-        sd = scaled_rewards.std()
-
-        scaled_rewards = (scaled_rewards - mean) / (sd + _conf.epsilon)
+        scaled_rewards = (scaled_rewards - scaled_rewards.mean()) / (scaled_rewards.std() + _conf.epsilon)
 #        print(f'Scaled rewards: {scaled_rewards}')
 
-#        baseline = mean / sd
-        baseline = 0
+        losses = []
 
-#        print(f'Normalised rewards: {scaled_rewards}')
+        for log_prob, reward in zip(_history['output'], scaled_rewards):
+            losses.append(-log_prob * reward)
 
-        mask = torch.zeros_like(_history['output'])
-
-        for idx, val in enumerate(_history['action']):
-            mask[idx][val] = scaled_rewards[idx].item() - baseline
-
-#        print(f'Mask: {mask}')
-
-        losses = -torch.mul(mask, _history['output'])
 #        print(f'Losses: {losses}')
 
-        loss = (torch.sum(losses, 1)).mean()
+        loss = torch.cat(losses).mean()
+
 #        print(f'Loss: {loss}')
 
         loss.backward()
@@ -192,16 +179,19 @@ def optimise(_net, _conf, _history, _optimiser, _lr_scheduler):
     _net.optimise(closure, _optimiser)
 
 #    for param in _net.parameters():
-#        print(param.grad)
+#        print(param)
 
 def run_episode(_net,
                 _conf,
-                _env,
+                _env = None,
                 _optimiser = None,
                 _lr_scheduler = None,
                 _train = False,
                 _render = False,
                 _animate = False):
+
+    if _env is None:
+        _env = gym.make(ROM)
 
     state = _env.reset()
     done = False
@@ -216,39 +206,40 @@ def run_episode(_net,
     if _train:
 
         history = {
-                  'output': torch.zeros(0, *ctx.cn.Net.Output.Shape),
+                  'output': [],
                   'action': [],
                   'reward': []
                   }
 
     while not done:
         action, output = select_action(_net, torch.cat(buffer.dump()).unsqueeze(0))
-#        reward, done = update_buffer(_env, buffer, Actions[ROM][action])
-        reward, done = update_buffer(_env, buffer, action)
+        reward, done = update_buffer(_env, buffer, Actions[ROM][action])
+#        reward, done = update_buffer(_env, buffer, action)
         total_reward += reward
 
         if _train:
             history['action'].append(action)
-            history['output'] = torch.cat((history['output'], output))
+            history['output'].append(output)
             history['reward'].append(reward)
+
+            if reward != 0:
+
+                optimise(_net, _conf, history, _optimiser, _lr_scheduler)
+                _net.reset_recurrent_layers()
+
+                history['output'] = []
+                history['action'] = []
+                history['reward'] = []
 
         if _render:
             _env.render()
-            time.sleep(0.02)
+            time.sleep(0.03)
 
         if _animate:
             frame = mpl.imshow(buffer.data[buffer.head].data[0].numpy(), cmap='gray', animated=True)
             frames.append([frame])
 
         steps += 1
-
-    if _train:
-        optimise(_net, _conf, history, _optimiser, _lr_scheduler)
-        _net.reset_recurrent_layers()
-
-        history['output'] = torch.zeros(0, *ctx.cn.Net.Output.Shape)
-        history['action'] = []
-        history['reward'] = []
 
     if _animate:
         fig = mpl.figure()
@@ -257,28 +248,38 @@ def run_episode(_net,
 
     return steps, total_reward
 
-def train(_net, _env, _conf):
+def train(_net, _conf):
 
     net = _net.to(_conf.device)
 
     # Train
     score = ctx.Stat.SMAStat()
 
+    env = gym.make(ROM)
+
     optimiser = _conf.optimiser(net.parameters(), **_conf.optimiser_args)
 #    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimiser, 0.99)
     lr_scheduler = None
 
+    reward_stat = ctx.Stat.SMAStat()
+
     for episode in range(1, _conf.episodes + 1):
 
-        steps, total_reward = run_episode(net, _conf, _env, optimiser, lr_scheduler, _train = True)
+        steps, total_reward = run_episode(net,
+                                          _conf,
+                                          _env = env,
+                                          _optimiser = optimiser,
+                                          _lr_scheduler = lr_scheduler,
+                                          _train = True)
 
         # Update the running score
         score.update(steps)
 
-        print(f'[Episode {episode}] Steps: {steps:5d}\tMean loss: {net.fitness.loss_stat.mean:.3f}\tTotal reward: {total_reward:.0f}\tMean score: {score.mean:.2f}')
+        reward_stat.update(total_reward)
 
-    # Render an episode
-    run_episode(net, _conf, _env, _render = True)
+        print(f'[Net {_net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} | Episode {episode} | Steps: {steps:5d}\tMean loss: {net.fitness.loss_stat.mean:.3f}\tTotal reward: {total_reward:.0f}\tMean score: {score.mean:.2f}')
+
+    _net.fitness.absolute = reward_stat.mean
 
     return net
 
@@ -291,39 +292,43 @@ def main():
         ctx.init_conf()
 
         # Temporary environment to get the input dimensions and other parameters
-        env = gym.make(ROM)
-        state1 = env.reset()
+#        env = gym.make(ROM)
+#        state1 = env.reset()
 #        state2, _, _, _ = env.step(0)
 
-        buffer_size = 4
+        ctx.Conf.BufferSize = 4
         # Set the initial parameters
-#        cn.Net.Input.Shape = [buffer_size, *list(preprocess(state1, state2).size())[1:]]
-        cn.Net.Input.Shape = [buffer_size * 128]
-#        cn.Net.Output.Shape = [len(Actions[ROM])]
-        cn.Net.Output.Shape = [env.action_space.n]
+#        cn.Net.Input.Shape = [ctx.Conf.BufferSize, *list(preprocess(state1, state2).size())[1:]]
+        cn.Net.Input.Shape = [ctx.Conf.BufferSize * 128]
+        cn.Net.Output.Shape = [len(Actions[ROM])]
+#        cn.Net.Output.Shape = [env.action_space.n]
 
-#        cn.Net.Init.Layers = [ctx.cl.Layer.Def([10,3,3], [2,2])]
-        cn.Net.Init.Layers = [ctx.cl.Layer.Def([64])]
+        # Delete the temporary environment
+#        del env
+
+#        cn.Net.Init.Layers = [ctx.cl.Layer.Def([16,3,3], [2,2])]
+        cn.Net.Init.Layers = [ctx.cl.Layer.Def([32])]
+
+#        ctx.Conf.Optimiser = torch.optim.SGD
         ctx.Conf.OptimiserArgs['lr'] = 0.1
+#        ctx.Conf.OptimiserArgs['momentum'] = 0.5
         ctx.Conf.DiscountFactor = 0.01
         ctx.Conf.Epsilon = np.finfo(np.float32).eps.item()
-        ctx.Conf.Episodes = 200
 
         # Allow recurrence for FC layers
 #        cl.Layer.RecurrentFC = True
+#        cl.Layer.Activations['output'] = torch.tanh
+
+        ctx.Conf.Evaluator = train
+        ctx.Conf.DemoFunction = run_episode
+        ctx.Conf.DemoFunctionArgs = {'_render': True}
 
         ctx.print_conf()
-
-        conf = ctx.Conf(0, 0)
-        conf.buffer_size = buffer_size
-        net = cn.Net()
-
-        train(net, env, conf)
 
 #        ctx.init()
 
 #    # Run Cortex
-#    ctx.execute()
+    ctx.execute()
 
 if __name__ == '__main__':
     main()

@@ -21,8 +21,8 @@ def logistic(_val):
 def inv_logistic(_val):
     return (1.0 - logistic(_val))
 
-def gaussian(_val):
-    return math.exp(-0.5 * math.pow(_val, 2))
+def gaussian(_val, _mu = 0.0, _sd = 1.0):
+    return math.exp(- 0.5 * math.pow((_val - _mu) / _sd, 2))
 
 def linscale(_list):
 
@@ -75,8 +75,8 @@ class SQRL(tn.Module):
     def __init__(self):
         super(SQRL, self).__init__()
 
-    def forward(self, x):
-        return (0.5 * (torch.sqrt(torch.pow(x, 2.0) + 4.0) + x) - 1.0)
+    def forward(self, _x):
+        return sqrl(_x)
 
 def prod(_list):
 

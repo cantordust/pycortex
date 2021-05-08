@@ -144,7 +144,7 @@ class Species:
 
             net_stats.update(absolute_fitness)
 
-        print(f'>>> Champion for species {self.ID}: {self.champion} (fitness: {cn.Net.Ecosystem[self.champion].fitness.absolute})')
+        print(f'>>> Champion for species {self.ID}: {self.champion} (fitness: {cn.Net.Ecosystem[self.champion].fitness.absolute:.2f})')
 
         # Compute the relative fitness of the networks
         # belonging to this species
@@ -192,6 +192,8 @@ class Species:
 
             if (Species.Offspring < len(cn.Net.Ecosystem) // 2 and
                 Rand.chance(mating_chance)):
+
+                print(f'Parent 1: {p1.ID}, parent 2: {p2.ID}')
 
                 if p1 != p2:
                     # Crossover

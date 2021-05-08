@@ -4,11 +4,13 @@ Python-based interface to PyTorch for evolving deep learning models.
 
 For now, the library supports the following operations:
 
-- Add / erase layers (convolutional or fully connected)
-- Add / erase nodes (or kernels in convolutional layers)
+- Add / remove layers (convolutional or fully connected)
+- Add / remove nodes (or kernels in convolutional layers)
 - Grow or shrink strides
 - Grow or shrink kernels
 - Crossover / cloning deep NNs
+- Recurrentce supported for FC layers (not fully tested yet)
+- Training with backprop and optimisers of choice (Adadelta, Adam, etc.)
 
 All mutation and crossover operations should produce fully functional models which can be further trained with backprop.
 
@@ -39,3 +41,9 @@ Note: Some unit tests are not working at the moment due to significant changes i
 $> cd experiments/mnist
 $> mpirun --map-by core --np <number-of-cores> python3 mnist.py
 ```
+
+# ToDo
+- Add arbitrary layer types (MaxPool, LSTM, etc.)
+- Training on GPUs (WIP)
+- Skip connections
+- Training with RL (WIP)

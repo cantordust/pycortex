@@ -29,3 +29,12 @@ class Ring(object):
             data.append(self.data[head])
 
         return data
+
+    def zp_dump(self):
+        data = [0.0] * self.capacity
+        head = self.head
+        for pos in range(self.size):
+            head = (head + 1) % self.size
+            data[self.capacity - self.size + pos] = self.data[head]
+
+        return data

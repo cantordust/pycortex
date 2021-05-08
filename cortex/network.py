@@ -187,7 +187,7 @@ class Net(tn.Module):
         self_layer_index = 0
         partner_layer_index = 0
 
-        overlap = 0
+        overlap = 0.0
         total_nodes = self.get_node_count() + _partner.get_node_count()
 
         while (self_layer_index < len(self.layers) and
@@ -377,7 +377,7 @@ class Net(tn.Module):
             (mut.layer_index < len(self.layers) and
              len(mut.shape) < len(self.get_output_shape(mut.layer_index)))):     # Attempting to add an FC layer below a conv one
 
-            mut.msg = f'Invalid layer size: Cannot add layer of shape {layer_def.shape} at position {mut.layer_index}'
+            mut.msg = f'Invalid layer size: Cannot add layer of shape {mut.shape} at position {mut.layer_index}'
             return mut
 
         if mut.layer is None:
@@ -825,7 +825,7 @@ class Net(tn.Module):
         '''
 
         loss = _optimiser.step(_closure)
-        self.fitness.loss_stat.update(loss)
+        self.fitness.loss_stat.update(loss.item())
 
         # Transfer kernels to the weight tensor in convolutional layers
         self.overlay_kernels()
@@ -1002,7 +1002,8 @@ class Net(tn.Module):
 
         # Add the new network to the respective species
         self.species_id = _p1.species_id
-        if self.species_id != 0:
+        if (self.species_id != 0 and
+            self.species_id in cs.Species.Populations):
             cs.Species.Populations[self.species_id].nets.add(self.ID)
 
     def clone(self,
@@ -1037,7 +1038,8 @@ class Net(tn.Module):
 
         self.species_id = _parent.species_id
 
-        if self.species_id != 0:
+        if (self.species_id != 0 and
+            self.species_id in cs.Species.Populations):
             cs.Species.Populations[self.species_id].nets.add(self.ID)
 
         assert self.matches(_parent), 'Error cloning network {}'.format(_parent.ID)

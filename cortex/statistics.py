@@ -11,9 +11,11 @@ class MAType(Enum):
 class Stat:
 
     def __init__(self,
-                 _title = None):
+                 _title = None,
+                 _func = Func.Type.Logistic):
         self.title = "Statistics" if _title is None else _title
         self.reset()
+        self.func = _func
 
     def get_sd(self):
         return math.sqrt(self.var)
@@ -42,7 +44,7 @@ class Stat:
 
     def get_offset(self,
                    _val = None,
-                   _func = Func.Type.Logistic):
+                   _func = None):
 
         if _val is None:
             _val = self.current_value
@@ -55,11 +57,28 @@ class Stat:
         elif self.mean != 0.0:
             denom = abs(self.mean)
 
-        return Func.fmap[_func]((_val - self.mean) / denom)
+        return Func.fmap[_func if _func is not None else self.func]((_val - self.mean) / denom)
 
     def get_inv_offset(self,
                        _val = None):
         return self.get_offset(_val, Func.Type.InvLogistic)
+
+    def restore(self,
+                _val = None,
+                _func = None):
+
+        if _val is None:
+            return None
+
+        func = self.func if _func is None else _func
+
+        if func == Func.Type.Tanh:
+            inv_func = 0.5 * math.log( (1.0 + _val) / (1.0 - _val) )
+        else:
+            # Logistic
+            inv_func = math.log(_val / (1.0 - _val))
+
+        return self.get_sd() * inv_func + self.mean
 
     def as_str(self):
 
@@ -76,8 +95,9 @@ class Stat:
 class SMAStat(Stat):
 
     def __init__(self,
-                 _title = None):
-        super(SMAStat, self).__init__(_title = _title)
+                 _title = None,
+                 _func = Func.Type.Logistic):
+        super(SMAStat, self).__init__(_title = _title, _func = _func)
         self.count = 0
 
     def update(self,
@@ -101,8 +121,9 @@ class EMAStat(Stat):
 
     def __init__(self,
                  _alpha = 0.5,
-                 _title = None):
-        super(EMAStat, self).__init__(_title = _title)
+                 _title = None,
+                 _func = Func.Type.Logistic):
+        super(EMAStat, self).__init__(_title = _title, _func = _func)
         self.alpha = _alpha
 
     def update(self, _new_val):
@@ -115,7 +136,7 @@ class EMAStat(Stat):
 
     def as_str(self):
 
-        str = super(SMAStat, self).as_str() +\
+        str = super(EMAStat, self).as_str() +\
               f'\nAlpha: {self.alpha}'
 
         return str

@@ -6,15 +6,15 @@ import math
 import time
 
 from datetime import datetime
-from enum import IntEnum
+from enum import Enum, IntEnum
 from copy import deepcopy as dcp
 
 from mpi4py import  MPI
 
 import torch
 torch.set_printoptions(precision = 4, threshold = 5000, edgeitems = 5, linewidth = 160)
-torch.multiprocessing.set_start_method('spawn')
 
+import torch.nn as tn
 import torch.nn.functional as tnf
 import torchvision
 
@@ -37,11 +37,18 @@ class Tags(IntEnum):
     Done = 2
     Exit = 3
 
+class Task(Enum):
+    Control = 'Control'
+    Classification = 'Classification'
+
 class Conf:
     ExperimentName = 'Experiment'
+    TaskType = Task.Classification
+
     Runs = 1
     Epochs = 50
-    Episodes = 5
+    Episodes = 20
+    BufferSize = 0
 
     DiscountFactor = 0.99
     Epsilon = 1.0e-8
@@ -78,6 +85,10 @@ class Conf:
 
     Evaluator = None
 
+    Demo = False
+    DemoFunction = None
+    DemoFunctionArgs = {}
+
     GPUs = []
     Workers = []
     Tag = Tags.Start
@@ -96,6 +107,11 @@ class Conf:
         self.run = _run
         self.epoch = _epoch
         self.episodes = Conf.Episodes
+        self.buffer_size = Conf.BufferSize
+
+        self.discount_factor = Conf.DiscountFactor
+        self.epsilon = Conf.Epsilon
+
         self.gpu_slot = None
 
         self.train_batch_size = Conf.TrainBatchSize
@@ -121,16 +137,13 @@ class Conf:
         self.evaluator = Conf.Evaluator
         self.data_loader = Conf.DataLoader
 
-        self.discount_factor = Conf.DiscountFactor
-        self.epsilon = Conf.Epsilon
-
 def get_rank():
     return MPI.COMM_WORLD.Get_rank()
 
 def dump_exception():
-    print("-"*60)
+    print("-" * 60)
     traceback.print_exc()
-    print("-"*60)
+    print("-" * 60)
 
 def save_stat(_stat,
               _path = ''):
@@ -145,7 +158,9 @@ def save_stat(_stat,
 
 def save_net(_net,
              _path,
-             _name = ''):
+             _name = '',
+             _binary = True,
+             _plaintext = True):
 
     if get_rank() != 0:
          return
@@ -158,10 +173,102 @@ def save_net(_net,
     if _name is None:
         _name = 'net_' + str(_net.ID)
 
-    torch.save(_net, _path + '/' + _name + '.pt')
+    if _binary:
 
-    with open(_path + '/' + _name + '.txt', 'w+') as plaintext:
-        print(_net.as_str(_parameters = True), file = plaintext)
+        # Prepare the dictionary
+        state = {'input_shape': cn.Net.Input.Shape,
+                 'output_shape': cn.Net.Output.Shape,
+                 'layers': {},
+                 'ID': _net.ID,
+                 'species_id': _net.species_id,
+                 'age': _net.age,
+                 'fitness': _net.fitness}
+
+        for layer_index, layer in enumerate(_net.layers):
+
+            layer.update_nodes()
+
+            state['layers'][layer_index] = {'input_shape': layer.input_shape,
+                                            'shape': layer.get_shape(),
+                                            'op': layer.op,
+                                            'role': layer.role,
+                                            'activation': layer.activation,
+                                            'is_conv': layer.is_conv,
+                                            'is_recurrent': layer.is_recurrent,
+                                            'kernel_size': layer.kernel_size,
+                                            'stride': layer.stride,
+                                            'padding': layer.padding,
+                                            'dilation': layer.dilation,
+                                            'weight_slices': layer.weight_slices,
+                                            'nodes': {},
+                                            'bias': layer.bias
+                                            }
+
+            for node_index, node in enumerate(layer.nodes):
+                state['layers'][layer_index]['nodes'][node_index] = node
+
+        torch.save(state, _path + '/' + _name + '.pt')
+
+    if _plaintext:
+        with open(_path + '/' + _name + '.txt', 'w+') as plaintext:
+            print(_net.as_str(), file = plaintext)
+
+def load_net(_path):
+
+    state = torch.load(_path)
+
+    # Temporarily set the input and output shape to the values in the state
+    temp_input_shape = cn.Net.Input.Shape
+    temp_output_shape = cn.Net.Output.Shape
+
+    cn.Net.Input.Shape = state['input_shape']
+    cn.Net.Output.Shape = state['output_shape']
+
+    net = cn.Net(_empty = True, _isolated = True)
+    net.ID = state['ID']
+    net.species_id = state['species_id']
+    net.age = state['age']
+    net.fitness = dcp(state['fitness'])
+
+    for layer_index, layer_state in state['layers'].items():
+        net.add_layer(_shape = layer_state['shape'],
+                      _stride = layer_state['stride'],
+                      _bias = layer_state['bias'] is not None,
+                      _activation = layer_state['activation'],
+                      _layer_index = layer_index
+                     )
+
+        net.layers[-1].input_shape = layer_state['input_shape']
+        net.layers[-1].op = layer_state['op']
+        net.layers[-1].role = layer_state['role']
+        net.layers[-1].is_conv = layer_state['is_conv']
+        net.layers[-1].is_recurrent = layer_state['is_recurrent']
+        net.layers[-1].kernel_size = layer_state['kernel_size']
+        net.layers[-1].padding = layer_state['padding']
+        net.layers[-1].dilation = layer_state['dilation']
+        net.layers[-1].weight_slices = layer_state['weight_slices']
+
+        if layer_state['bias'] is not None:
+            net.layers[-1].bias = tn.Parameter(layer_state['bias'].clone().detach())
+
+        if net.layers[-1].is_recurrent:
+            net.layers[-1].rec_nodes = []
+            net.layers[-1].rec_state = torch.Tensor()
+
+        net.layers[-1].nodes = tn.ParameterList() if net.layers[-1].is_conv else []
+
+        for node_index, node in layer_state['nodes'].items():
+            net.layers[-1].nodes.append(tn.Parameter(node.clone().detach()))
+
+        net.layers[-1].update_weights()
+
+    net.reindex()
+
+    # Restore the input and output shape
+    cn.Net.Input.Shape = temp_input_shape
+    cn.Net.Output.Shape = temp_output_shape
+
+    return net
 
 def init_conf():
 
@@ -172,8 +279,11 @@ def init_conf():
     parser = argparse.ArgumentParser(description='PyCortex argument parser')
 
     parser.add_argument('--experiment-name', type=str, help='Experiment name')
-    parser.add_argument('--runs', type=int, help='number of runs')
-    parser.add_argument('--epochs', type=int, help='number of epochs to train')
+    parser.add_argument('--task-type', type=str, help='Task type')
+    parser.add_argument('--runs', type=int, help='Number of runs')
+    parser.add_argument('--epochs', type=int, help='Number of epochs (generations) per run')
+    parser.add_argument('--episodes', type=int, help='Number of episodes per epoch (generation)')
+    parser.add_argument('--buffer-size', type=int, help='Size of the observation buffer (for control tasks)')
     parser.add_argument('--init-nets', type=int, help='Initial number of networks')
     parser.add_argument('--max-nets', type=int, help='Maximal number of networks')
     parser.add_argument('--no-speciation', action='store_true', help='Disable speciation')
@@ -186,7 +296,8 @@ def init_conf():
     parser.add_argument('--gpu-count', type=int, help='Indicate how many GPUs are available')
     parser.add_argument('--rand-seed', type=int, help='Manual random seed')
     parser.add_argument('--max-workers', type=int, help='Number of workers for evaluating networks in parallel')
-    parser.add_argument('--download-data', action='store_true', help='Indicate whether the training data should be downloaded automatically.')
+    parser.add_argument('--download-data', action='store_true', help='Indicate whether the training data should be downloaded automatically')
+    parser.add_argument('--demo', action='store_true', help='Run a demo of the champion after the last epoch (requires a demo function)')
     parser.add_argument('--data-dir', type=str, help='Directory for storing the training / testing data')
     parser.add_argument('--log-dir', type=str, help='Directory for storing the output logs')
     parser.add_argument('--log-interval', type=int, help='Interval between successive log outputs (in untis of training batch size)')
@@ -197,11 +308,23 @@ def init_conf():
     if args.experiment_name:
         Conf.ExperimentName = args.experiment_name
 
+    if args.task_type:
+        for task_type in Task:
+            if (task_type.name.lower() == args.task_type.lower()):
+                Conf.TaskType = task_type
+                break
+
     if args.runs:
         Conf.Runs = args.runs
 
     if args.epochs:
         Conf.Epochs = args.epochs
+
+    if args.episodes:
+        Conf.Episodes = args.episodes
+
+    if args.buffer_size:
+        Conf.BufferSize = args.buffer_size
 
     if args.init_nets:
         cn.Net.Init.Count = args.init_nets
@@ -232,6 +355,9 @@ def init_conf():
 
     if args.download_data:
         Conf.DownloadData = args.download_data
+
+    if args.demo:
+        Conf.Demo = args.demo
 
     if args.use_cuda and torch.cuda.is_available():
         Conf.Device = torch.device('cuda')
@@ -264,8 +390,11 @@ def print_conf(_file = sys.stdout):
 
     str = f'========================[ PyCortex configuration ]========================' + \
           f'\n>>> Experiment name: {Conf.ExperimentName}' + \
+          f'\n>>> Taks type: {Conf.TaskType.name}' + \
           f'\n>>> Runs: {Conf.Runs}' + \
           f'\n>>> Epochs: {Conf.Epochs}' + \
+          f'\n>>> Episodes: {Conf.Episodes}' + \
+          f'\n>>> Buffer size: {Conf.BufferSize}' + \
           f'\n>>> Init. networks: {cn.Net.Init.Count}' + \
           f'\n>>> Max. networks: {cn.Net.Max.Count}' + \
           f'\n>>> Max. net age: {cn.Net.Max.Age}' + \
@@ -392,6 +521,36 @@ def test(_net, _conf):
 
     return accuracy
 
+def validate(_net, _conf):
+
+    _net.eval()
+    test_loss = 0
+    correct = 0
+
+    loader = _conf.data_loader(_dir = _conf.data_dir,
+                               _batch_size = _conf.test_batch_size,
+                               _train = True,
+                               _portion = _net.complexity if _conf.train_portion is None else _conf.train_portion,
+                               _download = _conf.download_data,
+                               **_conf.data_load_args)
+
+    with torch.no_grad():
+        for data, target in loader:
+            data, target = data.to(_conf.device), target.to(_conf.device)
+            output = _conf.output_function(_net(data), **_conf.output_function_args)
+            test_loss += _conf.loss_function(output, target, reduction='sum').item() # sum up batch loss
+            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    portion = 1.0 if _conf.train_portion is None else _conf.train_portion
+    accuracy = 100. * correct / int(len(loader.dataset) * portion)
+
+    print(f'[Net {_net.ID}] Test | Run {_conf.run} | ' +
+          f'Epoch {_conf.epoch}, ' +
+          f'Accuracy: {correct}/{int(len(loader.dataset) * portion)} ({accuracy:.2f}%)')
+
+    return accuracy
+
 def train(_net, _conf):
 
     net = _net.to(_conf.device)
@@ -415,7 +574,7 @@ def train(_net, _conf):
         net.fitness.loss_stat.reset()
 
         examples = 0
-        for batch_idx, (data, target) in enumerate(loader):
+        for data, target in loader:
 
             examples += len(data)
             data, target = data.to(_conf.device), target.to(_conf.device)
@@ -424,7 +583,7 @@ def train(_net, _conf):
         print(f'[Net {net.ID}] Train | Run {_conf.run} | Epoch {_conf.epoch} Trained on {100. * examples / len(loader.dataset):.2f}% of the dataset')
 
     # Evaluate on the test set to determine the fitness
-    net.fitness.set(test(net, _conf))
+    net.fitness.set(validate(net, _conf))
 
     return net
 
@@ -500,7 +659,8 @@ def init():
         # Generate proto-nets.
         for n in range(net_quota):
             proto_net = cn.Net(_species = proto_species)
-            proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True)
+            if n < len(cn.Net.Ecosystem) - 1:
+                proto_net.mutate(_probabilities = probabilities, _structure = True, _parameters = True)
 
     print(f'Network count: {len(cn.Net.Ecosystem)}')
     for net in cn.Net.Ecosystem.values():
@@ -561,7 +721,7 @@ def calibrate(_run,
         # Compute the relative species fitness
         species.fitness.relative = species_stat.get_offset(species.fitness.absolute)
 
-    print(f'>>> Global champion: {cn.Net.Champion} (fitness: {cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute})')
+    print(f'>>> Global champion: {cn.Net.Champion} (fitness: {cn.Net.Ecosystem[cn.Net.Champion].fitness.absolute:.2f})')
 
     # Save the champion
     if cn.Net.Champion is not None:
@@ -671,6 +831,7 @@ def cull():
 
     if len(removed_nets) > 0:
         print(f'Removed nets: {removed_nets}')
+
     if len(removed_species) > 0:
         print(f'Removed species: {removed_species}')
 
@@ -695,6 +856,12 @@ def execute():
             else:
                 torch.set_default_tensor_type(torch.FloatTensor)
 
+            if Conf.TaskType == Task.Classification:
+                assert Conf.DataLoader is not None, "Please assign a data loader function."
+
+            if Conf.Demo:
+                assert Conf.DemoFunction is not None, "Please assign a demo function."
+
         except:
             print('Caught exception in init()')
             Conf.Tag = Tags.Exit
@@ -702,8 +869,6 @@ def execute():
 
         if Conf.Evaluator is None:
             Conf.Evaluator = train
-
-        assert Conf.DataLoader is not None, "Please assign a data loader function."
 
         # Wait for all workers to return a Ready signal
 
@@ -822,6 +987,12 @@ def execute():
                         Conf.Tag = Tags.Exit
                         dump_exception()
                         break
+
+                if (Conf.Demo and
+                    epoch == Conf.Epochs):
+
+                    conf = Conf(run, epoch, worker if Conf.UseCuda else None)
+                    Conf.DemoFunction(cn.Net.Ecosystem[cn.Net.Champion], conf, **Conf.DemoFunctionArgs)
 
             if os.path.exists(Conf.LogDir):
                 with open(Conf.LogDir + '/config.txt', 'w+') as cfg_file:
